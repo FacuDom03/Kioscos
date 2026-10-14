@@ -1,7 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { entrar, kioscoConDueno, productos } from './ayuda.ts';
 
-async function preparar(page: import('@playwright/test').Page) {
+async function preparar(page: Page) {
   const d = await kioscoConDueno();
   await productos(d.kioscoId, [
     { nombre: 'Coca-Cola 500 ml', precio: 180000, codigo: '7790895000997' },

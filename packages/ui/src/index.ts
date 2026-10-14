@@ -6,9 +6,16 @@ export { star, zig, awning } from './formas.ts';
 export {
   TEMAS,
   CLAVE_TEMA,
+  CLAVE_ESTILO,
   TEMA_POR_DEFECTO,
   aplicarTema,
+  aplicarEstilo,
   leerTema,
+  leerEstilo,
+  temaGuardado,
+  temasDeEstilo,
   esTema,
+  esEstilo,
   type Tema,
+  type Estilo,
 } from './temas.ts';

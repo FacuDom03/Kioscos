@@ -1,7 +1,9 @@
+import { DATOS_RUBROS } from '@mostrador/shared';
 import { TEMAS, leerTema } from '@mostrador/ui';
 import { api } from '../nucleo/api.ts';
 import { hayPendientes, sincronizar, useBandeja } from '../nucleo/bandeja.ts';
 import { borrarDatosDelKiosco } from '../nucleo/local.ts';
+import { rubroDe } from '../nucleo/rubro.ts';
 import { navegar } from '../nucleo/ruta.ts';
 import { useSesion, useSesionCompleta } from '../nucleo/sesion.tsx';
 
@@ -34,6 +36,11 @@ export function Mas() {
   const opciones: Opcion[] = [
     ...(dueno
       ? [
+          {
+            ruta: '/mas/negocio',
+            nombre: 'Tu negocio',
+            detalle: `${DATOS_RUBROS[rubroDe(s.kiosco.rubro)].nombre}, categorías y funciones`,
+          },
           {
             ruta: '/mas/conexiones',
             nombre: 'Conexiones',

@@ -20,3 +20,18 @@ export {
   type LecturaBalanza,
 } from './balanza.ts';
 export { DetectorRafagas, type OpcionesLector } from './lector.ts';
+export {
+  RUBROS,
+  MODULOS,
+  DATOS_RUBROS,
+  DATOS_MODULOS,
+  esRubro,
+  nombreModulo,
+  tituloListo,
+  type Rubro,
+  type Modulo,
+  type Estilo,
+  type TemaRubro,
+  type DatosRubro,
+  type DatosModulo,
+} from './rubros.ts';

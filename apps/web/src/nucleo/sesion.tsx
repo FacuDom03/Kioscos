@@ -1,3 +1,4 @@
+import type { Modulo, Rubro } from '@mostrador/shared';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, ErrorApi, eventosSesion } from './api.ts';
 import { navegar } from './ruta.ts';
@@ -9,7 +10,15 @@ export interface SesionCompleta {
   tipo: 'completa';
   usuario: { id: string; nombre: string };
   rol: Rol;
-  kiosco: { id: string; nombre: string; plan: string };
+  kiosco: {
+    id: string;
+    nombre: string;
+    plan: string;
+    /** Puede faltar en una sesión guardada por una versión anterior de la app. */
+    rubro?: Rubro;
+    modulos?: Modulo[];
+    configurado?: boolean;
+  };
   kioscos: { id: string; nombre: string; rol: Rol }[];
   esSoporte: boolean;
   enDispositivo: boolean;

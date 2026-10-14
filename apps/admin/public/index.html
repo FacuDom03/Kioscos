@@ -29,13 +29,13 @@
 
       <section id="kioscos" hidden>
         <header>
-          <h1>Kioscos</h1>
+          <h1>Comercios</h1>
           <span id="quien"></span>
           <button id="salir" type="button">Salir</button>
         </header>
 
         <details open>
-          <summary>Alta de kiosco</summary>
+          <summary>Alta de comercio</summary>
           <form id="form-alta">
             <label>Nombre <input name="nombre" required maxlength="120" /></label>
             <label
@@ -46,6 +46,17 @@
               <select name="plan">
                 <option value="esencial">Esencial</option>
                 <option value="comercio" selected>Comercio</option>
+              </select>
+            </label>
+            <label
+              >Rubro
+              <select name="rubro">
+                <option value="kiosco">Kiosco</option>
+                <option value="almacen">Almacén</option>
+                <option value="ferreteria">Ferretería</option>
+                <option value="perfumeria">Perfumería</option>
+                <option value="libreria">Librería</option>
+                <option value="otro">Otro rubro</option>
               </select>
             </label>
             <label>Email del dueño <input name="emailDueno" type="email" required /></label>
@@ -64,7 +75,8 @@
         <table>
           <thead>
             <tr>
-              <th>Kiosco</th>
+              <th>Comercio</th>
+              <th>Rubro</th>
               <th>Dueño</th>
               <th>Plan</th>
               <th>Estado</th>

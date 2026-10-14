@@ -1,4 +1,6 @@
-// Datos del kiosco, acceso de soporte (24 horas) y auditoría visible para el dueño.
+// Datos del kiosco, rubro y funciones, acceso de soporte (24 horas) y auditoría visible para el
+// dueño.
+import { MODULOS, RUBROS, uuidv7 } from '@mostrador/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { auditar } from '../servicios/auditoria.ts';
@@ -12,12 +14,71 @@ export async function rutasKiosco(app: FastifyInstance): Promise<void> {
       req.db(async (tx) => {
         const k = await tx
           .selectFrom('kioscos')
-          .select(['id', 'nombre', 'plan', 'estado_suscripcion', 'soporte_hasta'])
+          .select([
+            'id',
+            'nombre',
+            'plan',
+            'rubro',
+            'modulos',
+            'configurado',
+            'estado_suscripcion',
+            'soporte_hasta',
+          ])
           .executeTakeFirstOrThrow();
         const soporteActivo = !!k.soporte_hasta && k.soporte_hasta > new Date();
         return { ...k, soporte_hasta: soporteActivo ? k.soporte_hasta : null };
       }),
   );
+
+  // Rubro, funciones y categorías. Lo usa el dueño al armar el negocio la primera vez y
+  // después desde Más. Las categorías solo se agregan (las que ya existen quedan como están).
+  app.put('/api/v1/kiosco/negocio', { config: { roles: ['dueno'] } }, async (req) => {
+    const d = validar(
+      z.strictObject({
+        rubro: z.enum(RUBROS),
+        modulos: z.array(z.enum(MODULOS)).max(MODULOS.length),
+        categorias: z.array(z.string().trim().min(1).max(60)).max(30),
+      }),
+      req.body,
+    );
+    const modulos = [...new Set(d.modulos)];
+    return req.db(async (tx) => {
+      const existentes = await tx.selectFrom('categorias').select(['nombre', 'orden']).execute();
+      const nombres = new Set(existentes.map((c) => c.nombre.toLowerCase()));
+      let orden = Math.max(0, ...existentes.map((c) => c.orden));
+      const nuevas: string[] = [];
+      for (const nombre of d.categorias) {
+        if (nombres.has(nombre.toLowerCase())) continue;
+        nombres.add(nombre.toLowerCase());
+        nuevas.push(nombre);
+      }
+      if (nuevas.length) {
+        await tx
+          .insertInto('categorias')
+          .values(
+            nuevas.map((nombre) => ({
+              id: uuidv7(),
+              kiosco_id: req.completa.kioscoId,
+              nombre,
+              orden: ++orden,
+            })),
+          )
+          .execute();
+      }
+      await tx
+        .updateTable('kioscos')
+        .set({ rubro: d.rubro, modulos, configurado: true, updated_at: new Date() })
+        .execute();
+      await auditar(
+        tx,
+        req.completa,
+        'kiosco.negocio',
+        { rubro: d.rubro, modulos, categoriasNuevas: nuevas.length },
+        req.ip,
+      );
+      return { rubro: d.rubro, modulos, configurado: true, categoriasNuevas: nuevas.length };
+    });
+  });
 
   app.put('/api/v1/kiosco/soporte', { config: { roles: ['dueno'] } }, async (req) => {
     const { activo } = validar(z.strictObject({ activo: z.boolean() }), req.body);

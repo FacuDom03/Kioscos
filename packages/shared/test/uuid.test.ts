@@ -10,7 +10,8 @@ describe('uuidv7', () => {
   });
 
   it('codifica el milisegundo en los primeros 48 bits', () => {
-    const ms = Date.UTC(2026, 9, 14, 12, 0, 0);
+    // Una fecha lejana: uuidv7 nunca retrocede, así que tiene que ser posterior al reloj real.
+    const ms = Date.UTC(2099, 9, 14, 12, 0, 0);
     const id = uuidv7(ms);
     expect(parseInt(id.replace(/-/g, '').slice(0, 12), 16)).toBe(ms);
   });

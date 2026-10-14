@@ -3,6 +3,11 @@
  */
 @import '@fontsource-variable/bricolage-grotesque/standard.css';
 @import '@fontsource/permanent-marker/400.css';
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-700.css';
+@import '@fontsource-variable/instrument-sans/wght.css';
 @import './temas.css';
 
 *,
@@ -21,8 +26,25 @@
   color-scheme: dark;
 }
 
-[data-tema='dia'] {
+[data-tema='dia'],
+[data-tema='sobrio'],
+[data-tema='boutique'] {
   color-scheme: light;
+}
+
+/* Estilo sobrio (ferretería, perfumería y otros rubros): sin toldo, sin estrella ni letra de
+ * marcador, esquinas más chicas y letra de lectura. Ver docs/decisiones/009-rubros.md. */
+:root[data-estilo='sobrio'] {
+  --font-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-total: var(--font-ui);
+  --radio: 8px;
+  --radio-grande: 10px;
+}
+
+:root[data-estilo='sobrio'][data-tema='boutique'] {
+  --font-ui: 'Instrument Sans Variable', system-ui, sans-serif;
+  --radio: 12px;
+  --radio-grande: 14px;
 }
 
 html,
@@ -417,4 +439,78 @@ h3 {
 .m-boton:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* ---------------------------------------------------------------------------
+ * Estilo sobrio: sin toldo, sin estrella ni marcador, sin zigzag ni sello torcido.
+ * El total va en texto grande. Ver docs/decisiones/009-rubros.md.
+ * ------------------------------------------------------------------------- */
+
+[data-estilo='sobrio'] .m-marco__toldo {
+  display: none;
+}
+
+[data-estilo='sobrio'] h1,
+[data-estilo='sobrio'] h2,
+[data-estilo='sobrio'] h3 {
+  font-weight: 700;
+  font-stretch: normal;
+  letter-spacing: 0;
+}
+
+[data-estilo='sobrio'] .m-cartel {
+  width: auto !important;
+  place-items: end;
+}
+
+[data-estilo='sobrio'] .m-cartel svg {
+  display: none;
+}
+
+[data-estilo='sobrio'] .m-cartel__texto {
+  position: static;
+  transform: none;
+  align-items: flex-end;
+  gap: 2px;
+  color: var(--text);
+  text-align: right;
+}
+
+[data-estilo='sobrio'] .m-cartel__etiqueta {
+  font-size: 14px;
+  font-weight: 500;
+  font-stretch: normal;
+  color: var(--text-soft);
+}
+
+[data-estilo='sobrio'] .m-cartel__monto {
+  font-size: 34px;
+  font-weight: 700;
+}
+
+[data-estilo='sobrio'] .m-cartel--cobro .m-cartel__monto {
+  font-size: 48px;
+}
+
+[data-estilo='sobrio'] .m-boton--principal {
+  box-shadow: none;
+  font-size: 19px;
+  font-weight: 600;
+  font-stretch: normal;
+}
+
+[data-estilo='sobrio'] .m-ticket {
+  border-bottom: var(--paper-border);
+  border-radius: var(--radio);
+}
+
+[data-estilo='sobrio'] .m-ticket__zigzag {
+  display: none;
+}
+
+[data-estilo='sobrio'] .sello {
+  transform: none;
+  border-width: 2px;
+  font-size: 18px;
+  letter-spacing: 1px;
 }

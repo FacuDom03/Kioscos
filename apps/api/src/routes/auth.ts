@@ -90,7 +90,7 @@ async function estadoDeSesion(app: FastifyInstance, s: Sesion) {
     ? await withKiosco(app.base, s.kioscoId, (tx) =>
         tx
           .selectFrom('kioscos')
-          .select(['id', 'nombre', 'plan', 'soporte_hasta'])
+          .select(['id', 'nombre', 'plan', 'rubro', 'modulos', 'configurado'])
           .executeTakeFirst(),
       )
     : null;
@@ -103,7 +103,7 @@ async function estadoDeSesion(app: FastifyInstance, s: Sesion) {
     tipo: s.tipo,
     usuario: { id: s.usuarioId, nombre: s.nombre },
     rol: s.rol,
-    kiosco: kiosco ? { id: kiosco.id, nombre: kiosco.nombre, plan: kiosco.plan } : null,
+    kiosco: kiosco ?? null,
     kioscos,
     esSoporte: s.esSoporte,
     enDispositivo: !!s.dispositivoId,

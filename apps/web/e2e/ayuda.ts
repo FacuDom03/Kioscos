@@ -32,7 +32,9 @@ export interface Dueno {
 /** Kiosco nuevo con su caja y un dueño con contraseña y TOTP ya configurados. */
 export async function kioscoConDueno(
   plan: 'esencial' | 'comercio' = 'comercio',
-  opciones: { cajaAbierta?: boolean } = { cajaAbierta: true },
+  opciones: { cajaAbierta?: boolean; rubro?: string; configurado?: boolean } = {
+    cajaAbierta: true,
+  },
 ): Promise<Dueno> {
   const d = datos();
   const cifrador = await crearCifrador(d.claves, 1);
@@ -44,11 +46,10 @@ export async function kioscoConDueno(
   const secreto = randomSecreto();
   const totp = cifrador.cifrar(secreto);
   const c = admin();
-  await c.query(`insert into kioscos (id, nombre, plan) values ($1, $2, $3)`, [
-    kioscoId,
-    kiosco,
-    plan,
-  ]);
+  await c.query(
+    `insert into kioscos (id, nombre, plan, rubro, configurado) values ($1, $2, $3, $4, $5)`,
+    [kioscoId, kiosco, plan, opciones.rubro ?? 'kiosco', opciones.configurado ?? true],
+  );
   const caja = uuidv7();
   await c.query(`insert into cajas (id, kiosco_id) values ($1, $2)`, [caja, kioscoId]);
   await c.query(

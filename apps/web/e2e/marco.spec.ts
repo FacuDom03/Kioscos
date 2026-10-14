@@ -9,8 +9,15 @@ const TEMAS = [
   { id: 'contraste', nombre: 'Alto contraste', fondo: 'rgb(0, 0, 0)', hex: '#000000' },
 ] as const;
 
-async function abrirConTema(page: Page, tema: string) {
-  const dueno = await kioscoConDueno();
+// Temas del estilo sobrio, con el rubro que los usa (docs/decisiones/009-rubros.md).
+const TEMAS_SOBRIOS = [
+  { id: 'sobrio', nombre: 'Claro', fondo: 'rgb(242, 243, 245)', rubro: 'ferreteria' },
+  { id: 'grafito', nombre: 'Grafito', fondo: 'rgb(22, 25, 29)', rubro: 'ferreteria' },
+  { id: 'boutique', nombre: 'Boutique', fondo: 'rgb(250, 248, 249)', rubro: 'perfumeria' },
+] as const;
+
+async function abrirConTema(page: Page, tema: string, rubro = 'kiosco') {
+  const dueno = await kioscoConDueno('comercio', { cajaAbierta: true, rubro });
   await entrar(page, dueno);
   await page.addInitScript((t) => {
     // Solo la primera carga de la página: no pisar lo que elija la prueba después.
@@ -24,10 +31,11 @@ async function abrirConTema(page: Page, tema: string) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-for (const tema of TEMAS) {
+for (const tema of [...TEMAS, ...TEMAS_SOBRIOS]) {
+  const rubro = 'rubro' in tema ? tema.rubro : 'kiosco';
   test.describe(`tema ${tema.nombre}`, () => {
     test('Vender entra sin scroll y la navegación va donde corresponde', async ({ page }, info) => {
-      await abrirConTema(page, tema.id);
+      await abrirConTema(page, tema.id, rubro);
 
       await expect(page.locator('html')).toHaveAttribute('data-tema', tema.id);
       await expect(page.locator('body')).toHaveCSS('background-color', tema.fondo);
@@ -70,7 +78,7 @@ for (const tema of TEMAS) {
     });
 
     test('sin problemas de accesibilidad (axe)', async ({ page }) => {
-      await abrirConTema(page, tema.id);
+      await abrirConTema(page, tema.id, rubro);
       const vender = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
         .analyze();

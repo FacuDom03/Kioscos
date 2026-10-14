@@ -92,6 +92,9 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   // Kiosco
   caso('GET', '/api/v1/kiosco', 'sin_datos_de_b'),
   caso('PUT', '/api/v1/kiosco/soporte', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
+  caso('PUT', '/api/v1/kiosco/negocio', 'escribe_solo_lo_propio', {
+    cuerpo: { rubro: 'ferreteria', modulos: ['presupuestos'], categorias: ['Electricidad'] },
+  }),
   caso('GET', '/api/v1/auditoria', 'sin_datos_de_b'),
 
   // Catálogo y stock

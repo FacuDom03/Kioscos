@@ -29,6 +29,8 @@ import { useEnLinea } from './nucleo/conexion.ts';
 import { refrescarMp } from './nucleo/mp.ts';
 import { iniciarLector } from './nucleo/lector.ts';
 import { Equipo } from './pantallas/mas/Equipo.tsx';
+import { ArmarNegocio } from './pantallas/negocio/ArmarNegocio.tsx';
+import { aplicarRubro, rubroDe } from './nucleo/rubro.ts';
 import { Exportar } from './pantallas/mas/Exportar.tsx';
 import { AumentoPrecios } from './pantallas/stock/Aumento.tsx';
 import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
@@ -67,6 +69,9 @@ function Raiz() {
   }
   if (codigos?.length)
     return <CodigosRecuperacion codigos={codigos} alTerminar={() => setCodigos(null)} />;
+  // Primera vez del dueño: confirma el rubro y arma el negocio antes de empezar.
+  if (estado.rol === 'dueno' && !estado.esSoporte && estado.kiosco.configurado === false)
+    return <ArmarNegocio />;
   return <AppConSesion ruta={ruta} />;
 }
 
@@ -93,7 +98,9 @@ const SECCION_DE_RUTA: [string, Seccion][] = [
 function AppConSesion({ ruta }: { ruta: string }) {
   const { estado } = useSesion();
   const kioscoId = estado.tipo === 'completa' ? estado.kiosco.id : null;
+  const rubro = rubroDe(estado.tipo === 'completa' ? estado.kiosco.rubro : null);
   const enLinea = useEnLinea();
+  useEffect(() => aplicarRubro(rubro), [rubro]);
   useEffect(() => {
     if (!kioscoId) return;
     usarKiosco(kioscoId);
@@ -148,6 +155,9 @@ function AppConSesion({ ruta }: { ruta: string }) {
       break;
     case '/mas':
       pantalla = <Mas />;
+      break;
+    case '/mas/negocio':
+      pantalla = <ArmarNegocio alVolver={volverAMas} />;
       break;
     case '/mas/apariencia':
       pantalla = <Apariencia alVolver={volverAMas} />;

@@ -1749,3 +1749,156 @@ details summary {
 .zona-peligro {
   border-color: var(--danger);
 }
+
+/* ---------------------------------------------------------------------------
+ * Armar el negocio: rubro, categorías y funciones (docs/decisiones/009-rubros.md)
+ * ------------------------------------------------------------------------- */
+
+.armado__marca {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.armado__paso {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rubros {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rubro {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 104px;
+  padding: 12px;
+  border: var(--line-w) solid var(--line-control);
+  border-radius: var(--radio-grande);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.rubro:has(.rubro__radio:checked) {
+  border-color: var(--action);
+  box-shadow: 0 0 0 2px var(--action);
+}
+
+.rubro:has(.rubro__radio:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.rubro__radio {
+  /* El radio nativo cubre toda la tarjeta: se toca en cualquier parte y sigue siendo accesible. */
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rubro__icono {
+  margin-bottom: 2px;
+}
+
+.rubro__nombre {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.rubro__detalle {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.armado__grupo {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.armado__titulo {
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.chip--check {
+  font-weight: 500;
+}
+
+.chip--check input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--action);
+}
+
+.funciones {
+  margin: 0;
+  padding: 0 14px;
+  list-style: none;
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+  background: var(--surface);
+}
+
+.funciones li + li {
+  border-top: var(--line-w) solid var(--line);
+}
+
+.funcion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.funcion__texto {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.funcion__nombre {
+  font-weight: 600;
+}
+
+.funcion__pronto {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: var(--line-w) solid var(--line-control);
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.funcion__check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--action);
+}

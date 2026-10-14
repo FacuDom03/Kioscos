@@ -86,6 +86,7 @@ describe('panel admin', () => {
     const r = await pedir('POST', '/panel/api/kioscos', {
       nombre: 'Kiosco Nuevo',
       plan: 'esencial',
+      rubro: 'ferreteria',
       emailDueno: 'dueno@nuevo.test',
     });
     expect(r.statusCode).toBe(200);
@@ -96,8 +97,24 @@ describe('panel admin', () => {
       [hashToken(token), id],
     );
     expect(rows).toEqual([{ rol: 'dueno', email: 'dueno@nuevo.test' }]);
-    const lista = (await pedir('GET', '/panel/api/kioscos')).json<{ nombre: string }[]>();
-    expect(lista.map((k) => k.nombre)).toContain('Kiosco Nuevo');
+    const lista = (await pedir('GET', '/panel/api/kioscos')).json<
+      { nombre: string; rubro: string; configurado: boolean }[]
+    >();
+    // El rubro lo elige quien visita el negocio; el dueño lo confirma al entrar.
+    expect(lista.find((k) => k.nombre === 'Kiosco Nuevo')).toMatchObject({
+      rubro: 'ferreteria',
+      configurado: false,
+    });
+  });
+
+  it('no da de alta un rubro que no existe', async () => {
+    const r = await pedir('POST', '/panel/api/kioscos', {
+      nombre: 'Agencia',
+      plan: 'esencial',
+      rubro: 'agencia',
+      emailDueno: 'dueno@agencia.test',
+    });
+    expect(r.statusCode).toBe(400);
   });
 
   it('cambia plan y estado', async () => {

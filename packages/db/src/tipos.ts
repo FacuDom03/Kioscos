@@ -15,6 +15,9 @@ export interface KioscosTabla {
   nombre: string;
   cuit: string | null;
   plan: 'esencial' | 'comercio';
+  rubro: Generated<'kiosco' | 'almacen' | 'ferreteria' | 'perfumeria' | 'libreria' | 'otro'>;
+  modulos: Generated<string[]>;
+  configurado: Generated<boolean>;
   estado_suscripcion: Generated<'prueba' | 'activa' | 'vencida' | 'suspendida' | 'baja'>;
   soporte_hasta: Fecha | null;
   created_at: FechaDefault;

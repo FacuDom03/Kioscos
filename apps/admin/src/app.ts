@@ -11,7 +11,7 @@ import {
   verificarTotp,
   type Cifrador,
 } from '@mostrador/servidor';
-import { uuidv7 } from '@mostrador/shared';
+import { RUBROS, uuidv7 } from '@mostrador/shared';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -195,6 +195,7 @@ export async function construirPanel(
           .or(z.literal(''))
           .optional(),
         plan,
+        rubro: z.enum(RUBROS),
         emailDueno: z.email().max(254),
       }),
       req.body,
@@ -202,7 +203,7 @@ export async function construirPanel(
     const id = uuidv7();
     const token = tokenAleatorio();
     await q(
-      sql`select panel_crear_kiosco(${id}, ${d.nombre}, ${d.cuit ?? ''}, ${d.plan}, ${uuidv7()}, ${uuidv7()},
+      sql`select panel_crear_kiosco(${id}, ${d.nombre}, ${d.cuit ?? ''}, ${d.plan}, ${d.rubro}, ${uuidv7()}, ${uuidv7()},
         ${d.emailDueno}, ${hashToken(token)}, ${new Date(Date.now() + 72 * 3600_000)}, ${admin(req).admin_id})`,
     );
     return { id, enlace: enlaceInvitacion(config, token) };

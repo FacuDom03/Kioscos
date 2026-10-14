@@ -1,4 +1,4 @@
-// Verifica los contrastes de los tokens de los cuatro temas (sección 16.3 de docs/SPEC.md).
+// Verifica los contrastes de los tokens de todos los temas (sección 16.3 de docs/SPEC.md).
 // Corre en CI: `pnpm contraste`. Sale con código 1 si algún par no llega al mínimo.
 import { readFileSync } from 'node:fs';
 
@@ -111,7 +111,7 @@ export function verificar(temas: Record<string, Tokens>): Resultado[] {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const css = readFileSync(new URL('../src/temas.css', import.meta.url), 'utf8');
   const temas = leerTemas(css);
-  const esperados = ['noche', 'dia', 'pizarron', 'contraste'];
+  const esperados = ['noche', 'dia', 'pizarron', 'contraste', 'sobrio', 'grafito', 'boutique'];
   const faltan = esperados.filter((t) => !temas[t]);
   if (faltan.length) {
     console.error(`Faltan temas: ${faltan.join(', ')}`);

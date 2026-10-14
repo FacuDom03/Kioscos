@@ -1,9 +1,13 @@
-import { TEMAS, aplicarTema, leerTema, type Tema } from '@mostrador/ui';
+import { DATOS_RUBROS } from '@mostrador/shared';
+import { aplicarTema, leerTema, temasDeEstilo, type Tema } from '@mostrador/ui';
 import { useState } from 'react';
 import { Volver } from '../componentes/Formulario.tsx';
+import { useNegocio } from '../nucleo/rubro.ts';
 
 export function Apariencia({ alVolver }: { alVolver: () => void }) {
   const [tema, setTema] = useState<Tema>(leerTema);
+  // El estilo sale del rubro del comercio; los temas que se ofrecen son los de ese estilo.
+  const estilo = DATOS_RUBROS[useNegocio().rubro].estilo;
 
   const elegir = (t: Tema) => {
     setTema(t);
@@ -21,7 +25,7 @@ export function Apariencia({ alVolver }: { alVolver: () => void }) {
       </p>
 
       <div className="temas" role="radiogroup" aria-labelledby="titulo-apariencia">
-        {TEMAS.map((t) => (
+        {temasDeEstilo(estilo).map((t) => (
           <label key={t.id} className="tema">
             <input
               type="radio"
@@ -47,7 +51,9 @@ export function Apariencia({ alVolver }: { alVolver: () => void }) {
       </div>
 
       <p className="nota">
-        En todos los temas, el amarillo marca precios y totales, y el rojo avisa problemas.
+        {estilo === 'kiosco'
+          ? 'En todos los temas, el amarillo marca precios y totales, y el rojo avisa problemas.'
+          : 'En todos los temas, el rojo avisa problemas.'}
       </p>
     </div>
   );

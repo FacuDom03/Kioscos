@@ -39,6 +39,7 @@ const ACCIONES: Record<string, string> = {
   'mp.desconectado': 'Desconectó Mercado Pago',
   'kiosco.alta': 'Se creó la cuenta',
   'kiosco.plan': 'Cambió el plan',
+  'kiosco.negocio': 'Cambió el rubro o las funciones',
 };
 
 export function Auditoria({ alVolver }: { alVolver: () => void }) {

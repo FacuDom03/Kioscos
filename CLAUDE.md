@@ -18,8 +18,8 @@ pnpm --filter @mostrador/admin dev    # panel admin (DATABASE_PANEL_URL, PANEL_O
 
 pnpm lint && pnpm format:check && pnpm typecheck
 pnpm test                 # unidad e integración (TEST_DATABASE_ADMIN_URL, PostgreSQL real)
-pnpm contraste            # contraste de los tokens de los cuatro temas
-pnpm e2e                  # Playwright: 4 tamaños × 4 temas, con axe
+pnpm contraste            # contraste de los tokens de los siete temas
+pnpm e2e                  # Playwright: 4 tamaños × 7 temas, con axe
 ```
 
 Copiá `.env.example` a `.env`. Node 22 corre TypeScript directo (sin compilar): los imports
@@ -73,8 +73,13 @@ locales llevan la extensión `.ts`/`.tsx` y solo se usa sintaxis borrable (nada 
 - Plata en centavos (`bigint` en la base, `number` entero en JS). Nunca float.
 - IDs UUIDv7 generados en la app (`@mostrador/shared`). Nada de IDs autoincrementales en URLs.
 - Interfaz en castellano rioplatense, con voseo, sin jerga técnica. Estados siempre en palabras.
-- Colores solo con tokens (`packages/ui/src/temas.css`). Permanent Marker solo en el total.
-- Cada pantalla se hace en los tres tamaños (celular, tablet, PC) y los cuatro temas.
+- Colores solo con tokens (`packages/ui/src/temas.css`). Permanent Marker solo en el total y
+  solo en el estilo kiosco.
+- Rubros (`docs/decisiones/009-rubros.md`): el rubro del comercio define el estilo (`kiosco` o
+  `sobrio`, atributo `data-estilo`) y las funciones (`kioscos.modulos`, `useNegocio().tiene()`).
+  Una ferretería no se ve como un kiosco.
+- Cada pantalla se hace en los tres tamaños (celular, tablet, PC) y en los temas de su estilo
+  (Noche, Día, Pizarrón y Alto contraste; Claro, Grafito, Boutique y Alto contraste).
 
 ## Preguntar antes de
 

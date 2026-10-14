@@ -34,6 +34,15 @@ function mostrarEnlace(enlace, texto) {
   $('#whatsapp').href = `https://wa.me/?text=${encodeURIComponent(`${texto} ${enlace}`)}`;
 }
 
+const RUBROS = {
+  kiosco: 'Kiosco',
+  almacen: 'Almacén',
+  ferreteria: 'Ferretería',
+  perfumeria: 'Perfumería',
+  libreria: 'Librería',
+  otro: 'Otro rubro',
+};
+
 async function cargarKioscos() {
   const kioscos = await api('GET', '/panel/api/kioscos');
   const filas = $('#filas');
@@ -99,6 +108,9 @@ async function cargarKioscos() {
         'tr',
         {},
         el('td', { texto: k.nombre }),
+        el('td', {
+          texto: `${RUBROS[k.rubro] ?? k.rubro}${k.configurado ? '' : ' (sin confirmar)'}`,
+        }),
         el('td', { texto: k.dueno_email || 'Sin dueño todavía' }),
         el('td', {}, plan),
         el('td', {}, estado),

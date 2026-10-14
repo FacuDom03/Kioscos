@@ -812,6 +812,25 @@ Cada etapa termina con su "Listo cuando". Si no se cumple, no se pasa a la sigui
 
 **Después del MVP:** 5 kioscos piloto durante 2 semanas sin perder ventas. Recién ahí se encara la fase 2 (proveedores, fiado, informe mensual, guías y devoluciones por API).
 
+**Etapa I: Rubros** (agregada en octubre de 2026, ver `docs/decisiones/009-rubros.md`)
+
+Por lo que se vio en la calle, antes de los pilotos se adelanta el soporte para ferreterías, perfumerías y almacenes. Cada rubro tiene su diseño y sus funciones; la base es la misma.
+
+- **I1. Rubro y alta:** rubro y funciones por comercio, rubro en el alta del panel, el dueño confirma el rubro y elige categorías y funciones al entrar, estilo sobrio con tres temas nuevos.
+  **Listo cuando:** un dueño de ferretería entra por el enlace, confirma el rubro y la app queda sin toldo ni estrella, con sus categorías; los siete temas pasan contraste y axe en los cuatro tamaños.
+- **I2. Mostrador de ferretería:** unidad por producto (unidad, metro, kilo, litro, caja), cantidades con decimales, ubicación, lista de gremio, búsqueda que entiende medidas (2,5 = 2.5 = 2½) y pantalla Vender con tabla en PC.
+  **Listo cuando:** en PC se vende 12,5 m de cable con la lista de gremio sin mouse, el stock baja 12,5 y el ticket lo muestra bien.
+- **I3. Proveedores y precios:** proveedores, código del proveedor por producto, importar su lista (CSV o Excel), cruce por código, vista previa manteniendo la ganancia y redondeo, aplicar con auditoría y deshacer, etiquetas nuevas.
+  **Listo cuando:** una lista de 1.000 renglones se cruza, se revisa y se aplica en menos de un minuto, y se puede deshacer.
+- **I4. Presupuestos y remitos:** guardar el ticket como presupuesto, mandarlo por WhatsApp, imprimirlo, pasarlo a venta con los precios del día o los del presupuesto, y remito sin precios.
+  **Listo cuando:** un presupuesto se crea, se manda, vence y se convierte en venta sin cargar nada de nuevo.
+- **I5. Clientes y cuenta corriente (fiado):** clientes con lo mínimo, cobrar a cuenta con límite, pagos a cuenta, saldo y movimientos, exportación y borrado.
+  **Listo cuando:** una venta a cuenta suma al saldo en la misma transacción que la venta, un pago lo baja, el límite se respeta y los datos del cliente salen en la exportación y se borran con la cuenta.
+- **I6. Tablero:** lo que más y menos se vende, lo que no se mueve, por reponer, ganancia por categoría, deuda de clientes y precios desactualizados.
+  **Listo cuando:** con 10.000 ventas de prueba el tablero carga en menos de 2 segundos.
+- **I7. Perfumería:** variantes (tono, tamaño) con stock propio, promos automáticas, regalo y ticket de cambio, cambios, y vencimientos por lote.
+  **Listo cuando:** una venta con 3 esmaltes de tonos distintos aplica el 3x2, baja el stock de cada tono y el ticket de cambio sale sin precios.
+
 ---
 
 ## 23. No hacer
@@ -819,10 +838,10 @@ Cada etapa termina con su "Listo cuando". Si no se cumple, no se pasa a la sigui
 - No guardar contraseñas, claves fiscales ni datos de tarjeta de los comercios ni de sus clientes.
 - No pedir a Mercado Pago más permisos que los necesarios para crear órdenes QR y consultarlas.
 - No hacer cobros ni devoluciones automáticas sin una acción del usuario.
-- No usar Permanent Marker ni elementos torcidos fuera del cartel del total.
+- No usar Permanent Marker ni elementos torcidos fuera del cartel del total (y nunca en el estilo sobrio).
 - No cargar fuentes, scripts ni imágenes de terceros en la app (salvo lo que exija Mercado Pago, que hoy no es nada en el cliente).
 - No mostrar datos de un kiosco al soporte sin el permiso activo del dueño.
-- No crear tablas de clientes, consentimientos ni comprobantes fiscales en la V1.
+- No crear tablas de consentimientos ni comprobantes fiscales en la V1. (Clientes de cuenta corriente: adelantados en la etapa I5 con OK del dueño del proyecto, decisión 009.)
 - No recargar la app sola con un ticket abierto.
 - No usar números autoincrementales visibles como ID en URLs.
 

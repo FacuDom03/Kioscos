@@ -217,23 +217,21 @@ export class ClienteMp {
         config: { qr: { external_pos_id: datos.externalPosId, mode: 'dynamic' } },
         transactions: { payments: [{ amount: plata(datos.totalCentavos) }] },
         // Items con cantidad entera (los productos por peso van como una unidad con su subtotal).
-        items: datos.items
-          .slice(0, 50)
-          .map((i) =>
-            Number.isInteger(i.cantidad)
-              ? {
-                  title: i.titulo.slice(0, 150),
-                  unit_price: plata(i.precioCentavos),
-                  quantity: i.cantidad,
-                  unit_measure: 'unit',
-                }
-              : {
-                  title: i.titulo.slice(0, 150),
-                  unit_price: plata(Math.round(i.precioCentavos * i.cantidad)),
-                  quantity: 1,
-                  unit_measure: 'unit',
-                },
-          ),
+        items: datos.items.slice(0, 50).map((i) =>
+          Number.isInteger(i.cantidad)
+            ? {
+                title: i.titulo.slice(0, 150),
+                unit_price: plata(i.precioCentavos),
+                quantity: i.cantidad,
+                unit_measure: 'unit',
+              }
+            : {
+                title: i.titulo.slice(0, 150),
+                unit_price: plata(Math.round(i.precioCentavos * i.cantidad)),
+                quantity: 1,
+                unit_measure: 'unit',
+              },
+        ),
       },
     });
   }

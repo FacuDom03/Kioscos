@@ -60,6 +60,7 @@ export function Mas() {
     ...(!s.esSoporte && (s.rol === 'dueno' || s.rol === 'encargado')
       ? [{ ruta: '/mas/seguridad', nombre: 'Seguridad' }]
       : []),
+    { ruta: '/mas/equipo', nombre: 'Este equipo', detalle: 'Impresora y balanza' },
     { ruta: '/mas/apariencia', nombre: 'Apariencia', ...(tema ? { detalle: tema } : {}) },
   ];
 

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { TicketImpreso } from './TicketImpreso.tsx';
+import { configEquipo } from '../../nucleo/equipo.ts';
 
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
@@ -11,6 +12,9 @@ const hora = (iso: string) =>
 export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVenta: () => void }) {
   const s = useSesionCompleta();
   const boton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (configEquipo().imprimirAlCobrar) setTimeout(() => window.print(), 300);
+  }, []);
   useEffect(() => {
     boton.current?.focus();
     const tecla = (e: KeyboardEvent) => {

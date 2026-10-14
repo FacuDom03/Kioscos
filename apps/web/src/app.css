@@ -1720,3 +1720,28 @@ fieldset.campo legend {
   text-decoration: none;
   align-self: flex-start;
 }
+
+.escaner__video {
+  width: 100%;
+  max-height: 50vh;
+  border-radius: var(--radio);
+  background: #000;
+  object-fit: cover;
+}
+
+.ayuda {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
+}
+
+details summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}

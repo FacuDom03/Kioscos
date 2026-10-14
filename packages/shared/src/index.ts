@@ -19,3 +19,4 @@ export {
   type FormatoBalanza,
   type LecturaBalanza,
 } from './balanza.ts';
+export { DetectorRafagas, type OpcionesLector } from './lector.ts';

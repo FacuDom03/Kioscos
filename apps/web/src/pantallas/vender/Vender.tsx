@@ -24,6 +24,8 @@ import {
 import { useTurno } from '../../nucleo/turno.ts';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { AbrirCaja } from './AbrirCaja.tsx';
+import { Escaner } from '../../componentes/Escaner.tsx';
+import { configEquipo } from '../../nucleo/equipo.ts';
 import { useEstadoMp } from '../../nucleo/mp.ts';
 import { Cobrado } from './Cobrado.tsx';
 import { Cobrar, type Medio } from './Cobrar.tsx';
@@ -60,6 +62,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
   const [precioLibre, setPrecioLibre] = useState(false);
   const [desconocido, setDesconocido] = useState<string | null>(null);
   const [confirmarVaciar, setConfirmarVaciar] = useState(false);
+  const [escaner, setEscaner] = useState(false);
   const buscador = useRef<HTMLInputElement>(null);
   const total = totalTicket(items);
 
@@ -97,7 +100,8 @@ export function Vender({ estado }: { estado: ReactNode }) {
     if (!r) return;
     const exacto = productoPorCodigo(r);
     if (exacto) return sumar(exacto, n);
-    const balanza = leerCodigoBalanza(r);
+    const eq = configEquipo().balanza;
+    const balanza = eq.activa ? leerCodigoBalanza(r, eq) : null;
     if (balanza) {
       const p = catalogo?.productos.find((x) =>
         x.codigos.some((c) => c === balanza.codigoProducto || c.endsWith(balanza.codigoProducto)),
@@ -229,6 +233,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
             </label>
             <input
               ref={buscador}
+              data-recibe-codigo
               id="buscar"
               className="buscador__campo"
               type="search"
@@ -259,11 +264,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
                 }
               }}
             />
-            <button
-              type="button"
-              className="buscador__escanear"
-              onClick={() => window.dispatchEvent(new Event('mostrador:escanear'))}
-            >
+            <button type="button" className="buscador__escanear" onClick={() => setEscaner(true)}>
               Escanear
             </button>
             <span className="buscador__pista">Escaneá o escribí · F2</span>
@@ -490,6 +491,15 @@ export function Vender({ estado }: { estado: ReactNode }) {
         </aside>
       </div>
 
+      {escaner && (
+        <Escaner
+          alLeer={(codigo) => entrar(codigo)}
+          alCerrar={() => {
+            setEscaner(false);
+            enfocar();
+          }}
+        />
+      )}
       {precioLibre && (
         <PrecioLibre
           alCerrar={() => {

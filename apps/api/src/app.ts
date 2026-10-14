@@ -1,7 +1,9 @@
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
-import type { BaseApp } from '@mostrador/db';
+import { sinKiosco, type BaseApp } from '@mostrador/db';
+import { ClienteMp, reconsultarOrden, type ConfigMp } from '@mostrador/mp';
+import { uuidv7 } from '@mostrador/shared';
 import { randomUUID } from 'node:crypto';
 import type { Config } from './config.ts';
 import { ErrorPublico } from './errores.ts';
@@ -20,6 +22,8 @@ declare module 'fastify' {
     cifrador: Cifrador;
     /** "MÉTODO /url" de cada ruta registrada; lo usa la prueba de cobertura de rutas. */
     rutasRegistradas: string[];
+    /** Guarda el ID del evento de webhook. Devuelve false si ya se había recibido. */
+    registrarEventoWebhook: (eventoId: string) => Promise<boolean>;
   }
 }
 
@@ -46,6 +50,12 @@ export interface OpcionesApp {
   logger?: FastifyServerOptions['logger'];
   /** En pruebas se puede apagar el límite de pedidos. */
   limitarPedidos?: boolean;
+  /** Configuración de Mercado Pago (null: no disponible en este servidor). */
+  mp?: ConfigMp | null;
+  /** Fetch para hablar con Mercado Pago (en pruebas, un servidor falso). */
+  fetchMp?: typeof fetch;
+  /** Encola la reconsulta de una orden. Por defecto se hace en este proceso. */
+  encolarOrdenMp?: (ordenId: string) => Promise<void>;
 }
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -55,6 +65,9 @@ export async function construirApp({
   config,
   logger = false,
   limitarPedidos = true,
+  mp = null,
+  fetchMp,
+  encolarOrdenMp,
 }: OpcionesApp): Promise<FastifyInstance> {
   const app = Fastify({
     logger: logger === true ? { redact: REDACTAR } : logger,
@@ -66,6 +79,30 @@ export async function construirApp({
   app.decorate('base', base);
   app.decorate('config', config);
   app.decorate('cifrador', await crearCifrador(config.claves, config.claveActual));
+  app.decorate('mp', mp ? { config: mp, cliente: new ClienteMp(mp, fetchMp) } : null);
+  app.decorate(
+    'encolarOrdenMp',
+    encolarOrdenMp ??
+      (async (ordenId: string) => {
+        setImmediate(() => {
+          if (!app.mp) return;
+          reconsultarOrden(app.base, app.cifrador, app.mp.cliente, ordenId).catch((err: unknown) =>
+            app.log.error({ err }, 'Reconsulta de orden'),
+          );
+        });
+      }),
+  );
+  app.decorate('registrarEventoWebhook', async (eventoId: string) => {
+    const r = await sinKiosco(base, (tx) =>
+      tx
+        .insertInto('eventos_webhook')
+        .values({ id: uuidv7(), proveedor: 'mercadopago', evento_id: eventoId })
+        .onConflict((oc) => oc.doNothing())
+        .returning('id')
+        .execute(),
+    );
+    return r.length > 0;
+  });
 
   const rutasRegistradas: string[] = [];
   app.decorate('rutasRegistradas', rutasRegistradas);

@@ -26,6 +26,7 @@ import { usarKiosco } from './nucleo/bandeja.ts';
 import { cargarTicket } from './nucleo/ticket.ts';
 import { cargarTurno } from './nucleo/turno.ts';
 import { useEnLinea } from './nucleo/conexion.ts';
+import { refrescarMp } from './nucleo/mp.ts';
 import { AumentoPrecios } from './pantallas/stock/Aumento.tsx';
 import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
 import { ImportarProductos } from './pantallas/stock/Importar.tsx';
@@ -95,6 +96,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
     usarKiosco(kioscoId);
     void cargarTurno(kioscoId);
     void cargarTicket(kioscoId);
+    void refrescarMp();
     const parar = iniciarRefrescoCatalogo(kioscoId);
     return () => {
       parar();

@@ -15,6 +15,7 @@ export const RUTAS_PUBLICAS: readonly string[] = [
   'GET /api/v1/auth/pin/personas',
   'POST /api/v1/auth/pin',
   'POST /api/v1/auth/soporte',
+  'POST /api/v1/webhooks/mercadopago',
 ];
 
 export type Espera =
@@ -183,4 +184,36 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
     cuerpo: { contado: 0 },
   }),
   caso('GET', '/api/v1/caja/cierres', 'sin_datos_de_b'),
+
+  // Mercado Pago
+  caso('GET', '/api/v1/mp/estado', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/mp/conectar', 'escribe_solo_lo_propio'),
+  caso('GET', '/api/v1/mp/callback', 'escribe_solo_lo_propio'),
+  caso('POST', '/api/v1/mp/probar', 'escribe_solo_lo_propio'),
+  caso('POST', '/api/v1/mp/desconectar', 'escribe_solo_lo_propio'),
+  caso('POST', '/api/v1/cobros/qr', 'escribe_solo_lo_propio', {
+    cuerpo: {
+      ventaId: '0192a000-0000-7000-8000-00000000bbb1',
+      pagoId: '0192a000-0000-7000-8000-00000000bbb2',
+      turnoId: '$B:turnos_caja',
+      creadaEn: '2026-10-14T10:00:00-03:00',
+      total: 100,
+      items: [
+        {
+          id: '0192a000-0000-7000-8000-00000000bbb3',
+          productoId: '$B:productos',
+          descripcion: 'X',
+          cantidad: 1,
+          precioUnitario: 100,
+        },
+      ],
+    },
+  }),
+  caso('GET', '/api/v1/pagos/:id', 'no_encontrado', { tabla: 'pagos' }),
+  caso('POST', '/api/v1/pagos/:id/cancelar', 'no_encontrado', { tabla: 'pagos' }),
+  caso('GET', '/api/v1/ventas/pendientes', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/ventas/:id/resolver', 'no_encontrado', {
+    tabla: 'ventas',
+    cuerpo: { accion: 'anular' },
+  }),
 ];

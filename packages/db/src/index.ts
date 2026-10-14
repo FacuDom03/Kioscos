@@ -4,3 +4,4 @@ export { TABLAS_DE_KIOSCO, TABLAS_GLOBALES, TABLAS_SISTEMA } from './tipos.ts';
 export type { Database, Rol } from './tipos.ts';
 export { sql } from 'kysely';
 export type { RawBuilder } from 'kysely';
+export { moverStock, type TipoMovimiento } from './stock.ts';

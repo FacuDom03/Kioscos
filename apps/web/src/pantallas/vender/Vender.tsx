@@ -24,6 +24,7 @@ import {
 import { useTurno } from '../../nucleo/turno.ts';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { AbrirCaja } from './AbrirCaja.tsx';
+import { useEstadoMp } from '../../nucleo/mp.ts';
 import { Cobrado } from './Cobrado.tsx';
 import { Cobrar, type Medio } from './Cobrar.tsx';
 import { PrecioLibre } from './PrecioLibre.tsx';
@@ -49,6 +50,8 @@ export function Vender({ estado }: { estado: ReactNode }) {
   const esPC = useEsPC();
   const teclado = useHayTeclado();
   const enLinea = useEnLinea();
+  const mp = useEstadoMp();
+  const qrDisponible = enLinea && !!mp?.puedeCobrar;
   const [q, setQ] = useState('');
   const [activo, setActivo] = useState(0);
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
@@ -128,7 +131,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
         F4: () => setPrecioLibre(true),
         F7: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'transferencia' }),
         F8: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'efectivo' }),
-        F9: () => total > 0 && enLinea && setModo({ tipo: 'cobrar', medio: 'qr' }),
+        F9: () => total > 0 && qrDisponible && setModo({ tipo: 'cobrar', medio: 'qr' }),
       };
       if (f[ev.key]) {
         ev.preventDefault();
@@ -167,7 +170,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
     };
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
-  }, [modo.tipo, total, enLinea, q, seleccionado, items]);
+  }, [modo.tipo, total, qrDisponible, q, seleccionado, items]);
 
   useEffect(() => {
     const alLeer = (ev: Event) => {
@@ -454,10 +457,14 @@ export function Vender({ estado }: { estado: ReactNode }) {
                   <button
                     type="button"
                     className="m-boton m-boton--cobro"
-                    disabled={!total || !enLinea}
+                    disabled={!total || !qrDisponible}
                     onClick={() => setModo({ tipo: 'cobrar', medio: 'qr' })}
                   >
-                    {enLinea ? `Cobrar con QR${atajo('F9')}` : 'Cobrar con QR (necesita internet)'}
+                    {!enLinea
+                      ? 'Cobrar con QR (necesita internet)'
+                      : qrDisponible
+                        ? `Cobrar con QR${atajo('F9')}`
+                        : 'Cobrar con QR (conectá Mercado Pago)'}
                   </button>
                   <button
                     type="button"

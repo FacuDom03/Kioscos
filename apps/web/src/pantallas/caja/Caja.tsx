@@ -11,6 +11,7 @@ import { olvidarTurno, turnoActual, useTurno } from '../../nucleo/turno.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 import { aplicarActualizacion } from '../../nucleo/actualizacion.ts';
 import { AbrirCaja } from '../vender/AbrirCaja.tsx';
+import { Pendientes } from './Pendientes.tsx';
 
 interface DatosCaja {
   turno: { id: string; abiertoEn: string; abiertoPor: string; cambioInicial: number } | null;
@@ -270,6 +271,7 @@ export function Caja() {
         </button>
       </form>
 
+      {s.rol !== 'cajero' && <Pendientes />}
       <VentasDelTurno turnoId={datos?.turno?.id ?? null} />
       {s.rol !== 'cajero' && <CierresAnteriores />}
     </div>

@@ -6,6 +6,7 @@ import { Aviso, Volver } from '../../componentes/Formulario.tsx';
 import { cobrar, type VentaHecha } from '../../nucleo/cobrar.ts';
 import { useEnLinea } from '../../nucleo/conexion.ts';
 import { CobroQr } from './CobroQr.tsx';
+import { useEstadoMp } from '../../nucleo/mp.ts';
 
 export type Medio = 'efectivo' | 'qr' | 'transferencia';
 
@@ -19,6 +20,8 @@ interface Props {
 
 export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Props) {
   const enLinea = useEnLinea();
+  const mp = useEstadoMp();
+  const qrDisponible = enLinea && !!mp?.puedeCobrar;
   const [medio, setMedio] = useState<Medio | null>(medioInicial ?? (enLinea ? null : 'efectivo'));
   const [recibido, setRecibido] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +73,7 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
               type="button"
               className="medio"
               aria-pressed={medio === m}
-              disabled={m === 'qr' && !enLinea}
+              disabled={m === 'qr' && !qrDisponible}
               onClick={() => {
                 setMedio(m);
                 setError(null);
@@ -79,9 +82,11 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
               {m === 'efectivo'
                 ? 'Efectivo'
                 : m === 'qr'
-                  ? enLinea
-                    ? 'QR'
-                    : 'QR (necesita internet)'
+                  ? !enLinea
+                    ? 'QR (necesita internet)'
+                    : qrDisponible
+                      ? 'QR'
+                      : 'QR (sin conectar)'
                   : 'Transferencia'}
             </button>
           ))}

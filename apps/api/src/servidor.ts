@@ -1,15 +1,26 @@
 import { cerrarBaseApp, crearBaseApp } from '@mostrador/db';
 import { construirApp } from './app.ts';
 import { configDesdeEntorno } from './config.ts';
+import { configMpDesdeEntorno } from '@mostrador/mp';
+import { crearColaMp } from './cola.ts';
 
 const url = process.env['DATABASE_URL'];
 if (!url) throw new Error('Falta la variable de entorno DATABASE_URL');
 
 const base = crearBaseApp(url);
-const app = await construirApp({ base, config: configDesdeEntorno(), logger: true });
+const config = configDesdeEntorno();
+const cola = await crearColaMp(process.env['REDIS_URL']);
+const app = await construirApp({
+  base,
+  config,
+  logger: true,
+  mp: configMpDesdeEntorno(config.origen),
+  ...(cola ? { encolarOrdenMp: cola.encolar } : {}),
+});
 
 const cerrar = async () => {
   await app.close();
+  await cola?.cerrar();
   await cerrarBaseApp(base);
   process.exit(0);
 };

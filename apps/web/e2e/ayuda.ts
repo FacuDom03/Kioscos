@@ -10,6 +10,7 @@ import { uuidv7 } from '../../../packages/shared/src/uuid.ts';
 export { codigoTotp };
 
 interface Datos {
+  mpUrl: string;
   adminUrl: string;
   claves: Record<number, string>;
   origen: string;
@@ -119,4 +120,11 @@ export async function invitacion(
     [uuidv7(), kioscoId, email, rol, hashToken(token)],
   );
   return token;
+}
+
+/** Simula que el cliente pagó con el QR (Mercado Pago falso de las pruebas). */
+export async function pagarQr(kioscoId: string): Promise<void> {
+  const caja = `MOSTRADOR${kioscoId.replace(/-/g, '').toUpperCase()}`.slice(0, 40);
+  const r = await fetch(`${datos().mpUrl}/__pruebas/pagar?caja=${caja}`, { method: 'POST' });
+  if (!r.ok) throw new Error('no hay orden para pagar');
 }

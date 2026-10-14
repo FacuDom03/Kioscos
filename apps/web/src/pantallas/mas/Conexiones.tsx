@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Aviso, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { TarjetaMp } from './TarjetaMp.tsx';
+import { useBandeja } from '../../nucleo/bandeja.ts';
 
 interface Kiosco {
   soporte_hasta: string | null;
@@ -17,6 +19,11 @@ export function Conexiones({
   const { datos, recargar } = useDatos<Kiosco>('/api/v1/kiosco');
   const [error, setError] = useState<string | null>(null);
   const soporte = !!datos?.soporte_hasta;
+  const bandeja = useBandeja();
+  const [ahora] = useState(() => Date.now());
+  const hace = bandeja.ultimaSubida
+    ? Math.max(0, Math.round((ahora - new Date(bandeja.ultimaSubida).getTime()) / 60_000))
+    : null;
 
   async function cambiarSoporte() {
     try {
@@ -32,6 +39,29 @@ export function Conexiones({
       <Volver onClick={alVolver} />
       <h1 className="m-titulo">Conexiones</h1>
       {error && <Aviso>{error}</Aviso>}
+
+      <TarjetaMp />
+
+      <section className="conexion">
+        <div className="conexion__cabeza">
+          <h2 className="subtitulo">Copia en la nube</h2>
+          <span
+            className={`conexion__estado ${bandeja.pendientes ? 'conexion__estado--mal' : 'conexion__estado--ok'}`}
+          >
+            {bandeja.pendientes ? `${bandeja.pendientes} sin subir` : 'Al día'}
+          </span>
+        </div>
+        <p className="texto-suave">
+          Ventas, stock y caja se guardan solos. Si se rompe el celular, no perdés nada.
+        </p>
+        <p className="texto-suave">
+          {hace === null
+            ? 'Este equipo todavía no subió ventas.'
+            : hace === 0
+              ? 'Última copia: recién.'
+              : `Última copia: hace ${hace} ${hace === 1 ? 'minuto' : 'minutos'}.`}
+        </p>
+      </section>
 
       <section className="conexion">
         <div className="conexion__cabeza">

@@ -5,14 +5,17 @@ import { writeFileSync } from 'node:fs';
 import { crearBaseApp } from '../../../packages/db/src/con-kiosco.ts';
 import { prepararBaseDePrueba } from '../../../packages/db/src/pruebas.ts';
 import { construirApp } from '../../api/src/app.ts';
+import { MpFalso } from '../../api/test/mp-falso.ts';
 
 const ORIGEN = 'http://127.0.0.1:4173';
 const base = await prepararBaseDePrueba('mostrador_e2e');
 const claves = { 1: randomBytes(32).toString('base64') };
+// Mercado Pago falso en el 3101 (OAuth, órdenes QR y un control para simular pagos).
+const mp = await new MpFalso(3101).iniciar();
 
 writeFileSync(
   new URL('./.datos.json', import.meta.url),
-  JSON.stringify({ adminUrl: base.adminUrl, claves, origen: ORIGEN }),
+  JSON.stringify({ adminUrl: base.adminUrl, claves, origen: ORIGEN, mpUrl: mp.url }),
 );
 
 const app = await construirApp({
@@ -26,6 +29,15 @@ const app = await construirApp({
     claveActual: 1,
   },
   limitarPedidos: false,
+  mp: {
+    clientId: 'app-id',
+    clientSecret: 'secreto-app',
+    redirectUri: `${ORIGEN}/api/v1/mp/callback`,
+    webhookSecret: 'secreto-webhooks-e2e',
+    apiBase: mp.url,
+    authUrl: `${mp.url}/authorization`,
+    pruebas: true,
+  },
 });
 await app.listen({ host: '127.0.0.1', port: 3100 });
 console.log('API de e2e en http://127.0.0.1:3100');

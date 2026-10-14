@@ -11,9 +11,11 @@
     "@fastify/cookie": "11.1.3",
     "@fastify/rate-limit": "11.2.1",
     "@mostrador/db": "workspace:*",
+    "@mostrador/mp": "workspace:*",
     "@mostrador/servidor": "workspace:*",
     "@mostrador/shared": "workspace:*",
     "@simplewebauthn/server": "14.0.3",
+    "bullmq": "5.81.5",
     "fastify": "5.12.7",
     "zod": "4.6.7"
   },

@@ -207,6 +207,9 @@ export interface PagosTabla {
   mp_order_id: string | null;
   mp_payment_id: string | null;
   confirmado_en: Fecha | null;
+  vence_en: Fecha | null;
+  ultima_consulta: Fecha | null;
+  mp_qr_data: string | null;
   created_at: FechaDefault;
   updated_at: FechaDefault;
 }
@@ -265,6 +268,18 @@ export interface InvitacionesTabla {
   created_at: FechaDefault;
 }
 
+export interface OauthEstadosTabla {
+  id: string;
+  kiosco_id: string;
+  usuario_id: string;
+  state_hash: string;
+  verificador_cifrado: Buffer;
+  clave_version: number;
+  vence_en: Fecha;
+  usado_en: Fecha | null;
+  created_at: FechaDefault;
+}
+
 export interface EventosWebhookTabla {
   id: string;
   proveedor: 'mercadopago';
@@ -296,6 +311,7 @@ export interface Database {
   integraciones: IntegracionesTabla;
   auditoria: AuditoriaTabla;
   invitaciones: InvitacionesTabla;
+  oauth_estados: OauthEstadosTabla;
   eventos_webhook: EventosWebhookTabla;
 }
 
@@ -322,6 +338,7 @@ export const TABLAS_DE_KIOSCO = [
   'integraciones',
   'auditoria',
   'invitaciones',
+  'oauth_estados',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

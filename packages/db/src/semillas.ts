@@ -146,6 +146,11 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     [uuidv7(), k.id, k.email.replace('@', '.encargado@'), `hash-invitacion-${k.id}`],
   );
   await q(
+    `insert into oauth_estados (id, kiosco_id, usuario_id, state_hash, verificador_cifrado, clave_version, vence_en)
+     values ($1, $2, $3, $4, '\\x00', 1, now() + interval '10 minutes')`,
+    [uuidv7(), k.id, dueno, `hash-state-${k.id}`],
+  );
+  await q(
     `insert into auditoria (id, kiosco_id, usuario_id, accion, detalle) values ($1, $2, $3, 'semillas.cargadas', '{}')`,
     [uuidv7(), k.id, dueno],
   );

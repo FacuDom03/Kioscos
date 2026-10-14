@@ -31,9 +31,29 @@ export interface Entorno {
   cerrar(): Promise<void>;
 }
 
-export async function crearEntorno(): Promise<Entorno> {
+export const SECRETO_WEBHOOK = 'clave-secreta-de-webhooks';
+
+export async function crearEntorno(
+  opciones: { mpUrl?: string; encolarOrdenMp?: (id: string) => Promise<void> } = {},
+): Promise<Entorno> {
   const base = crearBaseApp(inject('appUrl'), 4);
-  const app = await construirApp({ base, config: configPrueba, limitarPedidos: false });
+  const app = await construirApp({
+    base,
+    config: configPrueba,
+    limitarPedidos: false,
+    ...(opciones.encolarOrdenMp ? { encolarOrdenMp: opciones.encolarOrdenMp } : {}),
+    mp: opciones.mpUrl
+      ? {
+          clientId: 'app-id',
+          clientSecret: 'secreto-app',
+          redirectUri: `${ORIGEN}/api/v1/mp/callback`,
+          webhookSecret: SECRETO_WEBHOOK,
+          apiBase: opciones.mpUrl,
+          authUrl: 'https://auth.mercadopago.test/authorization',
+          pruebas: true,
+        }
+      : null,
+  });
   await app.ready();
   const admin = new pg.Pool({ connectionString: inject('adminUrl'), max: 2 });
   return {

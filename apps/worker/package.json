@@ -1,0 +1,16 @@
+{
+  "name": "@mostrador/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/worker.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "echo 'El worker se prueba desde @mostrador/mp y @mostrador/api'"
+  },
+  "dependencies": {
+    "@mostrador/db": "workspace:*",
+    "@mostrador/mp": "workspace:*",
+    "@mostrador/servidor": "workspace:*",
+    "bullmq": "5.81.5"
+  }
+}

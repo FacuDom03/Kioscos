@@ -1,0 +1,174 @@
+/* Tokens de color de los cuatro temas (sección 16.3 de docs/SPEC.md).
+ * Fuente de verdad: este archivo. El script scripts/contraste.ts verifica los contrastes en CI.
+ * Si un par no pasa, se ajusta el token, no se baja la regla.
+ *
+ * Agregados a la spec (ver docs/decisiones/004-tokens-de-contraste.md):
+ *   --line-control  borde de controles (campos, chips, interruptores): 3:1 contra --bg y --surface.
+ *                   --line y --line-dashed quedan para separadores decorativos.
+ *   --focus         anillo de foco: igual a --action salvo en Día, donde --action no llega a 3:1.
+ */
+
+:root,
+[data-tema='noche'] {
+  --bg: #111936;
+  --surface: #1b2548;
+  --surface-2: #2c3866;
+  --line: #2c3866;
+  --line-dashed: #3d4a80;
+  --line-w: 1.5px;
+  --line-control: #64709f;
+  --focus: #2ed47a;
+  --text: #f4f6fb;
+  --text-soft: #a9b3d6;
+  --nav-bg: #0c1330;
+  --nav-line: #2c3866;
+  --ok: #2ed47a;
+  --danger: #ff5c6c;
+  --danger-dot: #e5374a;
+  --scan-bg: #f4f6fb;
+  --scan-ink: #0b1229;
+  --price-ink: #ffe94d;
+  --price-bg: transparent;
+  --price-pad: 0;
+  --paper: #f4f5f8;
+  --paper-ink: #0b1229;
+  --paper-soft: #5a6077;
+  --paper-border: none;
+  --paper-line: #c5c9d6;
+  --paper-dot: #a9aec0;
+  --qty-bg: #0b1229;
+  --qty-ink: #f4f6fb;
+  --star: #ffe94d;
+  --star-ink: #0b1229;
+  --action: #2ed47a;
+  --action-ink: #0b1229;
+  --awning-a: #2ed47a;
+  --awning-b: #f4f6fb;
+  --stamp: #128a4a;
+  --chart-1: #e3e8f7;
+  --chart-2: #7c8cf8;
+  --chart-3: #4bc3e8;
+}
+
+[data-tema='dia'] {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --surface-2: #e3e8ef;
+  --line: #d4dae3;
+  --line-dashed: #a9b3c4;
+  --line-w: 1.5px;
+  --line-control: #7e899b;
+  --focus: #0a7a43;
+  --text: #121826;
+  --text-soft: #4f5b6e;
+  --nav-bg: #ffffff;
+  --nav-line: #d4dae3;
+  --ok: #0a7a43;
+  --danger: #c8283a;
+  --danger-dot: #c8283a;
+  --scan-bg: #121826;
+  --scan-ink: #ffffff;
+  --price-ink: #121826;
+  --price-bg: #ffe94d;
+  --price-pad: 0 6px;
+  --paper: #ffffff;
+  --paper-ink: #121826;
+  --paper-soft: #4f5b6e;
+  --paper-border: 1.5px solid #d4dae3;
+  --paper-line: #c5c9d6;
+  --paper-dot: #a9aec0;
+  --qty-bg: #121826;
+  --qty-ink: #ffffff;
+  --star: #ffe94d;
+  --star-ink: #121826;
+  --action: #1db765;
+  --action-ink: #08130d;
+  --awning-a: #1db765;
+  --awning-b: #ffffff;
+  --stamp: #0a7a43;
+  --chart-1: #4f5b6e;
+  --chart-2: #4f5fd9;
+  --chart-3: #0e8fb8;
+}
+
+[data-tema='pizarron'] {
+  --bg: #15302a;
+  --surface: #1e4038;
+  --surface-2: #2e5a4f;
+  --line: #2e5a4f;
+  --line-dashed: #3f6e61;
+  --line-w: 1.5px;
+  --line-control: #668e82;
+  --focus: #ff8a3d;
+  --text: #f2f5ef;
+  --text-soft: #a9c4b9;
+  --nav-bg: #102620;
+  --nav-line: #2e5a4f;
+  --ok: #8be8b5;
+  --danger: #ff7a7a;
+  --danger-dot: #ff7a7a;
+  --scan-bg: #f2f5ef;
+  --scan-ink: #15302a;
+  --price-ink: #ffe94d;
+  --price-bg: transparent;
+  --price-pad: 0;
+  --paper: #f4f5f1;
+  --paper-ink: #142420;
+  --paper-soft: #56645e;
+  --paper-border: none;
+  --paper-line: #c5c9d6;
+  --paper-dot: #a9aec0;
+  --qty-bg: #15302a;
+  --qty-ink: #f2f5ef;
+  --star: #ffe94d;
+  --star-ink: #142420;
+  --action: #ff8a3d;
+  --action-ink: #1a0e05;
+  --awning-a: #ff8a3d;
+  --awning-b: #f2f5ef;
+  --stamp: #128a4a;
+  --chart-1: #f2f5ef;
+  --chart-2: #9fb0ff;
+  --chart-3: #6fd3ee;
+}
+
+[data-tema='contraste'] {
+  --bg: #000000;
+  --surface: #000000;
+  --surface-2: #1a1a1a;
+  --line: #ffffff;
+  --line-dashed: #ffffff;
+  --line-w: 2px;
+  --line-control: #ffffff;
+  --focus: #3df58b;
+  --text: #ffffff;
+  --text-soft: #e6e6e6;
+  --nav-bg: #000000;
+  --nav-line: #ffffff;
+  --ok: #3df58b;
+  --danger: #ff6b6b;
+  --danger-dot: #ff6b6b;
+  --scan-bg: #ffffff;
+  --scan-ink: #000000;
+  --price-ink: #ffe94d;
+  --price-bg: transparent;
+  --price-pad: 0;
+  --paper: #ffffff;
+  --paper-ink: #000000;
+  --paper-soft: #333333;
+  --paper-border: none;
+  --paper-line: #000000;
+  --paper-dot: #000000;
+  --qty-bg: #000000;
+  --qty-ink: #ffffff;
+  --star: #ffe94d;
+  --star-ink: #000000;
+  --action: #3df58b;
+  --action-ink: #000000;
+  --awning-a: #3df58b;
+  --awning-b: #ffffff;
+  --stamp: #0a7a43;
+  --chart-1: #ffffff;
+  --chart-2: #9fb0ff;
+  --chart-3: #6fd3ee;
+}

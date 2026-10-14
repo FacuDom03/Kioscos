@@ -1,0 +1,18 @@
+{
+  "name": "@mostrador/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/servidor.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mostrador/db": "workspace:*",
+    "@mostrador/shared": "workspace:*",
+    "fastify": "5.12.7"
+  },
+  "devDependencies": {
+    "vitest": "4.1.11"
+  }
+}

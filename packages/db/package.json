@@ -1,0 +1,26 @@
+{
+  "name": "@mostrador/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./semillas": "./src/semillas.ts",
+    "./migrar": "./src/migrar.ts",
+    "./pruebas": "./src/pruebas.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "migrar": "node src/cli-migrar.ts",
+    "semillas": "node src/cli-semillas.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mostrador/shared": "workspace:*",
+    "kysely": "0.29.6",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "vitest": "4.1.11"
+  }
+}

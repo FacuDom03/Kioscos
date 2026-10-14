@@ -1,0 +1,302 @@
+/* Estilos de las pantallas de la app. Los tokens y el marco vienen de @mostrador/ui. */
+
+.texto-suave {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 15px;
+}
+
+.subtitulo {
+  font-size: 19px;
+}
+
+.pantalla {
+  max-width: 760px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Vender
+ * ------------------------------------------------------------------------- */
+
+.vender {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}
+
+.vender__encabezado {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vender__encabezado .m-titulo {
+  font-stretch: 82%;
+}
+
+.vender__columnas {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vender__productos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.vender__ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vender__total {
+  display: flex;
+  justify-content: center;
+}
+
+.vacio {
+  margin: 0;
+  padding: 16px;
+  border: var(--line-w) dashed var(--line-dashed);
+  border-radius: var(--radio);
+  color: var(--text-soft);
+  font-size: 15px;
+}
+
+.buscador {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.buscador__campo {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: var(--radio);
+  border: var(--line-w) solid var(--line-control);
+  background: var(--surface);
+  font-size: 17px;
+}
+
+.buscador__campo::placeholder {
+  color: var(--text-soft);
+  opacity: 1;
+}
+
+.buscador__escanear {
+  min-height: 52px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radio);
+  background: var(--scan-bg);
+  color: var(--scan-ink);
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.buscador__pista {
+  display: none;
+  color: var(--text-soft);
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.ticket__titulo {
+  font-size: 18px;
+}
+
+.ticket__vacio {
+  margin: 0;
+  color: var(--paper-soft);
+  font-size: 15px;
+}
+
+/* Tablet y PC: dos columnas, productos a la izquierda y ticket con total a la derecha. */
+@media (min-width: 600px) {
+  .vender__columnas {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    gap: 20px;
+  }
+
+  .vender__ticket {
+    min-height: 0;
+    overflow: auto;
+  }
+}
+
+/* PC con teclado: se muestra la pista del atajo en lugar del botón Escanear. */
+@media (min-width: 1024px) and (pointer: fine) {
+  .vender {
+    padding: 16px 24px 20px;
+  }
+  .vender__estado {
+    display: none;
+  }
+  .buscador__escanear {
+    display: none;
+  }
+  .buscador__pista {
+    display: inline;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Más y Apariencia
+ * ------------------------------------------------------------------------- */
+
+.lista-filas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fila {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  border: var(--line-w) solid var(--line-control);
+  border-radius: var(--radio);
+  background: var(--surface);
+  font-size: 17px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.volver {
+  align-self: flex-start;
+}
+
+.temas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 600px) {
+  .temas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tema {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: var(--line-w) solid var(--line-control);
+  border-radius: var(--radio-grande);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.tema:has(.tema__radio:checked) {
+  border-color: var(--action);
+  box-shadow: 0 0 0 2px var(--action);
+}
+
+.tema:has(.tema__radio:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.tema__radio {
+  /* El radio nativo cubre toda la tarjeta: se toca en cualquier parte y sigue siendo accesible. */
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tema__miniatura {
+  flex: none;
+  position: relative;
+  width: 96px;
+  height: 76px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: var(--line-w) solid var(--line);
+  overflow: hidden;
+}
+
+.tema__mosaico {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 46px;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+}
+
+.tema__precio {
+  padding: var(--price-pad);
+  background: var(--price-bg);
+  color: var(--price-ink);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tema__cartel {
+  position: absolute;
+  right: 8px;
+  top: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--star);
+}
+
+.tema__accion {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  height: 14px;
+  border-radius: 5px;
+  background: var(--action);
+}
+
+.tema__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tema__nombre {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.nota {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 15px;
+}

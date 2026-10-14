@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
-import { ticketActual, vaciarTicket } from '../../nucleo/ticket.ts';
+import { listaActual, ticketActual, vaciarTicket } from '../../nucleo/ticket.ts';
 import { turnoActual } from '../../nucleo/turno.ts';
 import { useEstadoMp } from '../../nucleo/mp.ts';
 
@@ -53,6 +53,7 @@ export function CobroQr({
       turnoId: turno.id,
       creadaEn: datos.creadaEn,
       total,
+      ...(listaActual() !== 'mostrador' ? { lista: listaActual() } : {}),
       items: items.map((i) => ({
         id: i.id,
         productoId: i.productoId,

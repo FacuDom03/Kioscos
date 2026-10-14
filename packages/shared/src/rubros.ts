@@ -48,7 +48,7 @@ export const DATOS_MODULOS: Record<Modulo, DatosModulo> = {
     id: 'venta_fraccionada',
     nombre: 'Venta por metro, kilo o caja',
     descripcion: 'Cantidades con decimales: cable, cadena, fiambre, clavos sueltos.',
-    disponible: false,
+    disponible: true,
   },
   presupuestos: {
     id: 'presupuestos',
@@ -60,13 +60,13 @@ export const DATOS_MODULOS: Record<Modulo, DatosModulo> = {
     id: 'listas_precios',
     nombre: 'Dos listas: mostrador y gremio',
     descripcion: 'Precio aparte para plomeros, electricistas y clientes de siempre.',
-    disponible: false,
+    disponible: true,
   },
   ubicaciones: {
     id: 'ubicaciones',
     nombre: 'Dónde está cada cosa',
     descripcion: 'Pasillo y estante en cada producto.',
-    disponible: false,
+    disponible: true,
   },
   precios_proveedor: {
     id: 'precios_proveedor',

@@ -1,6 +1,6 @@
 // Catálogo del kiosco en el equipo. Se refresca al abrir la app, al volver el foco, cada
 // 5 minutos y después de cada cambio. (En la Etapa E se guarda también en IndexedDB.)
-import { buscar, indexar, type Indice } from '@mostrador/shared';
+import { buscar, indexar, type Indice, type Unidad } from '@mostrador/shared';
 import { useSyncExternalStore } from 'react';
 import { api } from './api.ts';
 import { eventosBandeja } from './bandeja.ts';
@@ -15,6 +15,10 @@ export interface Producto {
   stock: number;
   minimo: number;
   codigos: string[];
+  /** Pueden faltar en un catálogo guardado por una versión anterior de la app. */
+  unidad?: Unidad;
+  ubicacion?: string | null;
+  precioGremio?: number | null;
 }
 
 export interface Catalogo {

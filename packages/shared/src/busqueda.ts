@@ -1,11 +1,26 @@
 // Búsqueda de productos en el equipo (tiene que tardar menos de 100 ms con miles de productos).
 
+const FRACCION: Record<string, string> = { '½': '1/2', '¼': '1/4', '¾': '3/4' };
+const DECIMALES: Record<string, string> = { '½': '5', '¼': '25', '¾': '75' };
+
+/**
+ * Texto para comparar: sin tildes ni mayúsculas, y con las medidas escritas de una sola forma
+ * ("2,5", "2.5" y "2½" quedan "2.5"; "½" queda "1/2"; "2.5mm" queda "2.5 mm").
+ */
 export function normalizar(texto: string): string {
   return texto
+    .replace(/(\d) ?([½¼¾])/g, (_, n: string, f: string) => `${n}.${DECIMALES[f]}`)
+    .replace(/[½¼¾]/g, (f) => FRACCION[f] ?? ' ')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9ñ ]/g, ' ')
+    .replace(/(\d)[.,](?=\d)/g, '$1\uE000')
+    .replace(/(\d)\/(?=\d)/g, '$1\uE001')
+    .replace(/[^a-z0-9ñ\uE000\uE001 ]/g, ' ')
+    .replace(/\uE000/g, '.')
+    .replace(/\uE001/g, '/')
+    .replace(/(\d)(?=[a-zñ])/g, '$1 ')
+    .replace(/([a-zñ])(?=\d)/g, '$1 ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -26,7 +41,11 @@ export function indexar<T extends Buscable>(items: T[]): Indice<T> {
   for (const it of items) for (const c of it.codigos) porCodigo.set(c, it);
   return {
     porCodigo,
-    items: items.map((item) => ({ item, texto: ` ${normalizar(item.nombre)}` })),
+    // Los códigos propios (con letras, como "ELE-0125") también se buscan por partes.
+    items: items.map((item) => ({
+      item,
+      texto: ` ${normalizar([item.nombre, ...item.codigos.filter((c) => /[a-z]/i.test(c))].join(' '))}`,
+    })),
   };
 }
 

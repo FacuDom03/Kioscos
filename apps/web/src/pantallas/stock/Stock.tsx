@@ -1,4 +1,4 @@
-import { formatearPlata } from '@mostrador/shared';
+import { formatearCantidad, formatearPlata, type Unidad } from '@mostrador/shared';
 import { useMemo, useState } from 'react';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { useEsPC } from '../../nucleo/medios.ts';
@@ -15,6 +15,8 @@ interface Fila {
   categoria: string | null;
   stock: number;
   minimo: number;
+  unidad?: Unidad;
+  ubicacion?: string | null;
 }
 
 interface Respuesta {
@@ -22,12 +24,11 @@ interface Respuesta {
   productos: Fila[];
 }
 
-const cant = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 3 });
-
 function EstadoStock({ p }: { p: Fila }) {
+  const cant = formatearCantidad(p.stock, p.unidad);
   if (p.stock <= 0) return <span className="stock stock--sin">Sin stock</span>;
-  if (p.stock <= p.minimo) return <span className="stock stock--bajo">Quedan {cant(p.stock)}</span>;
-  return <span className="stock">{cant(p.stock)} en stock</span>;
+  if (p.stock <= p.minimo) return <span className="stock stock--bajo">Quedan {cant}</span>;
+  return <span className="stock">{cant} en stock</span>;
 }
 
 function Nivel({ p }: { p: Fila }) {
@@ -194,7 +195,7 @@ export function Stock() {
                 <td className="num">
                   <EstadoStock p={p} />
                 </td>
-                <td className="num">{cant(p.minimo)}</td>
+                <td className="num">{formatearCantidad(p.minimo, p.unidad)}</td>
                 {conCostos && (
                   <td className="num m-plata">{p.costo != null ? formatearPlata(p.costo) : '—'}</td>
                 )}
@@ -216,7 +217,10 @@ export function Stock() {
                 <span className="tarjeta-producto__nombre">{p.nombre}</span>
                 <span className="tarjeta-producto__precio m-plata">{formatearPlata(p.precio)}</span>
                 <span className="tarjeta-producto__stock">
-                  <EstadoStock p={p} /> <span className="texto-suave">Mínimo {cant(p.minimo)}</span>
+                  <EstadoStock p={p} />{' '}
+                  <span className="texto-suave">
+                    Mínimo {formatearCantidad(p.minimo, p.unidad)}
+                  </span>
                 </span>
                 <Nivel p={p} />
               </button>

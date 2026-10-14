@@ -1,7 +1,7 @@
 // Catálogo y stock (sección 11 de docs/SPEC.md). Editar el catálogo requiere conexión.
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { TxKiosco } from '@mostrador/db';
-import { leerCsv, parsearPesos, uuidv7 } from '@mostrador/shared';
+import { UNIDADES, leerCsv, parsearPesos, uuidv7 } from '@mostrador/shared';
 import { z } from 'zod';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
@@ -44,6 +44,30 @@ async function verificarCategoria(tx: TxKiosco, categoriaId: string | null | und
   if (!c) throw noEncontrado();
 }
 
+const UNIDADES_CSV: Record<string, (typeof UNIDADES)[number]> = {
+  '': 'unidad',
+  u: 'unidad',
+  un: 'unidad',
+  unidad: 'unidad',
+  m: 'metro',
+  mt: 'metro',
+  metro: 'metro',
+  metros: 'metro',
+  kg: 'kilo',
+  kilo: 'kilo',
+  kilos: 'kilo',
+  l: 'litro',
+  lt: 'litro',
+  litro: 'litro',
+  litros: 'litro',
+  caja: 'caja',
+  cajas: 'caja',
+};
+
+function unidadDeTexto(texto: string): (typeof UNIDADES)[number] | null {
+  return UNIDADES_CSV[texto.trim().toLowerCase().replace(/\.$/, '')] ?? null;
+}
+
 export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
   // ------------------------------------------------------------- catálogo para el equipo
   // Lo que el equipo guarda para vender (también sin conexión). El cajero no recibe costos.
@@ -60,6 +84,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
             'categoria_id',
             'stock_actual',
             'stock_minimo',
+            'unidad',
+            'ubicacion',
+            'precio_gremio',
           ])
           .where('activo', '=', true)
           .orderBy('nombre')
@@ -100,6 +127,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           categoriaId: p.categoria_id,
           stock: Number(p.stock_actual),
           minimo: Number(p.stock_minimo),
+          unidad: p.unidad,
+          ubicacion: p.ubicacion,
+          precioGremio: p.precio_gremio,
           codigos: porProducto.get(p.id) ?? [],
         })),
         categorias: categorias.map((c) => ({ id: c.id, nombre: c.nombre })),
@@ -201,6 +231,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           'p.stock_actual',
           'p.stock_minimo',
           'p.activo',
+          'p.unidad',
+          'p.ubicacion',
+          'p.precio_gremio',
         ])
         .where('p.activo', '=', true)
         .orderBy('p.nombre');
@@ -230,6 +263,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           categoria: p.categoria,
           stock: Number(p.stock_actual),
           minimo: Number(p.stock_minimo),
+          unidad: p.unidad,
+          ubicacion: p.ubicacion,
+          precioGremio: p.precio_gremio,
         })),
       };
     });
@@ -266,6 +302,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
         stock: Number(p.stock_actual),
         minimo: Number(p.stock_minimo),
         activo: p.activo,
+        unidad: p.unidad,
+        ubicacion: p.ubicacion,
+        precioGremio: p.precio_gremio,
         codigos: codigos.map((c) => c.codigo),
         movimientos: movimientos.map((m) => ({ ...m, cantidad: Number(m.cantidad) })),
       };
@@ -280,6 +319,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
     minimo: z.number().min(0).max(1_000_000).optional(),
     stockInicial: cantidad.optional(),
     codigos: z.array(codigo).max(10).optional(),
+    unidad: z.enum(UNIDADES).optional(),
+    ubicacion: z.string().trim().min(1).max(40).nullable().optional(),
+    precioGremio: centavos.nullable().optional(),
   });
 
   app.post('/api/v1/productos', { config: { roles: EDITAN } }, async (req) => {
@@ -297,6 +339,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           costo: d.costo ?? null,
           categoria_id: d.categoriaId ?? null,
           stock_minimo: d.minimo ?? 0,
+          unidad: d.unidad ?? 'unidad',
+          ubicacion: d.ubicacion ?? null,
+          precio_gremio: d.precioGremio ?? null,
         })
         .execute();
       for (const c of new Set(d.codigos ?? [])) {
@@ -353,6 +398,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           ...(d.categoriaId !== undefined ? { categoria_id: d.categoriaId } : {}),
           ...(d.minimo !== undefined ? { stock_minimo: d.minimo } : {}),
           ...(d.activo !== undefined ? { activo: d.activo } : {}),
+          ...(d.unidad !== undefined ? { unidad: d.unidad } : {}),
+          ...(d.ubicacion !== undefined ? { ubicacion: d.ubicacion } : {}),
+          ...(d.precioGremio !== undefined ? { precio_gremio: d.precioGremio } : {}),
           updated_at: new Date(),
         })
         .where('id', '=', id)
@@ -430,7 +478,8 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
   });
 
   // ------------------------------------------------------------- importar CSV
-  // Columnas (en cualquier orden, con encabezado): nombre, precio, codigo, categoria, costo, stock, minimo.
+  // Columnas (en cualquier orden, con encabezado): nombre, precio, codigo, categoria, costo, stock,
+  // minimo. Opcionales de ferretería: unidad, ubicacion, gremio (precio de la lista de gremio).
   app.post(
     '/api/v1/productos/importar',
     { config: { roles: EDITAN }, bodyLimit: 2 * 1024 * 1024 },
@@ -456,6 +505,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
       const iCosto = col('costo');
       const iStock = col('stock');
       const iMinimo = col('minimo');
+      const iUnidad = col('unidad');
+      const iUbicacion = col('ubicacion');
+      const iGremio = Math.max(col('gremio'), col('precio gremio'));
 
       const resultado = {
         creados: 0,
@@ -492,6 +544,21 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
             resultado.errores.push({ linea, motivo: 'Código inválido' });
             continue;
           }
+          const unidad = iUnidad >= 0 ? unidadDeTexto(f[iUnidad] ?? '') : 'unidad';
+          if (unidad === null) {
+            resultado.errores.push({
+              linea,
+              motivo: 'Unidad inválida (unidad, metro, kilo, litro o caja)',
+            });
+            continue;
+          }
+          const ubicacion = iUbicacion >= 0 ? (f[iUbicacion]?.trim().slice(0, 40) ?? '') : '';
+          const gremio = iGremio >= 0 && f[iGremio]?.trim() ? parsearPesos(f[iGremio] ?? '') : null;
+          const extras = {
+            ...(iUnidad >= 0 ? { unidad } : {}),
+            ...(iUbicacion >= 0 ? { ubicacion: ubicacion || null } : {}),
+            ...(iGremio >= 0 ? { precio_gremio: gremio } : {}),
+          };
           const costo = iCosto >= 0 && f[iCosto]?.trim() ? parsearPesos(f[iCosto] ?? '') : null;
           const stock = iStock >= 0 ? Number((f[iStock] ?? '').replace(',', '.')) || 0 : 0;
           const minimo = iMinimo >= 0 ? Number((f[iMinimo] ?? '').replace(',', '.')) || 0 : 0;
@@ -523,6 +590,7 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
                 ...(costo !== null ? { costo } : {}),
                 ...(categoriaId ? { categoria_id: categoriaId } : {}),
                 ...(iMinimo >= 0 ? { stock_minimo: minimo } : {}),
+                ...extras,
                 updated_at: new Date(),
               })
               .where('id', '=', existente)
@@ -541,6 +609,7 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
               costo,
               categoria_id: categoriaId,
               stock_minimo: minimo,
+              ...extras,
             })
             .execute();
           if (cod) {

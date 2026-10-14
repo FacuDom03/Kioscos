@@ -1,9 +1,16 @@
-import { formatearPlata } from '@mostrador/shared';
+import {
+  DATOS_UNIDADES,
+  UNIDADES,
+  formatearCantidad,
+  formatearPlata,
+  type Unidad,
+} from '@mostrador/shared';
 import { useState, type FormEvent } from 'react';
 import { CampoPlata } from '../../componentes/CampoPlata.tsx';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { refrescarCatalogo, useCatalogo } from '../../nucleo/catalogo.ts';
+import { useNegocio } from '../../nucleo/rubro.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 
@@ -17,6 +24,9 @@ interface Detalle {
   minimo: number;
   activo: boolean;
   codigos: string[];
+  unidad?: Unidad;
+  ubicacion?: string | null;
+  precioGremio?: number | null;
   movimientos: {
     id: string;
     tipo: string;
@@ -63,7 +73,13 @@ function FormProducto({
   recargar: () => Promise<void>;
 }) {
   const { catalogo } = useCatalogo();
+  const negocio = useNegocio();
+  const conUnidades = negocio.tiene('venta_fraccionada');
+  const conGremio = negocio.tiene('listas_precios');
+  const conUbicacion = negocio.tiene('ubicaciones');
   const [precio, setPrecio] = useState<number | null>(detalle?.precio ?? null);
+  const [precioGremio, setPrecioGremio] = useState<number | null>(detalle?.precioGremio ?? null);
+  const [unidad, setUnidad] = useState<Unidad>(detalle?.unidad ?? 'unidad');
   const [costo, setCosto] = useState<number | null>(detalle?.costo ?? null);
   const [codigos, setCodigos] = useState<string[]>(
     detalle?.codigos ?? (codigoInicial ? [codigoInicial] : []),
@@ -89,6 +105,9 @@ function FormProducto({
       categoriaId: categoria || null,
       minimo: Number(String(f.get('minimo') ?? '0').replace(',', '.')) || 0,
       codigos: [...new Set([...codigos, ...extra])],
+      ...(conUnidades ? { unidad } : {}),
+      ...(conGremio ? { precioGremio } : {}),
+      ...(conUbicacion ? { ubicacion: String(f.get('ubicacion') ?? '').trim() || null } : {}),
       ...(detalle
         ? {}
         : { stockInicial: Number(String(f.get('stock') ?? '0').replace(',', '.')) || 0 }),
@@ -138,14 +157,57 @@ function FormProducto({
           required
           maxLength={120}
         />
+        {conUnidades && (
+          <div className="campo">
+            <label htmlFor="unidad">Se vende por</label>
+            <select
+              id="unidad"
+              className="campo__entrada"
+              value={unidad}
+              onChange={(e) => setUnidad(e.target.value as Unidad)}
+            >
+              {UNIDADES.map((u) => (
+                <option key={u} value={u}>
+                  {DATOS_UNIDADES[u].nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="dos-columnas">
-          <CampoPlata etiqueta="Precio de venta" valor={precio} alCambiar={setPrecio} required />
+          <CampoPlata
+            etiqueta={
+              unidad === 'unidad'
+                ? 'Precio de venta'
+                : `Precio de venta (${DATOS_UNIDADES[unidad].precioPor})`
+            }
+            valor={precio}
+            alCambiar={setPrecio}
+            required
+          />
           <CampoPlata etiqueta="Costo (opcional)" valor={costo} alCambiar={setCosto} />
         </div>
+        {conGremio && (
+          <CampoPlata
+            etiqueta="Precio de gremio (opcional)"
+            valor={precioGremio}
+            alCambiar={setPrecioGremio}
+            ayuda="Si lo dejás vacío, al gremio se le cobra el de mostrador."
+          />
+        )}
         {precio !== null && costo !== null && costo > 0 && (
           <p className="texto-suave">
             Margen: {Math.round(((precio - costo) / costo) * 100)} % sobre el costo.
           </p>
+        )}
+        {conUbicacion && (
+          <Campo
+            etiqueta="Dónde está (opcional)"
+            name="ubicacion"
+            maxLength={40}
+            defaultValue={detalle?.ubicacion ?? ''}
+            placeholder="Por ejemplo, Pasillo 3 · Estante B"
+          />
         )}
         <div className="campo">
           <label htmlFor="categoria">Categoría</label>
@@ -234,7 +296,7 @@ function FormProducto({
       {detalle && (
         <>
           <section className="tarjeta-form">
-            <h2 className="subtitulo">Stock: {detalle.stock.toLocaleString('es-AR')}</h2>
+            <h2 className="subtitulo">Stock: {formatearCantidad(detalle.stock, detalle.unidad)}</h2>
             {ajuste ? (
               <AjusteStock
                 id={detalle.id}

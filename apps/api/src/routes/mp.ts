@@ -249,6 +249,7 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
         turnoId: z.uuid(),
         creadaEn: z.iso.datetime({ offset: true }),
         total: centavos,
+        lista: z.enum(['mostrador', 'gremio']).optional(),
         items: z
           .array(
             z.strictObject({
@@ -305,6 +306,7 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
           dispositivo_id: s.dispositivoId,
           total: d.total,
           estado: 'abierta',
+          lista: d.lista ?? 'mostrador',
           creada_en_dispositivo: d.creadaEn,
         })
         .execute();

@@ -73,21 +73,44 @@ export async function kioscoConDueno(
 /** Productos de prueba (precio en centavos). */
 export async function productos(
   kioscoId: string,
-  lista: { nombre: string; precio: number; codigo?: string; stock?: number }[],
+  lista: {
+    nombre: string;
+    precio: number;
+    codigo?: string;
+    stock?: number;
+    unidad?: string;
+    ubicacion?: string;
+    precioGremio?: number;
+  }[],
 ) {
   const c = admin();
   for (const p of lista) {
     const id = uuidv7();
     await c.query(
-      `insert into productos (id, kiosco_id, nombre, precio, stock_actual) values ($1, $2, $3, $4, $5)`,
-      [id, kioscoId, p.nombre, p.precio, p.stock ?? 20],
+      `insert into productos (id, kiosco_id, nombre, precio, stock_actual, unidad, ubicacion, precio_gremio)
+       values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        id,
+        kioscoId,
+        p.nombre,
+        p.precio,
+        p.stock ?? 20,
+        p.unidad ?? 'unidad',
+        p.ubicacion ?? null,
+        p.precioGremio ?? null,
+      ],
     );
     if (p.codigo)
       await c.query(
-        `insert into codigos_barra (id, kiosco_id, producto_id, codigo, tipo) values ($1, $2, $3, $4, 'ean13')`,
-        [uuidv7(), kioscoId, id, p.codigo],
+        `insert into codigos_barra (id, kiosco_id, producto_id, codigo, tipo) values ($1, $2, $3, $4, $5)`,
+        [uuidv7(), kioscoId, id, p.codigo, /^\d{13}$/.test(p.codigo) ? 'ean13' : 'interno'],
       );
   }
+}
+
+/** Activa funciones del rubro en el comercio (como lo haría el dueño desde Más). */
+export async function activarModulos(kioscoId: string, modulos: string[]) {
+  await admin().query('update kioscos set modulos = $2 where id = $1', [kioscoId, modulos]);
 }
 
 function randomSecreto(): Buffer {

@@ -1,4 +1,11 @@
-import { formatearPlata, leerCodigoBalanza } from '@mostrador/shared';
+import {
+  DATOS_RUBROS,
+  DATOS_UNIDADES,
+  formatearCantidad,
+  formatearPlata,
+  leerCodigoBalanza,
+  seFracciona,
+} from '@mostrador/shared';
 import { CartelTotal, Ticket } from '@mostrador/ui';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
@@ -13,14 +20,20 @@ import { navegar } from '../../nucleo/ruta.ts';
 import { puede, useSesionCompleta } from '../../nucleo/sesion.tsx';
 import {
   cambiarCantidad,
+  cantidadEnTicket,
+  fijarLista,
+  precioEnLista,
   quitarItem,
   sumarPrecioLibre,
   sumarProducto,
   totalTicket,
   unidades,
+  useLista,
   useTicket,
   vaciarTicket,
 } from '../../nucleo/ticket.ts';
+import { useNegocio } from '../../nucleo/rubro.ts';
+import { CantidadProducto } from './CantidadProducto.tsx';
 import { useTurno } from '../../nucleo/turno.ts';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { AbrirCaja } from './AbrirCaja.tsx';
@@ -36,12 +49,13 @@ type Modo =
   | { tipo: 'cobrar'; medio: Medio | null }
   | { tipo: 'cobrado'; venta: VentaHecha };
 
-/** "3*779..." suma 3 unidades. */
-function separarCantidad(texto: string): { cantidad: number; resto: string } {
-  const m = /^(\d{1,4})\*(.*)$/.exec(texto.trim());
-  return m
-    ? { cantidad: Math.max(1, Number(m[1])), resto: (m[2] ?? '').trim() }
-    : { cantidad: 1, resto: texto.trim() };
+/** "3*779..." suma 3 unidades; "12,5*cable" suma 12,5 metros. Sin "*", la cantidad no se dijo. */
+function separarCantidad(texto: string): { cantidad: number | undefined; resto: string } {
+  const m = /^(\d{1,4}(?:[.,]\d{1,3})?)\*(.*)$/.exec(texto.trim());
+  const n = m ? Number((m[1] ?? '').replace(',', '.')) : 0;
+  return m && n > 0
+    ? { cantidad: n, resto: (m[2] ?? '').trim() }
+    : { cantidad: undefined, resto: texto.trim() };
 }
 
 export function Vender({ estado }: { estado: ReactNode }) {
@@ -54,6 +68,13 @@ export function Vender({ estado }: { estado: ReactNode }) {
   const enLinea = useEnLinea();
   const mp = useEstadoMp();
   const qrDisponible = enLinea && !!mp?.puedeCobrar;
+  const negocio = useNegocio();
+  const fraccionada = negocio.tiene('venta_fraccionada');
+  const conListas = negocio.tiene('listas_precios');
+  const conUbicacion = negocio.tiene('ubicaciones');
+  const sobrio = DATOS_RUBROS[negocio.rubro].estilo === 'sobrio';
+  const lista = useLista();
+  const [pedirCantidad, setPedirCantidad] = useState<Producto | null>(null);
   const [q, setQ] = useState('');
   const [activo, setActivo] = useState(0);
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
@@ -79,13 +100,28 @@ export function Vender({ estado }: { estado: ReactNode }) {
     return [...top, ...relleno].slice(0, esPC ? 17 : 11);
   }, [catalogo, categoria, esPC]);
 
+  // Vuelve al buscador, salvo que haya un diálogo abierto o el foco ya esté en otro campo
+  // (por ejemplo, "¿Con cuánto paga?" si se apretó F8 enseguida).
   const enfocar = () =>
     setTimeout(() => {
-      if (!document.querySelector('dialog[open]')) buscador.current?.focus();
+      if (document.querySelector('dialog[open]')) return;
+      const a = document.activeElement;
+      const enOtroCampo =
+        a instanceof HTMLElement &&
+        a !== buscador.current &&
+        /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+      if (!enOtroCampo) buscador.current?.focus();
     }, 0);
 
-  function sumar(p: Producto, n = 1) {
-    sumarProducto(p, n);
+  function sumar(p: Producto, n?: number) {
+    // Lo que se vende por metro, kilo o litro pregunta cuánto (salvo "12,5*cable").
+    if (n === undefined && fraccionada && seFracciona(p.unidad)) {
+      setPedirCantidad(p);
+      setQ('');
+      setActivo(0);
+      return;
+    }
+    sumarProducto(p, seFracciona(p.unidad) ? (n ?? 1) : Math.max(1, Math.round(n ?? 1)));
     setSeleccionado(null);
     setDesconocido(null);
     setQ('');
@@ -126,12 +162,15 @@ export function Vender({ estado }: { estado: ReactNode }) {
   useEffect(() => {
     if (modo.tipo !== 'ticket') return;
     const alTeclear = (ev: KeyboardEvent) => {
+      // Con un diálogo abierto (cantidad, precio libre), las teclas son del diálogo.
+      if (document.querySelector('dialog[open]')) return;
       const enOtroCampo =
         ev.target instanceof HTMLElement &&
         ev.target !== buscador.current &&
         /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName);
       const f: Record<string, () => void> = {
         F2: () => buscador.current?.focus(),
+        ...(conListas ? { F3: () => fijarLista(lista === 'gremio' ? 'mostrador' : 'gremio') } : {}),
         F4: () => setPrecioLibre(true),
         F7: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'transferencia' }),
         F8: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'efectivo' }),
@@ -174,7 +213,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
     };
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
-  }, [modo.tipo, total, qrDisponible, q, seleccionado, items]);
+  }, [modo.tipo, total, qrDisponible, q, seleccionado, items, conListas, lista]);
 
   useEffect(() => {
     const alLeer = (ev: Event) => {
@@ -222,7 +261,29 @@ export function Vender({ estado }: { estado: ReactNode }) {
           <h1 className="m-titulo">{s.kiosco.nombre}</h1>
           <p className="texto-suave">Caja de {s.usuario.nombre || 'vos'}</p>
         </div>
-        <div className="vender__estado">{estado}</div>
+        <div className="vender__acciones">
+          {conListas && (
+            <div className="chips lista-precios" role="group" aria-label="Lista de precios">
+              <button
+                type="button"
+                className="chip"
+                aria-pressed={lista === 'mostrador'}
+                onClick={() => fijarLista('mostrador')}
+              >
+                Mostrador
+              </button>
+              <button
+                type="button"
+                className="chip"
+                aria-pressed={lista === 'gremio'}
+                onClick={() => fijarLista('gremio')}
+              >
+                Gremio{atajo('F3')}
+              </button>
+            </div>
+          )}
+          <div className="vender__estado">{estado}</div>
+        </div>
       </header>
 
       <div className="vender__columnas">
@@ -283,11 +344,33 @@ export function Vender({ estado }: { estado: ReactNode }) {
                       tabIndex={-1}
                       onClick={() => sumar(p, cantidad)}
                     >
-                      <span>
-                        {cantidad > 1 && <strong>{cantidad}× </strong>}
-                        {p.nombre}
+                      <span className="resultado__texto">
+                        <span>
+                          {cantidad !== undefined && (
+                            <strong>
+                              {seFracciona(p.unidad)
+                                ? formatearCantidad(cantidad, p.unidad)
+                                : `${Math.max(1, Math.round(cantidad))}×`}{' '}
+                            </strong>
+                          )}
+                          {p.nombre}
+                        </span>
+                        {sobrio && (
+                          <span className="resultado__info">
+                            {conUbicacion && p.ubicacion && `${p.ubicacion} · `}
+                            Quedan {formatearCantidad(p.stock, p.unidad)}
+                          </span>
+                        )}
                       </span>
-                      <span className="m-plata">{formatearPlata(p.precio)}</span>
+                      <span className="m-plata resultado__precio">
+                        {formatearPlata(precioEnLista(p, lista))}
+                        {p.unidad && p.unidad !== 'unidad' && (
+                          <span className="resultado__unidad">
+                            {' '}
+                            /{DATOS_UNIDADES[p.unidad].corta}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -360,7 +443,12 @@ export function Vender({ estado }: { estado: ReactNode }) {
             {mosaicos.map((p) => (
               <button key={p.id} type="button" className="mosaico" onClick={() => sumar(p)}>
                 <span className="mosaico__nombre">{p.nombre}</span>
-                <span className="mosaico__precio m-plata">{formatearPlata(p.precio)}</span>
+                <span className="mosaico__precio m-plata">
+                  {formatearPlata(precioEnLista(p, lista))}
+                  {p.unidad && p.unidad !== 'unidad' && seFracciona(p.unidad) && (
+                    <span className="mosaico__unidad"> /{DATOS_UNIDADES[p.unidad].corta}</span>
+                  )}
+                </span>
               </button>
             ))}
             <button
@@ -395,13 +483,16 @@ export function Vender({ estado }: { estado: ReactNode }) {
                         className={`ticket__linea${seleccionado === x.id ? ' ticket__linea--sel' : ''}`}
                         aria-current={seleccionado === x.id ? 'true' : undefined}
                       >
-                        <span className="ticket__cant m-plata">
-                          {Number.isInteger(x.cantidad)
-                            ? x.cantidad
-                            : x.cantidad.toLocaleString('es-AR')}
-                          ×
+                        <span className="ticket__cant m-plata">{cantidadEnTicket(x)}</span>
+                        <span className="ticket__desc">
+                          {x.descripcion}
+                          {x.unidad && seFracciona(x.unidad) && (
+                            <span className="ticket__detalle">
+                              {formatearPlata(x.precioUnitario)}{' '}
+                              {DATOS_UNIDADES[x.unidad].precioPor}
+                            </span>
+                          )}
                         </span>
-                        <span className="ticket__desc">{x.descripcion}</span>
                         <span className="ticket__sub m-plata">
                           {formatearPlata(Math.round(x.cantidad * x.precioUnitario))}
                         </span>
@@ -496,6 +587,15 @@ export function Vender({ estado }: { estado: ReactNode }) {
           alLeer={(codigo) => entrar(codigo)}
           alCerrar={() => {
             setEscaner(false);
+            enfocar();
+          }}
+        />
+      )}
+      {pedirCantidad && (
+        <CantidadProducto
+          producto={pedirCantidad}
+          alCerrar={() => {
+            setPedirCantidad(null);
             enfocar();
           }}
         />

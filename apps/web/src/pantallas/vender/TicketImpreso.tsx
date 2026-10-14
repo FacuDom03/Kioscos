@@ -1,5 +1,6 @@
 import { formatearPlata } from '@mostrador/shared';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
+import { cantidadEnTicket } from '../../nucleo/ticket.ts';
 
 const MEDIOS = {
   efectivo: 'Efectivo',
@@ -21,7 +22,7 @@ export function TicketImpreso({ venta, kiosco }: { venta: VentaHecha; kiosco: st
       {venta.items.map((x) => (
         <div key={x.id} className="impreso__item">
           <span>
-            {x.cantidad} × {x.descripcion}
+            {cantidadEnTicket(x)} {x.descripcion}
           </span>
           <span>{formatearPlata(Math.round(x.cantidad * x.precioUnitario))}</span>
         </div>
@@ -31,6 +32,7 @@ export function TicketImpreso({ venta, kiosco }: { venta: VentaHecha; kiosco: st
         <span>TOTAL</span>
         <span>{formatearPlata(venta.total)}</span>
       </div>
+      {venta.lista === 'gremio' && <p>Precios de gremio</p>}
       <p>Pago: {MEDIOS[venta.medio]}</p>
       {venta.medio === 'efectivo' && venta.recibido !== undefined && (
         <p>

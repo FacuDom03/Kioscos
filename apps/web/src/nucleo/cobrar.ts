@@ -1,6 +1,13 @@
 import { uuidv7 } from '@mostrador/shared';
 import { encolar } from './bandeja.ts';
-import { ticketActual, totalTicket, vaciarTicket, type ItemTicket } from './ticket.ts';
+import {
+  listaActual,
+  ticketActual,
+  totalTicket,
+  vaciarTicket,
+  type ItemTicket,
+  type Lista,
+} from './ticket.ts';
 import { turnoActual } from './turno.ts';
 
 export interface VentaHecha {
@@ -8,6 +15,7 @@ export interface VentaHecha {
   creadaEn: string;
   items: ItemTicket[];
   total: number;
+  lista?: Lista;
   medio: 'efectivo' | 'transferencia' | 'qr_mp';
   recibido?: number;
   vuelto?: number;
@@ -24,11 +32,13 @@ export async function cobrar(
   const items = ticketActual();
   const total = totalTicket(items);
   if (!items.length || total <= 0) throw new Error('El ticket está vacío.');
+  const lista = listaActual();
   const venta: VentaHecha = {
     id: uuidv7(),
     creadaEn: new Date().toISOString(),
     items,
     total,
+    lista,
     medio,
     ...(medio === 'efectivo' && recibido !== undefined
       ? { recibido, vuelto: recibido - total }
@@ -39,6 +49,7 @@ export async function cobrar(
     turnoId: turno.id,
     creadaEn: venta.creadaEn,
     total,
+    ...(lista !== 'mostrador' ? { lista } : {}),
     items: items.map((i) => ({
       id: i.id,
       productoId: i.productoId,

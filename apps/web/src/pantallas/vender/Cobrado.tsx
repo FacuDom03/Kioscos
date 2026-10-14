@@ -2,6 +2,7 @@ import { formatearPlata } from '@mostrador/shared';
 import { Ticket } from '@mostrador/ui';
 import { useEffect, useRef } from 'react';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
+import { cantidadEnTicket } from '../../nucleo/ticket.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { TicketImpreso } from './TicketImpreso.tsx';
 import { configEquipo } from '../../nucleo/equipo.ts';
@@ -58,7 +59,7 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
           <ul className="ticket__lineas">
             {venta.items.map((x) => (
               <li key={x.id} className="ticket__linea">
-                <span className="ticket__cant m-plata">{x.cantidad}×</span>
+                <span className="ticket__cant m-plata">{cantidadEnTicket(x)}</span>
                 <span className="ticket__desc">{x.descripcion}</span>
                 <span className="ticket__sub m-plata">
                   {formatearPlata(Math.round(x.cantidad * x.precioUnitario))}

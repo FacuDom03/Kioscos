@@ -90,6 +90,9 @@ export interface ProductosTabla {
   stock_actual: NumericoDefault;
   stock_minimo: NumericoDefault;
   activo: Generated<boolean>;
+  unidad: Generated<'unidad' | 'metro' | 'kilo' | 'litro' | 'caja'>;
+  ubicacion: string | null;
+  precio_gremio: number | null;
   created_at: FechaDefault;
   updated_at: FechaDefault;
 }
@@ -185,6 +188,7 @@ export interface VentasTabla {
   motivo_anulacion: string | null;
   creada_en_dispositivo: Fecha;
   recibida_en: FechaDefault;
+  lista: Generated<'mostrador' | 'gremio'>;
 }
 
 export interface VentaItemsTabla {

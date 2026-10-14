@@ -15,6 +15,8 @@ export const esquemaVenta = z.strictObject({
   turnoId: z.uuid(),
   creadaEn: fecha,
   total: centavos,
+  /** Lista de precios con la que se vendió (etapa I2). */
+  lista: z.enum(['mostrador', 'gremio']).optional(),
   items: z
     .array(
       z.strictObject({
@@ -161,6 +163,7 @@ export async function registrarVenta(
       dispositivo_id: s.dispositivoId,
       total: v.total,
       estado: 'cobrada',
+      lista: v.lista ?? 'mostrador',
       creada_en_dispositivo: v.creadaEn,
     })
     .execute();

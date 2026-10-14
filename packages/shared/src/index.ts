@@ -35,3 +35,13 @@ export {
   type DatosRubro,
   type DatosModulo,
 } from './rubros.ts';
+export {
+  UNIDADES,
+  DATOS_UNIDADES,
+  esUnidad,
+  seFracciona,
+  formatearCantidad,
+  parsearCantidad,
+  type Unidad,
+  type DatosUnidad,
+} from './unidades.ts';

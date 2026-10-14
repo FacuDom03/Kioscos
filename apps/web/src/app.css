@@ -920,6 +920,8 @@ fieldset.campo legend {
   padding: 4px;
   position: absolute;
   z-index: 5;
+  /* Debajo del buscador: sin "top", el contenedor flex lo centraría sobre el campo. */
+  top: 100%;
   left: 0;
   right: 0;
   background: var(--surface);
@@ -1901,4 +1903,55 @@ details summary {
   height: 24px;
   margin: 0;
   accent-color: var(--action);
+}
+
+/* ---------------------------------------------------------------------------
+ * Mostrador de ferretería: lista de precios, unidades y ubicación (etapa I2)
+ * ------------------------------------------------------------------------- */
+
+.vender__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.lista-precios {
+  flex-wrap: nowrap;
+}
+
+.lista-precios .chip {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.resultado__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.resultado__info {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.resultado__precio {
+  flex: none;
+  font-weight: 700;
+}
+
+.resultado__unidad,
+.mosaico__unidad {
+  color: var(--text-soft);
+  font-size: 0.75em;
+  font-weight: 600;
+}
+
+.ticket__detalle {
+  display: block;
+  color: var(--paper-soft);
+  font-size: 13px;
 }

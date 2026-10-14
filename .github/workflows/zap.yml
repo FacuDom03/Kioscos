@@ -1,0 +1,24 @@
+name: Escaneo ZAP
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL a escanear (entorno de pruebas)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  zap:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Escaneo base de OWASP ZAP
+        run: |
+          docker run --rm -v "$PWD:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t "${{ inputs.url }}" -r informe-zap.html -I
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: informe-zap
+          path: informe-zap.html

@@ -216,4 +216,12 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
     tabla: 'ventas',
     cuerpo: { accion: 'anular' },
   }),
+
+  // Exportar y borrar
+  caso('GET', '/api/v1/exportar/ventas.csv', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/exportar/compras.csv', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/exportar/todo.json', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/kiosco/borrar', 'escribe_solo_lo_propio', {
+    cuerpo: { nombreKiosco: 'Almacén Don Beto', password: 'x' },
+  }),
 ];

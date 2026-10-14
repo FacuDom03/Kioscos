@@ -82,7 +82,10 @@ describe('aislamiento por rutas (A contra B)', () => {
     const antes = await huellaDeB();
     const todosLosIdsDeB = [...idsB.values()].flat();
 
-    let url = caso.url;
+    let url =
+      caso.url.includes('exportar/') && !caso.url.endsWith('.json')
+        ? `${caso.url}?desde=2020-01-01&hasta=2030-12-31`
+        : caso.url;
     if (url.includes(':id')) {
       const id =
         (caso.tabla && idsB.get(caso.tabla)?.[0]) ?? '0192a000-0000-7000-8000-0000000000ee';
@@ -97,6 +100,8 @@ describe('aislamiento por rutas (A contra B)', () => {
     if (caso.espera === 'sin_datos_de_b') {
       expect(r.statusCode, r.body).toBe(200);
     }
+    // La exportación de A tiene que traer datos de A (si no, la prueba no probaría nada).
+    if (caso.url.endsWith('todo.json')) expect(r.body).toContain('Kiosco Anita');
     // En ningún caso la respuesta trae IDs de B.
     for (const id of todosLosIdsDeB) expect(r.body).not.toContain(id);
     expect(await huellaDeB()).toEqual(antes);

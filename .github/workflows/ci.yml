@@ -94,3 +94,15 @@ jobs:
           name: playwright-report
           path: apps/web/test-results/
           retention-days: 7
+
+  imagenes:
+    name: Las imágenes de producción se construyen
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -f infra/Dockerfile --target app -t mostrador-app:ci .
+      - run: docker build -f infra/Dockerfile --target web -t mostrador-web:ci .
+      - run: docker compose -f infra/compose.prod.yml config --quiet
+        env:
+          DOMINIO: app.ejemplo.test
+          TAILSCALE_IP: 100.64.0.1

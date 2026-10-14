@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+**/.datos.json
+.git
+.env
+.env.*
+secretos
+infra/backup/*.age

@@ -1745,3 +1745,7 @@ details summary {
   display: flex;
   align-items: center;
 }
+
+.zona-peligro {
+  border-color: var(--danger);
+}

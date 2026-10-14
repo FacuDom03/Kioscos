@@ -29,6 +29,7 @@ import { useEnLinea } from './nucleo/conexion.ts';
 import { refrescarMp } from './nucleo/mp.ts';
 import { iniciarLector } from './nucleo/lector.ts';
 import { Equipo } from './pantallas/mas/Equipo.tsx';
+import { Exportar } from './pantallas/mas/Exportar.tsx';
 import { AumentoPrecios } from './pantallas/stock/Aumento.tsx';
 import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
 import { ImportarProductos } from './pantallas/stock/Importar.tsx';
@@ -162,6 +163,9 @@ function AppConSesion({ ruta }: { ruta: string }) {
       break;
     case '/mas/actividad':
       pantalla = <Auditoria alVolver={volverAMas} />;
+      break;
+    case '/mas/exportar':
+      pantalla = <Exportar alVolver={volverAMas} />;
       break;
     case '/mas/equipo':
       pantalla = <Equipo alVolver={volverAMas} />;

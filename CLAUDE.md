@@ -12,7 +12,9 @@ docker compose -f infra/compose.dev.yml --env-file .env up -d   # PostgreSQL 16 
 pnpm db:migrar            # migraciones (DATABASE_ADMIN_URL, MOSTRADOR_APP_PASSWORD)
 pnpm db:semillas          # dos kioscos de prueba (A y B)
 pnpm dev:web              # PWA en http://localhost:5173
-pnpm dev:api              # API en http://127.0.0.1:3000 (DATABASE_URL)
+pnpm dev:api              # API en http://127.0.0.1:3000 (DATABASE_URL, APP_ORIGEN, MOSTRADOR_CLAVES)
+pnpm --filter @mostrador/worker dev   # worker de Mercado Pago (REDIS_URL)
+pnpm --filter @mostrador/admin dev    # panel admin (DATABASE_PANEL_URL, PANEL_ORIGEN)
 
 pnpm lint && pnpm format:check && pnpm typecheck
 pnpm test                 # unidad e integración (TEST_DATABASE_ADMIN_URL, PostgreSQL real)
@@ -25,10 +27,15 @@ locales llevan la extensión `.ts`/`.tsx` y solo se usa sintaxis borrable (nada 
 
 ## Estructura
 
-- `apps/web` PWA (React + Vite). `apps/api` API Fastify.
-- `packages/shared` UUIDv7 y plata. `packages/db` migraciones SQL, roles, RLS, `withKiosco`,
-  semillas. `packages/ui` tokens de tema, fuentes propias y componentes base.
-- `infra/` Compose y (más adelante) Caddy y backups.
+- `apps/web` PWA (React + Vite + Workbox + Dexie). `apps/api` API Fastify. `apps/worker` trabajos
+  BullMQ de Mercado Pago. `apps/admin` panel interno (solo Tailscale).
+- `packages/shared` UUIDv7, plata, precios, CSV, búsqueda, caja, balanza y lector.
+  `packages/db` migraciones SQL, roles, RLS, `withKiosco`/`sinKiosco`, `moverStock`, semillas.
+  `packages/ui` tokens de tema, fuentes propias y componentes base. `packages/servidor`
+  contraseñas, TOTP, tokens y cifrado. `packages/mp` cliente de Mercado Pago, firma, PKCE y
+  aplicación de órdenes.
+- `infra/` Dockerfile, Compose de desarrollo y producción, Caddyfile, firewall y respaldos.
+  Guía de producción en `docs/DEPLOY.md`.
 
 ## Reglas no negociables (resumen de la sección 18)
 

@@ -142,3 +142,20 @@ test('el ticket sigue ahí después de recargar la página', async ({ page }) =>
   await page.reload();
   await expect(page.getByText('Ticket · 1 producto')).toBeVisible();
 });
+
+test('abrir la caja desde cero y vender; lo pendiente se sube al volver a abrir la app', async ({
+  page,
+}) => {
+  const d = await kioscoConDueno('comercio', { cajaAbierta: false });
+  await productos(d.kioscoId, [{ nombre: 'Agua', precio: 90000 }]);
+  await entrar(page, d);
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Abrir caja' })).toBeVisible();
+  await page.getByLabel('¿Con cuánto cambio arrancás?').fill('5.000');
+  await page.getByRole('button', { name: 'Abrir caja' }).click();
+  await expect(page.locator('.mosaico', { hasText: 'Agua' })).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.mosaico', { hasText: 'Agua' })).toBeVisible();
+  await page.goto('/caja');
+  await expect(page.locator('.tarjeta-efectivo')).toContainText('$ 5.000');
+});

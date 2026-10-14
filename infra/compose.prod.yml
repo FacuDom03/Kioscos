@@ -1,0 +1,209 @@
+# Producción en un VPS (sección 20). Uso, desde /opt/mostrador/app:
+#   docker compose -f infra/compose.prod.yml --env-file /opt/mostrador/config.env up -d --build
+# Los secretos son archivos en /opt/mostrador/secretos (ver infra/preparar-secretos.sh).
+# PostgreSQL, Redis y el worker no publican puertos. El panel solo escucha en la IP de Tailscale.
+name: mostrador
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile
+    target: app
+  image: mostrador-app:local
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  networks: [interna]
+  logging:
+    driver: json-file
+    options: { max-size: '20m', max-file: '5' }
+
+services:
+  postgres:
+    image: mirror.gcr.io/library/postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mostrador
+      POSTGRES_USER: mostrador_admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_admin
+    # Archivado continuo de WAL (cada 5 minutos como mucho) para no perder más de 15 minutos.
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=300
+      - -c
+      - archive_command=test ! -f /wal/%f && cp %p /wal/%f
+      - -c
+      - max_wal_senders=3
+    secrets: [pg_admin]
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - /opt/mostrador/respaldos/wal:/wal
+      - /opt/mostrador/respaldos/base:/respaldos
+    networks: [interna]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mostrador_admin -d mostrador']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 256mb
+
+  redis:
+    image: mirror.gcr.io/library/redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    restart: unless-stopped
+    command:
+      ['sh', '-c', 'exec redis-server --appendonly yes --requirepass "$$(cat /run/secrets/redis)"']
+    secrets: [redis]
+    volumes: [redis:/data]
+    networks: [interna]
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$(cat /run/secrets/redis)" --no-auth-warning ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Migraciones antes de levantar la API (y cada vez que se actualiza).
+  migrar:
+    <<: *app
+    restart: 'no'
+    command: ['node', 'packages/db/src/cli-migrar.ts']
+    environment:
+      DATABASE_ADMIN_URL_ARCHIVO: /run/secrets/database_admin_url
+      MOSTRADOR_APP_PASSWORD_ARCHIVO: /run/secrets/pg_app
+      MOSTRADOR_PANEL_PASSWORD_ARCHIVO: /run/secrets/pg_panel
+    secrets: [database_admin_url, pg_app, pg_panel]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # Tareas a mano (no queda corriendo). Ejemplo:
+  #   docker compose ... run --rm herramientas node apps/admin/src/crear-admin.ts vos@ejemplo.com
+  herramientas:
+    <<: *app
+    profiles: [herramientas]
+    restart: 'no'
+    command: ['node', '-e', "console.log('Indicá el comando a correr')"]
+    environment:
+      DATABASE_ADMIN_URL_ARCHIVO: /run/secrets/database_admin_url
+      MOSTRADOR_CLAVES_ARCHIVO: /run/secrets/claves
+    secrets: [database_admin_url, claves]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *app
+    command: ['node', 'apps/api/src/servidor.ts']
+    environment:
+      HOST: 0.0.0.0
+      PORT: '3000'
+      TRUST_PROXY: '1'
+      APP_ORIGEN: https://${DOMINIO:?Falta DOMINIO}
+      APP_NOMBRE: ${APP_NOMBRE:-Mostrador}
+      DATABASE_URL_ARCHIVO: /run/secrets/database_url
+      REDIS_URL_ARCHIVO: /run/secrets/redis_url
+      MOSTRADOR_CLAVES_ARCHIVO: /run/secrets/claves
+      MP_CLIENT_ID: ${MP_CLIENT_ID:-}
+      MP_CLIENT_SECRET_ARCHIVO: /run/secrets/mp_client_secret
+      MP_WEBHOOK_SECRET_ARCHIVO: /run/secrets/mp_webhook_secret
+      MP_PRUEBAS: ${MP_PRUEBAS:-0}
+    secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret]
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    <<: *app
+    command: ['node', 'apps/worker/src/worker.ts']
+    environment:
+      APP_ORIGEN: https://${DOMINIO}
+      DATABASE_URL_ARCHIVO: /run/secrets/database_url
+      REDIS_URL_ARCHIVO: /run/secrets/redis_url
+      MOSTRADOR_CLAVES_ARCHIVO: /run/secrets/claves
+      MP_CLIENT_ID: ${MP_CLIENT_ID:-}
+      MP_CLIENT_SECRET_ARCHIVO: /run/secrets/mp_client_secret
+      MP_WEBHOOK_SECRET_ARCHIVO: /run/secrets/mp_webhook_secret
+      MP_PRUEBAS: ${MP_PRUEBAS:-0}
+    secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret]
+    # Sin Mercado Pago configurado, el worker termina solo y no se reinicia.
+    restart: on-failure
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  # Panel interno: solo en la IP de Tailscale del servidor.
+  admin:
+    <<: *app
+    command: ['node', 'apps/admin/src/servidor.ts']
+    environment:
+      PANEL_HOST: 0.0.0.0
+      PANEL_PUERTO: '8081'
+      PANEL_ORIGEN: http://${TAILSCALE_IP:?Falta TAILSCALE_IP}:8081
+      APP_ORIGEN: https://${DOMINIO}
+      COOKIES_INSEGURAS: '1' # solo por Tailscale (cifrado por WireGuard), sin HTTPS propio
+      DATABASE_PANEL_URL_ARCHIVO: /run/secrets/database_panel_url
+      MOSTRADOR_CLAVES_ARCHIVO: /run/secrets/claves
+    secrets: [database_panel_url, claves]
+    ports:
+      - '${TAILSCALE_IP}:8081:8081'
+    depends_on:
+      migrar: { condition: service_completed_successfully }
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      target: web
+    image: mostrador-web:local
+    restart: unless-stopped
+    environment:
+      DOMINIO: ${DOMINIO}
+    ports:
+      - '443:443'
+    volumes:
+      - /opt/mostrador/certificados:/certificados:ro
+      - caddy_datos:/data
+      - caddy_config:/config
+    networks: [interna]
+    depends_on:
+      api: { condition: service_healthy }
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+
+networks:
+  interna: {}
+
+volumes:
+  postgres: {}
+  redis: {}
+  caddy_datos: {}
+  caddy_config: {}
+
+secrets:
+  pg_admin: { file: /opt/mostrador/secretos/pg_admin }
+  pg_app: { file: /opt/mostrador/secretos/pg_app }
+  pg_panel: { file: /opt/mostrador/secretos/pg_panel }
+  redis: { file: /opt/mostrador/secretos/redis }
+  database_admin_url: { file: /opt/mostrador/secretos/database_admin_url }
+  database_url: { file: /opt/mostrador/secretos/database_url }
+  database_panel_url: { file: /opt/mostrador/secretos/database_panel_url }
+  redis_url: { file: /opt/mostrador/secretos/redis_url }
+  claves: { file: /opt/mostrador/secretos/claves.json }
+  mp_client_secret: { file: /opt/mostrador/secretos/mp_client_secret }
+  mp_webhook_secret: { file: /opt/mostrador/secretos/mp_webhook_secret }

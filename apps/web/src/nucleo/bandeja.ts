@@ -57,9 +57,15 @@ async function contar() {
   });
 }
 
+let reintento: ReturnType<typeof setInterval> | undefined;
+
+/** Al entrar al kiosco se sube lo que haya quedado pendiente (por ejemplo, de antes de recargar). */
 export function usarKiosco(kioscoId: string | null): void {
   kioscoActual = kioscoId;
-  void contar();
+  clearInterval(reintento);
+  void contar().then(() => (kioscoId ? sincronizar() : undefined));
+  // Red de seguridad: si quedó algo pendiente, se reintenta cada minuto.
+  if (kioscoId) reintento = setInterval(() => estado.pendientes > 0 && void sincronizar(), 60_000);
 }
 
 export async function encolar(tipo: TipoOp, datos: OpPendiente['datos']): Promise<void> {

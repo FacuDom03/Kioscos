@@ -149,6 +149,30 @@ describe('ventas', () => {
     expect((await sync(c.dueno.cliente, [op])).json().resultados[0].estado).toBe('rechazada');
   });
 
+  it('una venta de un equipo con el reloj atrasado se guarda con las dos horas', async () => {
+    const c = await preparar();
+    const op = venta(c, [{ productoId: c.coca, cantidad: 1, precio: 180000 }]);
+    op.datos.creadaEn = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    expect((await sync(c.dueno.cliente, [op])).json().resultados[0].estado).toBe('ok');
+    const v = (await c.dueno.cliente.get(`/api/v1/ventas/${op.datos.id}`)).json();
+    expect(
+      new Date(v.recibida_en).getTime() - new Date(v.creada_en_dispositivo).getTime(),
+    ).toBeGreaterThan(2 * 86_400_000);
+  });
+
+  it('dos equipos vendiendo el último producto: las dos ventas quedan y el stock da negativo', async () => {
+    const c = await preparar();
+    const { cajero } = await cajeroEnEquipo(c.dueno, e.app);
+    const r1 = await sync(c.dueno.cliente, [
+      venta(c, [{ productoId: c.alfajor, cantidad: 1, precio: 120000, descripcion: 'Alfajor' }]),
+    ]);
+    const r2 = await sync(cajero, [
+      venta(c, [{ productoId: c.alfajor, cantidad: 1, precio: 120000, descripcion: 'Alfajor' }]),
+    ]);
+    expect(r1.json().resultados[0]).toEqual(expect.objectContaining({ estado: 'ok' }));
+    expect(r2.json().resultados[0]).toMatchObject({ estado: 'ok', avisos: [{ stock: -1 }] });
+  });
+
   it('dos equipos abriendo la caja comparten el mismo turno', async () => {
     const c = await preparar();
     const r = await sync(c.dueno.cliente, [

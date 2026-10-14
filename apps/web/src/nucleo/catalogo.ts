@@ -3,6 +3,8 @@
 import { buscar, indexar, type Indice } from '@mostrador/shared';
 import { useSyncExternalStore } from 'react';
 import { api } from './api.ts';
+import { eventosBandeja } from './bandeja.ts';
+import { guardarClave, leerClave } from './local.ts';
 
 export interface Producto {
   id: string;
@@ -31,7 +33,10 @@ interface Estado {
 let estado: Estado = { catalogo: null, indice: null, porId: new Map() };
 const oyentes = new Set<() => void>();
 
-function fijar(catalogo: Catalogo) {
+let kiosco: string | null = null;
+
+function fijar(catalogo: Catalogo, guardar = true) {
+  if (guardar && kiosco) void guardarClave(`catalogo:${kiosco}`, catalogo);
   estado = {
     catalogo,
     indice: indexar(catalogo.productos),
@@ -55,8 +60,16 @@ export function refrescarCatalogo(): Promise<void> {
 }
 
 let intervalo: ReturnType<typeof setInterval> | undefined;
-export function iniciarRefrescoCatalogo(): () => void {
+/** Carga lo guardado en el equipo (para vender sin conexión) y lo refresca con el servidor. */
+export function iniciarRefrescoCatalogo(kioscoId: string): () => void {
+  kiosco = kioscoId;
+  void leerClave<Catalogo>(`catalogo:${kioscoId}`).then((c) => {
+    if (c && !estado.catalogo) fijar(c, false);
+  });
   void refrescarCatalogo().catch(() => undefined);
+  // Después de cada subida de ventas, el stock cambió.
+  const alSincronizar = () => void refrescarCatalogo().catch(() => undefined);
+  eventosBandeja.addEventListener('sincronizado', alSincronizar);
   const alVolver = () => {
     if (document.visibilityState === 'visible') void refrescarCatalogo().catch(() => undefined);
   };
@@ -64,7 +77,9 @@ export function iniciarRefrescoCatalogo(): () => void {
   intervalo = setInterval(() => void refrescarCatalogo().catch(() => undefined), 5 * 60_000);
   return () => {
     document.removeEventListener('visibilitychange', alVolver);
+    eventosBandeja.removeEventListener('sincronizado', alSincronizar);
     clearInterval(intervalo);
+    kiosco = null;
   };
 }
 

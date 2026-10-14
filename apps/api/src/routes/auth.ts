@@ -585,7 +585,7 @@ export async function rutasAuth(app: FastifyInstance): Promise<void> {
       tipo: 'completa',
     });
     ponerCookieSesion(app, reply, token);
-    return { ok: true };
+    return { ok: true, kioscoId: disp.kiosco_id };
   });
 }
 

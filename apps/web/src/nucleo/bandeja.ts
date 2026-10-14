@@ -129,6 +129,7 @@ async function subir(): Promise<boolean> {
       }
     }
     espera = 2_000;
+    if (subidas) eventosBandeja.dispatchEvent(new Event('sincronizado'));
     emitir({
       ultimaSubida: new Date().toISOString(),
       subidasRecientes: eraSinConexion || subidas > 1 ? subidas : 0,

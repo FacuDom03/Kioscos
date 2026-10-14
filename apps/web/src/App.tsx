@@ -19,6 +19,9 @@ import { Seguridad } from './pantallas/mas/Seguridad.tsx';
 import { Usuarios } from './pantallas/mas/Usuarios.tsx';
 import { Vender } from './pantallas/vender/Vender.tsx';
 import { Caja } from './pantallas/caja/Caja.tsx';
+import { BannerConexion } from './componentes/BannerConexion.tsx';
+import { BannerVersion } from './componentes/BannerVersion.tsx';
+import { Bloqueo } from './componentes/Bloqueo.tsx';
 import { usarKiosco } from './nucleo/bandeja.ts';
 import { cargarTicket } from './nucleo/ticket.ts';
 import { cargarTurno } from './nucleo/turno.ts';
@@ -92,7 +95,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
     usarKiosco(kioscoId);
     void cargarTurno(kioscoId);
     void cargarTicket(kioscoId);
-    const parar = iniciarRefrescoCatalogo();
+    const parar = iniciarRefrescoCatalogo(kioscoId);
     return () => {
       parar();
       olvidarCatalogo();
@@ -175,8 +178,13 @@ function AppConSesion({ ruta }: { ruta: string }) {
         alCambiar={(s) => navegar(s === 'vender' ? '/' : `/${s}`)}
         estado={estadoConexion}
       >
+        <BannerConexion />
+        <BannerVersion />
         {pantalla}
       </Marco>
+      {estado.tipo === 'completa' && estado.rol === 'cajero' && (
+        <Bloqueo kioscoId={estado.kiosco.id} nombre={estado.usuario.nombre} />
+      )}
     </>
   );
 }

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { useSesion } from '../../nucleo/sesion.tsx';
+import { guardarPinLocal } from '../../nucleo/bloqueo.ts';
 import { MarcoAcceso } from './Acceso.tsx';
 
 export interface PersonasEquipo {
-  dispositivo: { nombre: string; kiosco: string } | null;
+  dispositivo: { nombre: string; kiosco: string; kioscoId?: string } | null;
   personas: { id: string; nombre: string }[];
 }
 
@@ -27,7 +28,12 @@ export function IngresoPin({
   async function entrar(valor: string) {
     if (!persona) return;
     try {
-      await api('POST', '/api/v1/auth/pin', { membresiaId: persona, pin: valor });
+      const r = await api<{ ok: boolean; kioscoId: string }>('POST', '/api/v1/auth/pin', {
+        membresiaId: persona,
+        pin: valor,
+      });
+      // Para destrabar la pantalla sin conexión.
+      await guardarPinLocal(r.kioscoId, valor);
       await recargar();
     } catch (e) {
       setError(mensajeDeError(e));

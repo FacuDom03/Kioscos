@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, ErrorApi, eventosSesion } from './api.ts';
 import { navegar } from './ruta.ts';
+import { borrarClave, guardarClave, leerClave } from './local.ts';
 
 export type Rol = 'dueno' | 'encargado' | 'cajero' | 'soporte';
 
@@ -20,6 +21,13 @@ export interface SesionPendiente {
   metodos?: { totp: boolean; passkey: boolean };
 }
 
+const CLAVE_SESION = 'sesion';
+
+/** Copia mínima de la sesión para seguir vendiendo si la app abre sin conexión. */
+async function recordar(e: SesionPendiente | SesionCompleta) {
+  if (e.tipo === 'completa') await guardarClave(CLAVE_SESION, e);
+}
+
 export type EstadoSesion =
   { tipo: 'cargando' } | { tipo: 'sin_sesion' } | SesionPendiente | SesionCompleta;
 
@@ -37,7 +45,9 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
 
   const recargar = useCallback(async () => {
     try {
-      setEstado(await api<SesionPendiente | SesionCompleta>('GET', '/api/v1/auth/yo'));
+      const e = await api<SesionPendiente | SesionCompleta>('GET', '/api/v1/auth/yo');
+      await recordar(e);
+      setEstado(e);
     } catch (e) {
       if (e instanceof ErrorApi && e.status === 401) setEstado({ tipo: 'sin_sesion' });
       else throw e;
@@ -46,15 +56,29 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     api<SesionPendiente | SesionCompleta>('GET', '/api/v1/auth/yo')
-      .then(setEstado)
-      .catch(() => setEstado({ tipo: 'sin_sesion' }));
-    const vencida = () => setEstado({ tipo: 'sin_sesion' });
+      .then(async (e) => {
+        await recordar(e);
+        setEstado(e);
+      })
+      .catch(async (e: unknown) => {
+        // Sin conexión: la app sigue con la sesión que ya tenía.
+        const guardada =
+          e instanceof ErrorApi && e.status === 0
+            ? await leerClave<SesionCompleta>(CLAVE_SESION)
+            : undefined;
+        setEstado(guardada ?? { tipo: 'sin_sesion' });
+      });
+    const vencida = () => {
+      void borrarClave(CLAVE_SESION);
+      setEstado({ tipo: 'sin_sesion' });
+    };
     eventosSesion.addEventListener('vencida', vencida);
     return () => eventosSesion.removeEventListener('vencida', vencida);
   }, []);
 
   const salir = useCallback(async () => {
     await api('POST', '/api/v1/auth/salir', {}).catch(() => undefined);
+    await borrarClave(CLAVE_SESION);
     // Al volver a entrar, la app abre en Vender.
     navegar('/', true);
     setEstado({ tipo: 'sin_sesion' });

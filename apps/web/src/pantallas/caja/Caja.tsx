@@ -9,6 +9,7 @@ import { navegar } from '../../nucleo/ruta.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { olvidarTurno, turnoActual, useTurno } from '../../nucleo/turno.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { aplicarActualizacion } from '../../nucleo/actualizacion.ts';
 import { AbrirCaja } from '../vender/AbrirCaja.tsx';
 
 interface DatosCaja {
@@ -98,6 +99,8 @@ export function Caja() {
       );
       await olvidarTurno();
       setCierre(res);
+      // Si había una versión nueva esperando, se aplica al cerrar la caja.
+      setTimeout(() => void aplicarActualizacion(), 4000);
     } catch (e) {
       setErrorCierre(mensajeDeError(e));
     }

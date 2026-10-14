@@ -153,6 +153,17 @@ h3 {
   grid-area: contenido;
   min-height: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.m-marco__contenido > * {
+  flex-shrink: 0;
+}
+
+.m-marco__contenido > :last-child {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .m-nav {

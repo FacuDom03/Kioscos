@@ -28,11 +28,11 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
 
   const dueno = uuidv7();
   const cajero = uuidv7();
-  await q(`insert into usuarios (id, email) values ($1, $2), ($3, $4)`, [
+  await q(`insert into usuarios (id, email, nombre) values ($1, $2, $3), ($4, null, 'Cajero')`, [
     dueno,
     k.email,
+    k.nombre.split(' ').pop(),
     cajero,
-    k.email.replace('@', '.cajero@'),
   ]);
   const membresiaDueno = uuidv7();
   const membresiaCajero = uuidv7();
@@ -43,8 +43,8 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
 
   const dispositivo = uuidv7();
   await q(
-    `insert into dispositivos (id, kiosco_id, nombre, credencial_hash) values ($1, $2, 'PC mostrador', 'hash-de-prueba')`,
-    [dispositivo, k.id],
+    `insert into dispositivos (id, kiosco_id, nombre, credencial_hash) values ($1, $2, 'PC mostrador', $3)`,
+    [dispositivo, k.id, `hash-dispositivo-${k.id}`],
   );
   await q(
     `insert into pines (id, kiosco_id, membresia_id, pin_hash) values ($1, $2, $3, 'hash-de-prueba')`,
@@ -139,6 +139,11 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
   await q(
     `insert into integraciones (id, kiosco_id, proveedor, estado) values ($1, $2, 'mercadopago', 'desconectado')`,
     [uuidv7(), k.id],
+  );
+  await q(
+    `insert into invitaciones (id, kiosco_id, email, rol, token_hash, vence_en)
+     values ($1, $2, $3, 'encargado', $4, now() + interval '72 hours')`,
+    [uuidv7(), k.id, k.email.replace('@', '.encargado@'), `hash-invitacion-${k.id}`],
   );
   await q(
     `insert into auditoria (id, kiosco_id, usuario_id, accion, detalle) values ($1, $2, $3, 'semillas.cargadas', '{}')`,

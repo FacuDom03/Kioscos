@@ -12,6 +12,11 @@ try {
     await fijarPasswordApp(cliente, password);
     console.log('Contraseña de mostrador_app actualizada');
   }
+  const passwordPanel = process.env['MOSTRADOR_PANEL_PASSWORD'];
+  if (passwordPanel) {
+    await fijarPasswordApp(cliente, passwordPanel, 'mostrador_panel');
+    console.log('Contraseña de mostrador_panel actualizada');
+  }
 } finally {
   await cliente.end();
 }

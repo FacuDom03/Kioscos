@@ -6,6 +6,7 @@ import { cargarSemillas } from './semillas.ts';
 export interface BaseDePrueba {
   adminUrl: string;
   appUrl: string;
+  panelUrl: string;
 }
 
 // Los roles son de todo el servidor: si en desarrollo la base de pruebas comparte servidor con la
@@ -38,15 +39,19 @@ export async function prepararBaseDePrueba(nombre: string): Promise<BaseDePrueba
   try {
     await migrar(cliente);
     await fijarPasswordApp(cliente, PASSWORD_APP_PRUEBAS);
+    await fijarPasswordApp(cliente, PASSWORD_APP_PRUEBAS, 'mostrador_panel');
     await cargarSemillas(cliente);
   } finally {
     await cliente.end();
   }
 
-  const app = new URL(adminUrl);
-  app.username = 'mostrador_app';
-  app.password = PASSWORD_APP_PRUEBAS;
-  return { adminUrl, appUrl: app.toString() };
+  const comoRol = (rol: string) => {
+    const u = new URL(adminUrl);
+    u.username = rol;
+    u.password = PASSWORD_APP_PRUEBAS;
+    return u.toString();
+  };
+  return { adminUrl, appUrl: comoRol('mostrador_app'), panelUrl: comoRol('mostrador_panel') };
 }
 
 function conBase(url: string, base: string): string {

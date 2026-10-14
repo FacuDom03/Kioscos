@@ -1,11 +1,12 @@
 import { cerrarBaseApp, crearBaseApp } from '@mostrador/db';
 import { construirApp } from './app.ts';
+import { configDesdeEntorno } from './config.ts';
 
 const url = process.env['DATABASE_URL'];
 if (!url) throw new Error('Falta la variable de entorno DATABASE_URL');
 
 const base = crearBaseApp(url);
-const app = await construirApp({ base, logger: true });
+const app = await construirApp({ base, config: configDesdeEntorno(), logger: true });
 
 const cerrar = async () => {
   await app.close();

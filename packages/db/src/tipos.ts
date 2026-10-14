@@ -23,7 +23,11 @@ export interface KioscosTabla {
 
 export interface UsuariosTabla {
   id: string;
-  email: string;
+  email: string | null;
+  nombre: Generated<string>;
+  intentos_fallidos: Generated<number>;
+  bloqueado_hasta: Fecha | null;
+  codigos_recuperacion: Generated<string[]>;
   password_hash: string | null;
   totp_secreto_cifrado: Buffer | null;
   totp_clave_version: number | null;
@@ -249,6 +253,18 @@ export interface AuditoriaTabla {
   created_at: FechaDefault;
 }
 
+export interface InvitacionesTabla {
+  id: string;
+  kiosco_id: string;
+  email: string;
+  rol: 'dueno' | 'encargado';
+  token_hash: string;
+  vence_en: Fecha;
+  usada_en: Fecha | null;
+  creada_por: string | null;
+  created_at: FechaDefault;
+}
+
 export interface EventosWebhookTabla {
   id: string;
   proveedor: 'mercadopago';
@@ -279,6 +295,7 @@ export interface Database {
   movimientos_stock: MovimientosStockTabla;
   integraciones: IntegracionesTabla;
   auditoria: AuditoriaTabla;
+  invitaciones: InvitacionesTabla;
   eventos_webhook: EventosWebhookTabla;
 }
 
@@ -304,7 +321,14 @@ export const TABLAS_DE_KIOSCO = [
   'movimientos_stock',
   'integraciones',
   'auditoria',
+  'invitaciones',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */
 export const TABLAS_GLOBALES = ['eventos_webhook'] as const satisfies readonly (keyof Database)[];
+
+/**
+ * Tablas solo de sistema (sesiones, passkeys, admins): RLS forzada sin políticas y sin ningún
+ * permiso para la API. Se usan solo a través de las funciones auth_* y panel_*.
+ */
+export const TABLAS_SISTEMA = ['sesiones', 'passkeys', 'admins', 'sesiones_admin'] as const;

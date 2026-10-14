@@ -1,21 +1,95 @@
 // Matriz de la prueba de aislamiento por rutas (sección 8 de docs/SPEC.md).
 //
-// Cada ruta nueva de la API tiene que figurar acá: o es pública (lista corta y revisada), o tiene
-// un caso que, autenticado como el kiosco A, intenta leer, editar o borrar un recurso del kiosco B
-// por ID y espera 404 sin cambios en la base. La prueba `rutas.test.ts` falla si falta alguna.
+// Cada ruta de la API tiene que figurar acá: o es pública (lista corta y revisada), o tiene un
+// caso que, autenticado como el kiosco A, intenta leer, editar o borrar recursos del kiosco B.
+// `rutas.test.ts` falla si falta alguna; `aislamiento-rutas.test.ts` ejecuta los casos.
 //
-// En la Etapa A todavía no hay sesiones ni rutas de negocio: la matriz arranca vacía y se llena
-// a partir de la Etapa B.
+// En los cuerpos, "$B:<tabla>" se reemplaza por un ID de esa tabla del kiosco B.
 
-export const RUTAS_PUBLICAS: readonly string[] = ['GET /health'];
+export const RUTAS_PUBLICAS: readonly string[] = [
+  'GET /health',
+  'POST /api/v1/auth/login',
+  'POST /api/v1/auth/salir',
+  'GET /api/v1/auth/invitaciones/:token',
+  'POST /api/v1/auth/invitaciones/:token',
+  'GET /api/v1/auth/pin/personas',
+  'POST /api/v1/auth/pin',
+  'POST /api/v1/auth/soporte',
+];
+
+export type Espera =
+  /** Recurso de B por ID: tiene que dar 404. */
+  | 'no_encontrado'
+  /** La respuesta no puede contener ningún ID de B. */
+  | 'sin_datos_de_b'
+  /** Escribe solo en el kiosco de la sesión: la base de B no tiene que cambiar. */
+  | 'escribe_solo_lo_propio'
+  /** Solo actúa sobre la propia sesión o persona (pasos del segundo factor). */
+  | 'propia';
 
 export interface CasoAislamiento {
   metodo: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** Igual que en Fastify, por ejemplo `/api/v1/productos/:id`. */
   url: string;
+  espera: Espera;
   /** Tabla de la que se toma un ID del kiosco B para reemplazar `:id`. */
-  tabla: string;
+  tabla?: string;
   cuerpo?: unknown;
 }
 
-export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [];
+const caso = (
+  metodo: CasoAislamiento['metodo'],
+  url: string,
+  espera: Espera,
+  extra: Partial<CasoAislamiento> = {},
+): CasoAislamiento => ({ metodo, url, espera, ...extra });
+
+export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
+  // Cuenta y sesión
+  caso('GET', '/api/v1/auth/yo', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/auth/kiosco', 'no_encontrado', { cuerpo: { kioscoId: '$B:kioscos' } }),
+  caso('POST', '/api/v1/auth/totp', 'propia'),
+  caso('POST', '/api/v1/auth/recuperacion', 'propia'),
+  caso('POST', '/api/v1/auth/passkey/opciones', 'propia'),
+  caso('POST', '/api/v1/auth/passkey/verificar', 'propia'),
+  caso('POST', '/api/v1/auth/configurar/totp', 'propia'),
+  caso('POST', '/api/v1/auth/configurar/totp/confirmar', 'propia'),
+  caso('POST', '/api/v1/auth/configurar/passkey/opciones', 'propia'),
+  caso('POST', '/api/v1/auth/configurar/passkey/verificar', 'propia'),
+  caso('GET', '/api/v1/cuenta/seguridad', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/cuenta/codigos', 'propia'),
+  caso('DELETE', '/api/v1/cuenta/passkeys/:id', 'no_encontrado', { tabla: 'passkeys' }),
+  caso('POST', '/api/v1/cuenta/password', 'escribe_solo_lo_propio', {
+    cuerpo: { actual: 'incorrecta', nueva: 'otra contraseña larga' },
+  }),
+
+  // Dispositivos
+  caso('GET', '/api/v1/dispositivos', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/dispositivos', 'escribe_solo_lo_propio', {
+    cuerpo: { nombre: 'Equipo A' },
+  }),
+  caso('DELETE', '/api/v1/dispositivos/:id', 'no_encontrado', { tabla: 'dispositivos' }),
+
+  // Usuarios
+  caso('GET', '/api/v1/usuarios', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/usuarios/cajeros', 'escribe_solo_lo_propio', {
+    cuerpo: { nombre: 'Cajero A', pin: '1234' },
+  }),
+  caso('PUT', '/api/v1/usuarios/:id/pin', 'no_encontrado', {
+    tabla: 'membresias',
+    cuerpo: { pin: '9999' },
+  }),
+  caso('PATCH', '/api/v1/usuarios/:id', 'no_encontrado', {
+    tabla: 'membresias',
+    cuerpo: { activa: false },
+  }),
+  caso('POST', '/api/v1/usuarios/invitaciones', 'escribe_solo_lo_propio', {
+    cuerpo: { email: 'nuevo@ejemplo.test' },
+  }),
+  caso('DELETE', '/api/v1/usuarios/invitaciones/:id', 'no_encontrado', { tabla: 'invitaciones' }),
+
+  // Kiosco
+  caso('GET', '/api/v1/kiosco', 'sin_datos_de_b'),
+  caso('PUT', '/api/v1/kiosco/soporte', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
+  caso('GET', '/api/v1/auditoria', 'sin_datos_de_b'),
+];

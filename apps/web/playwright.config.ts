@@ -19,10 +19,18 @@ export default defineConfig({
     { name: 'tablet', use: { viewport: { width: 1024, height: 768 }, ...tactil } },
     { name: 'pc', use: { viewport: { width: 1366, height: 768 } } },
   ],
-  webServer: {
-    command: 'pnpm build && pnpm preview',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env['CI'],
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: 'node e2e/servidor-e2e.ts',
+      url: 'http://127.0.0.1:3100/health',
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      command: 'pnpm build && pnpm preview',
+      url: 'http://127.0.0.1:4173',
+      reuseExistingServer: !process.env['CI'],
+      timeout: 120_000,
+    },
+  ],
 });

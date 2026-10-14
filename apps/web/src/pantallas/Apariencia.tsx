@@ -1,5 +1,6 @@
 import { TEMAS, aplicarTema, leerTema, type Tema } from '@mostrador/ui';
 import { useState } from 'react';
+import { Volver } from '../componentes/Formulario.tsx';
 
 export function Apariencia({ alVolver }: { alVolver: () => void }) {
   const [tema, setTema] = useState<Tema>(leerTema);
@@ -11,9 +12,7 @@ export function Apariencia({ alVolver }: { alVolver: () => void }) {
 
   return (
     <div className="pantalla">
-      <button type="button" className="m-boton volver" onClick={alVolver}>
-        <span aria-hidden="true">‹</span> Volver
-      </button>
+      <Volver onClick={alVolver} />
       <h1 className="m-titulo" id="titulo-apariencia">
         Apariencia
       </h1>

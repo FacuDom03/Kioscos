@@ -54,10 +54,11 @@ export async function migrar(cliente: pg.Client | pg.PoolClient): Promise<Result
   }
 }
 
-/** Solo desarrollo y CI: fija la contraseña del rol de la API desde una variable de entorno. */
+/** Fija la contraseña de un rol con login de la app (mostrador_app o mostrador_panel). */
 export async function fijarPasswordApp(
   cliente: pg.Client | pg.PoolClient,
   password: string,
+  rol: 'mostrador_app' | 'mostrador_panel' = 'mostrador_app',
 ): Promise<void> {
   // ALTER ROLE no acepta parámetros: se escapa como literal con la función de la base.
   const { rows } = await cliente.query<{ literal: string }>('select quote_literal($1) as literal', [
@@ -65,5 +66,5 @@ export async function fijarPasswordApp(
   ]);
   const literal = rows[0]?.literal;
   if (!literal) throw new Error('No se pudo escapar la contraseña');
-  await cliente.query(`alter role mostrador_app password ${literal}`);
+  await cliente.query(`alter role ${rol} password ${literal}`);
 }

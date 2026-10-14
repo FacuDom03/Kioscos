@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import { entrar, kioscoConDueno } from './ayuda.ts';
 
 const TEMAS = [
   { id: 'noche', nombre: 'Noche', fondo: 'rgb(17, 25, 54)', hex: '#111936' },
@@ -9,6 +10,8 @@ const TEMAS = [
 ] as const;
 
 async function abrirConTema(page: Page, tema: string) {
+  const dueno = await kioscoConDueno();
+  await entrar(page, dueno);
   await page.addInitScript((t) => {
     // Solo la primera carga de la página: no pisar lo que elija la prueba después.
     if (!sessionStorage.getItem('prueba.tema')) {
@@ -17,7 +20,7 @@ async function abrirConTema(page: Page, tema: string) {
     }
   }, tema);
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Mi kiosco' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: dueno.kiosco })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -100,6 +103,8 @@ test('cambiar de tema se aplica al instante y queda guardado en el equipo', asyn
 });
 
 test('el tema se aplica antes de pintar, sin pasar por el tema por defecto', async ({ page }) => {
+  const dueno = await kioscoConDueno();
+  await entrar(page, dueno);
   await page.addInitScript(() => localStorage.setItem('mostrador.tema', 'dia'));
   const temasVistos: string[] = [];
   await page.exposeFunction('registrarTema', (t: string) => temasVistos.push(t));
@@ -111,7 +116,7 @@ test('el tema se aplica antes de pintar, sin pasar por el tema por defecto', asy
     }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-tema'] });
   });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Mi kiosco' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: dueno.kiosco })).toBeVisible();
   // El HTML trae "noche" de fábrica y tema.js lo cambia a "dia" antes del primer cuadro;
   // después de eso no tiene que volver a cambiar.
   expect(temasVistos.filter((t) => t !== 'dia')).toEqual([]);

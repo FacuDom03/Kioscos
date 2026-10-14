@@ -48,6 +48,15 @@ export async function withKiosco<T>(
   });
 }
 
+/**
+ * Transacción SIN kiosco. Toda tabla de negocio devuelve vacío (RLS falla cerrada): sirve solo
+ * para llamar a las funciones de sistema `auth_*` (login, sesiones, dispositivos), que se
+ * ejecutan antes de saber el kiosco.
+ */
+export async function sinKiosco<T>(base: BaseApp, fn: (tx: TxKiosco) => Promise<T>): Promise<T> {
+  return (base as BaseInterna).kysely.transaction().execute(fn);
+}
+
 /** Consulta sin kiosco, solo para chequeos de salud (`select 1`). No toca tablas. */
 export async function pingBase(base: BaseApp): Promise<void> {
   await sql`select 1`.execute((base as BaseInterna).kysely);

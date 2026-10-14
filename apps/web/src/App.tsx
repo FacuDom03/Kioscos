@@ -1,25 +1,133 @@
 import { Marco, type Seccion } from '@mostrador/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from './nucleo/api.ts';
+import { navegar, useRuta } from './nucleo/ruta.ts';
+import { ProveedorSesion, useSesion } from './nucleo/sesion.tsx';
+import { CodigosRecuperacion, ConfigurarSegundoFactor } from './pantallas/acceso/Configurar.tsx';
+import { Ingresar } from './pantallas/acceso/Ingresar.tsx';
+import { Invitacion } from './pantallas/acceso/Invitacion.tsx';
+import { IngresoPin, type PersonasEquipo } from './pantallas/acceso/Pin.tsx';
+import { SegundoFactor } from './pantallas/acceso/SegundoFactor.tsx';
+import { EntradaSoporte } from './pantallas/acceso/Soporte.tsx';
 import { Apariencia } from './pantallas/Apariencia.tsx';
 import { Mas } from './pantallas/Mas.tsx';
+import { Auditoria } from './pantallas/mas/Auditoria.tsx';
+import { Conexiones } from './pantallas/mas/Conexiones.tsx';
+import { Dispositivos } from './pantallas/mas/Dispositivos.tsx';
+import { Seguridad } from './pantallas/mas/Seguridad.tsx';
+import { Usuarios } from './pantallas/mas/Usuarios.tsx';
 import { Proximamente } from './pantallas/Proximamente.tsx';
 import { Vender } from './pantallas/Vender.tsx';
 
-type Pantalla = Seccion | 'apariencia';
-
 export function App() {
-  // La app abre directo en Vender.
-  const [pantalla, setPantalla] = useState<Pantalla>('vender');
-  const seccion: Seccion = pantalla === 'apariencia' ? 'mas' : pantalla;
-  const estado = <span className="m-estado">En línea</span>;
+  return (
+    <ProveedorSesion>
+      <Raiz />
+    </ProveedorSesion>
+  );
+}
+
+function Raiz() {
+  const ruta = useRuta();
+  const { estado, recargar } = useSesion();
+  const [codigos, setCodigos] = useState<string[] | null>(null);
+
+  if (ruta === '/invitacion') return <Invitacion />;
+  if (ruta === '/soporte') return <EntradaSoporte />;
+
+  if (estado.tipo === 'cargando') return <div className="cargando" aria-busy="true" />;
+  if (estado.tipo === 'sin_sesion') return <SinSesion />;
+  if (estado.tipo === 'pendiente_2fa') {
+    if (estado.paso === 'segundo_factor') return <SegundoFactor sesion={estado} />;
+    return (
+      <ConfigurarSegundoFactor
+        alTerminar={(r) => {
+          setCodigos(r.codigosRecuperacion);
+          void recargar();
+        }}
+      />
+    );
+  }
+  if (codigos?.length)
+    return <CodigosRecuperacion codigos={codigos} alTerminar={() => setCodigos(null)} />;
+  return <AppConSesion ruta={ruta} />;
+}
+
+function SinSesion() {
+  const [equipo, setEquipo] = useState<PersonasEquipo | null>(null);
+  const [conEmail, setConEmail] = useState(false);
+  useEffect(() => {
+    api<PersonasEquipo>('GET', '/api/v1/auth/pin/personas')
+      .then(setEquipo)
+      .catch(() => setEquipo({ dispositivo: null, personas: [] }));
+  }, []);
+  if (!equipo) return <div className="cargando" aria-busy="true" />;
+  if (equipo.personas.length > 0 && !conEmail)
+    return <IngresoPin equipo={equipo} alUsarEmail={() => setConEmail(true)} />;
+  return <Ingresar alUsarPin={equipo.personas.length > 0 ? () => setConEmail(false) : undefined} />;
+}
+
+const SECCION_DE_RUTA: [string, Seccion][] = [
+  ['/stock', 'stock'],
+  ['/caja', 'caja'],
+  ['/mas', 'mas'],
+];
+
+function AppConSesion({ ruta }: { ruta: string }) {
+  const { estado } = useSesion();
+  const seccion: Seccion = SECCION_DE_RUTA.find(([p]) => ruta.startsWith(p))?.[1] ?? 'vender';
+  const estadoConexion = <span className="m-estado">En línea</span>;
+  const volverAMas = () => navegar('/mas');
+
+  let pantalla;
+  switch (ruta) {
+    case '/stock':
+      pantalla = <Proximamente titulo="Stock" />;
+      break;
+    case '/caja':
+      pantalla = <Proximamente titulo="Caja" />;
+      break;
+    case '/mas':
+      pantalla = <Mas />;
+      break;
+    case '/mas/apariencia':
+      pantalla = <Apariencia alVolver={volverAMas} />;
+      break;
+    case '/mas/usuarios':
+      pantalla = <Usuarios alVolver={volverAMas} />;
+      break;
+    case '/mas/dispositivos':
+      pantalla = <Dispositivos alVolver={volverAMas} />;
+      break;
+    case '/mas/seguridad':
+      pantalla = <Seguridad alVolver={volverAMas} />;
+      break;
+    case '/mas/actividad':
+      pantalla = <Auditoria alVolver={volverAMas} />;
+      break;
+    case '/mas/conexiones':
+      pantalla = (
+        <Conexiones alVolver={volverAMas} alAbrirApariencia={() => navegar('/mas/apariencia')} />
+      );
+      break;
+    default:
+      pantalla = <Vender estado={estadoConexion} />;
+  }
 
   return (
-    <Marco seccion={seccion} alCambiar={setPantalla} estado={estado}>
-      {pantalla === 'vender' && <Vender estado={estado} />}
-      {pantalla === 'stock' && <Proximamente titulo="Stock" />}
-      {pantalla === 'caja' && <Proximamente titulo="Caja" />}
-      {pantalla === 'mas' && <Mas alAbrirApariencia={() => setPantalla('apariencia')} />}
-      {pantalla === 'apariencia' && <Apariencia alVolver={() => setPantalla('mas')} />}
-    </Marco>
+    <>
+      {estado.tipo === 'completa' && estado.esSoporte && (
+        <p className="banda-soporte" role="status">
+          Estás como soporte en {estado.kiosco.nombre}. Todo queda registrado.
+        </p>
+      )}
+      <Marco
+        seccion={seccion}
+        alCambiar={(s) => navegar(s === 'vender' ? '/' : `/${s}`)}
+        estado={estadoConexion}
+      >
+        {pantalla}
+      </Marco>
+    </>
   );
 }

@@ -1,0 +1,20 @@
+{
+  "name": "@mostrador/servidor",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "2.2.2",
+    "libsodium-wrappers": "0.8.4"
+  },
+  "devDependencies": {
+    "@types/libsodium-wrappers": "0.8.2",
+    "vitest": "4.1.11"
+  }
+}

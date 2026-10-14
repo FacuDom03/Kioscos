@@ -1,15 +1,17 @@
 import { CartelTotal, Ticket } from '@mostrador/ui';
 import type { ReactNode } from 'react';
+import { useSesionCompleta } from '../nucleo/sesion.tsx';
 
 // Pantalla inicial, todavía sin catálogo ni ticket (Etapa A). Muestra la estructura en los tres
 // tamaños: una columna en celular; productos a la izquierda y ticket a la derecha en tablet y PC.
 export function Vender({ estado }: { estado: ReactNode }) {
+  const s = useSesionCompleta();
   return (
     <div className="vender">
       <header className="vender__encabezado">
         <div>
-          <h1 className="m-titulo">Mi kiosco</h1>
-          <p className="texto-suave">Caja sin abrir</p>
+          <h1 className="m-titulo">{s.kiosco.nombre}</h1>
+          <p className="texto-suave">Atiende {s.usuario.nombre || 'vos'}</p>
         </div>
         <div className="vender__estado">{estado}</div>
       </header>

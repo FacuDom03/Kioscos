@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Mostrador · Panel</title>
+    <link rel="stylesheet" href="/panel.css" />
+    <script src="/panel.js" defer></script>
+  </head>
+  <body>
+    <main id="raiz">
+      <section id="login" hidden>
+        <h1>Panel de Mostrador</h1>
+        <form id="form-login">
+          <label>Email <input name="email" type="email" autocomplete="username" required /></label>
+          <label
+            >Contraseña
+            <input name="password" type="password" autocomplete="current-password" required
+          /></label>
+          <label
+            >Código de 6 números
+            <input name="codigo" inputmode="numeric" autocomplete="one-time-code" required
+          /></label>
+          <button type="submit">Entrar</button>
+          <p class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="kioscos" hidden>
+        <header>
+          <h1>Kioscos</h1>
+          <span id="quien"></span>
+          <button id="salir" type="button">Salir</button>
+        </header>
+
+        <details open>
+          <summary>Alta de kiosco</summary>
+          <form id="form-alta">
+            <label>Nombre <input name="nombre" required maxlength="120" /></label>
+            <label
+              >CUIT (opcional) <input name="cuit" inputmode="numeric" pattern="\d{11}"
+            /></label>
+            <label
+              >Plan
+              <select name="plan">
+                <option value="esencial">Esencial</option>
+                <option value="comercio" selected>Comercio</option>
+              </select>
+            </label>
+            <label>Email del dueño <input name="emailDueno" type="email" required /></label>
+            <button type="submit">Crear y generar invitación</button>
+            <p class="error" role="alert"></p>
+          </form>
+        </details>
+
+        <div id="enlace" class="enlace" hidden>
+          <p>Mandale este enlace al dueño (vence en 72 horas, un solo uso):</p>
+          <input id="enlace-texto" readonly />
+          <button id="copiar" type="button">Copiar</button>
+          <a id="whatsapp" target="_blank" rel="noopener noreferrer">Mandar por WhatsApp</a>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Kiosco</th>
+              <th>Dueño</th>
+              <th>Plan</th>
+              <th>Estado</th>
+              <th>Usuarios</th>
+              <th>Última venta</th>
+              <th>Soporte</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="filas"></tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

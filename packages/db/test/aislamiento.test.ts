@@ -2,7 +2,7 @@
 // Corre contra un PostgreSQL real, con el rol de la API (mostrador_app).
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { TABLAS_DE_KIOSCO, TABLAS_GLOBALES } from '../src/tipos.ts';
+import { TABLAS_DE_KIOSCO, TABLAS_GLOBALES, TABLAS_SISTEMA } from '../src/tipos.ts';
 import { KIOSCO_A, KIOSCO_B } from '../src/semillas.ts';
 
 type Tabla = (typeof TABLAS_DE_KIOSCO)[number];
@@ -82,17 +82,58 @@ describe('estructura de la base', () => {
       `select tablename as tabla from pg_tables
        where schemaname = 'public' and tablename <> 'migraciones_aplicadas' order by 1`,
     );
-    const conocidas = new Set<string>([...TABLAS_DE_KIOSCO, ...TABLAS_GLOBALES]);
+    const conocidas = new Set<string>([...TABLAS_DE_KIOSCO, ...TABLAS_GLOBALES, ...TABLAS_SISTEMA]);
     expect(rows.map((r) => r.tabla).filter((t) => !conocidas.has(t))).toEqual([]);
     expect(rows).toHaveLength(conocidas.size);
   });
 
-  it('toda tabla con kiosco_id es de kiosco', async () => {
+  it('toda tabla con kiosco_id es de kiosco o de sistema', async () => {
     const { rows } = await admin.query<{ tabla: string }>(
       `select table_name as tabla from information_schema.columns
        where table_schema = 'public' and column_name = 'kiosco_id'`,
     );
-    for (const { tabla } of rows) expect(TABLAS_DE_KIOSCO).toContain(tabla);
+    const permitidas: string[] = [...TABLAS_DE_KIOSCO, ...TABLAS_SISTEMA];
+    for (const { tabla } of rows) expect(permitidas).toContain(tabla);
+  });
+
+  it.each(TABLAS_SISTEMA)(
+    '%s tiene RLS forzada y la API no tiene ningún permiso',
+    async (tabla) => {
+      const { rows } = await admin.query(
+        `select c.relrowsecurity as rls, c.relforcerowsecurity as forzada,
+              has_table_privilege('mostrador_app', c.oid, 'SELECT, INSERT, UPDATE, DELETE') as app,
+              has_table_privilege('mostrador_panel', c.oid, 'SELECT, INSERT, UPDATE, DELETE') as panel
+       from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relname = $1`,
+        [tabla],
+      );
+      expect(rows[0]).toEqual({ rls: true, forzada: true, app: false, panel: false });
+    },
+  );
+
+  it('las funciones de sistema son security definer con search_path fijo', async () => {
+    const { rows } = await admin.query<{
+      nombre: string;
+      definer: boolean;
+      config: string[] | null;
+    }>(
+      `select p.proname as nombre, p.prosecdef as definer, p.proconfig as config
+       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname ~ '^(auth|kiosco|panel)_'`,
+    );
+    expect(rows.length).toBeGreaterThan(10);
+    for (const r of rows) {
+      expect(r.definer, r.nombre).toBe(true);
+      expect(r.config, r.nombre).toContain('search_path=public, pg_temp');
+    }
+  });
+
+  it('la API no puede ejecutar funciones del panel ni el panel las de la API', async () => {
+    const { rows } = await admin.query<{ app: boolean; panel: boolean }>(
+      `select has_function_privilege('mostrador_app', 'panel_listar_kioscos()', 'EXECUTE') as app,
+              has_function_privilege('mostrador_panel', 'auth_credenciales(text)', 'EXECUTE') as panel`,
+    );
+    expect(rows[0]).toEqual({ app: false, panel: false });
   });
 
   it.each(TABLAS_DE_KIOSCO)('%s tiene RLS habilitada y forzada, con política', async (tabla) => {

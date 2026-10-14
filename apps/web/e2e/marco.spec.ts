@@ -49,7 +49,9 @@ for (const tema of TEMAS) {
 
       // El total y el botón Cobrar se ven completos.
       await expect(page.getByText('$ 0')).toBeInViewport({ ratio: 1 });
-      await expect(page.getByRole('button', { name: 'Cobrar' })).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole('button', { name: /^Cobrar/ }).first()).toBeInViewport({
+        ratio: 1,
+      });
 
       const nav = await page.getByRole('navigation', { name: 'Secciones' }).boundingBox();
       const vp = page.viewportSize()!;

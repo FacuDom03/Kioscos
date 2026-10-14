@@ -17,8 +17,12 @@ import { Conexiones } from './pantallas/mas/Conexiones.tsx';
 import { Dispositivos } from './pantallas/mas/Dispositivos.tsx';
 import { Seguridad } from './pantallas/mas/Seguridad.tsx';
 import { Usuarios } from './pantallas/mas/Usuarios.tsx';
-import { Proximamente } from './pantallas/Proximamente.tsx';
-import { Vender } from './pantallas/Vender.tsx';
+import { Vender } from './pantallas/vender/Vender.tsx';
+import { Caja } from './pantallas/caja/Caja.tsx';
+import { usarKiosco } from './nucleo/bandeja.ts';
+import { cargarTicket } from './nucleo/ticket.ts';
+import { cargarTurno } from './nucleo/turno.ts';
+import { useEnLinea } from './nucleo/conexion.ts';
 import { AumentoPrecios } from './pantallas/stock/Aumento.tsx';
 import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
 import { ImportarProductos } from './pantallas/stock/Importar.tsx';
@@ -81,15 +85,26 @@ const SECCION_DE_RUTA: [string, Seccion][] = [
 
 function AppConSesion({ ruta }: { ruta: string }) {
   const { estado } = useSesion();
+  const kioscoId = estado.tipo === 'completa' ? estado.kiosco.id : null;
+  const enLinea = useEnLinea();
   useEffect(() => {
+    if (!kioscoId) return;
+    usarKiosco(kioscoId);
+    void cargarTurno(kioscoId);
+    void cargarTicket(kioscoId);
     const parar = iniciarRefrescoCatalogo();
     return () => {
       parar();
       olvidarCatalogo();
+      usarKiosco(null);
     };
-  }, []);
+  }, [kioscoId]);
   const seccion: Seccion = SECCION_DE_RUTA.find(([p]) => ruta.startsWith(p))?.[1] ?? 'vender';
-  const estadoConexion = <span className="m-estado">En línea</span>;
+  const estadoConexion = enLinea ? (
+    <span className="m-estado">En línea</span>
+  ) : (
+    <span className="m-estado m-estado--sin-conexion">Sin internet</span>
+  );
   const volverAMas = () => navegar('/mas');
 
   let pantalla;
@@ -119,7 +134,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
       pantalla = <ImportarProductos />;
       break;
     case '/caja':
-      pantalla = <Proximamente titulo="Caja" />;
+      pantalla = <Caja />;
       break;
     case '/mas':
       pantalla = <Mas />;

@@ -29,7 +29,10 @@ export interface Dueno {
 }
 
 /** Kiosco nuevo con su caja y un dueño con contraseña y TOTP ya configurados. */
-export async function kioscoConDueno(plan: 'esencial' | 'comercio' = 'comercio'): Promise<Dueno> {
+export async function kioscoConDueno(
+  plan: 'esencial' | 'comercio' = 'comercio',
+  opciones: { cajaAbierta?: boolean } = { cajaAbierta: true },
+): Promise<Dueno> {
   const d = datos();
   const cifrador = await crearCifrador(d.claves, 1);
   const kioscoId = uuidv7();
@@ -45,7 +48,8 @@ export async function kioscoConDueno(plan: 'esencial' | 'comercio' = 'comercio')
     kiosco,
     plan,
   ]);
-  await c.query(`insert into cajas (id, kiosco_id) values ($1, $2)`, [uuidv7(), kioscoId]);
+  const caja = uuidv7();
+  await c.query(`insert into cajas (id, kiosco_id) values ($1, $2)`, [caja, kioscoId]);
   await c.query(
     `insert into usuarios (id, email, nombre, password_hash, totp_secreto_cifrado, totp_clave_version, segundo_factor_activo)
      values ($1, $2, 'Anita', $3, $4, 1, true)`,
@@ -55,7 +59,33 @@ export async function kioscoConDueno(plan: 'esencial' | 'comercio' = 'comercio')
     `insert into membresias (id, kiosco_id, usuario_id, rol) values ($1, $2, $3, 'dueno')`,
     [uuidv7(), kioscoId, usuario],
   );
+  if (opciones.cajaAbierta) {
+    await c.query(
+      `insert into turnos_caja (id, kiosco_id, caja_id, abierto_por, cambio_inicial) values ($1, $2, $3, $4, 1000000)`,
+      [uuidv7(), kioscoId, caja, usuario],
+    );
+  }
   return { kioscoId, kiosco, email, password, secreto };
+}
+
+/** Productos de prueba (precio en centavos). */
+export async function productos(
+  kioscoId: string,
+  lista: { nombre: string; precio: number; codigo?: string; stock?: number }[],
+) {
+  const c = admin();
+  for (const p of lista) {
+    const id = uuidv7();
+    await c.query(
+      `insert into productos (id, kiosco_id, nombre, precio, stock_actual) values ($1, $2, $3, $4, $5)`,
+      [id, kioscoId, p.nombre, p.precio, p.stock ?? 20],
+    );
+    if (p.codigo)
+      await c.query(
+        `insert into codigos_barra (id, kiosco_id, producto_id, codigo, tipo) values ($1, $2, $3, $4, 'ean13')`,
+        [uuidv7(), kioscoId, id, p.codigo],
+      );
+  }
 }
 
 function randomSecreto(): Buffer {

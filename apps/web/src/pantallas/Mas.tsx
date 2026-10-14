@@ -1,5 +1,7 @@
 import { TEMAS, leerTema } from '@mostrador/ui';
 import { api } from '../nucleo/api.ts';
+import { hayPendientes, sincronizar, useBandeja } from '../nucleo/bandeja.ts';
+import { borrarDatosDelKiosco } from '../nucleo/local.ts';
 import { navegar } from '../nucleo/ruta.ts';
 import { useSesion, useSesionCompleta } from '../nucleo/sesion.tsx';
 
@@ -14,6 +16,20 @@ export function Mas() {
   const { salir, fijar } = useSesion();
   const tema = TEMAS.find((t) => t.id === leerTema())?.nombre;
   const dueno = s.rol === 'dueno';
+  const bandeja = useBandeja();
+
+  // Al cerrar sesión se borran los datos del kiosco en el equipo, salvo las ventas sin subir:
+  // con ventas pendientes no se deja cerrar.
+  async function cerrarSesion() {
+    if (hayPendientes() && !(await sincronizar())) {
+      alert(
+        `Tenés ${bandeja.pendientes} ventas sin subir. Esperá a que vuelva internet para cerrar la sesión.`,
+      );
+      return;
+    }
+    await borrarDatosDelKiosco(s.kiosco.id);
+    await salir();
+  }
 
   const opciones: Opcion[] = [
     ...(dueno
@@ -88,7 +104,7 @@ export function Mas() {
           </ul>
         </section>
       )}
-      <button type="button" className="m-boton" onClick={salir}>
+      <button type="button" className="m-boton" onClick={() => void cerrarSesion()}>
         Cerrar sesión
       </button>
     </div>

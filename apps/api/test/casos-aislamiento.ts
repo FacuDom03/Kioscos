@@ -130,4 +130,57 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   caso('POST', '/api/v1/precios/aumentos/:id/deshacer', 'no_encontrado', {
     tabla: 'cambios_precio',
   }),
+
+  // Ventas y caja
+  caso('POST', '/api/v1/sync', 'escribe_solo_lo_propio', {
+    cuerpo: {
+      ops: [
+        {
+          tipo: 'venta',
+          datos: {
+            id: '0192a000-0000-7000-8000-00000000aaa1',
+            turnoId: '$B:turnos_caja',
+            creadaEn: '2026-10-14T10:00:00-03:00',
+            total: 180000,
+            items: [
+              {
+                id: '0192a000-0000-7000-8000-00000000aaa2',
+                productoId: '$B:productos',
+                descripcion: 'X',
+                cantidad: 1,
+                precioUnitario: 180000,
+              },
+            ],
+            pagos: [
+              { id: '0192a000-0000-7000-8000-00000000aaa3', medio: 'efectivo', monto: 180000 },
+            ],
+          },
+        },
+        {
+          tipo: 'gasto',
+          datos: {
+            id: '0192a000-0000-7000-8000-00000000aaa4',
+            turnoId: '$B:turnos_caja',
+            tipo: 'gasto',
+            monto: 1,
+            motivo: 'X',
+            creadoEn: '2026-10-14T10:00:00-03:00',
+          },
+        },
+      ],
+    },
+  }),
+  caso('GET', '/api/v1/ventas', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/ventas/:id', 'no_encontrado', { tabla: 'ventas' }),
+  caso('POST', '/api/v1/ventas/:id/anular', 'no_encontrado', {
+    tabla: 'ventas',
+    cuerpo: { motivo: 'Intrusión' },
+  }),
+  caso('POST', '/api/v1/ventas/:id/devuelta', 'no_encontrado', { tabla: 'ventas' }),
+  caso('GET', '/api/v1/caja', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/caja/turnos/:id/cerrar', 'no_encontrado', {
+    tabla: 'turnos_caja',
+    cuerpo: { contado: 0 },
+  }),
+  caso('GET', '/api/v1/caja/cierres', 'sin_datos_de_b'),
 ];

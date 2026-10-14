@@ -54,6 +54,10 @@
   flex-direction: column;
   gap: 10px;
   min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 3px;
+  margin: -3px;
 }
 
 .vender__ticket {
@@ -1008,4 +1012,575 @@ fieldset.campo legend {
 .lista-errores {
   margin: 0;
   color: var(--danger);
+}
+
+/* ---------------------------------------------------------------------------
+ * Vender: mosaicos, ticket y cobro
+ * ------------------------------------------------------------------------- */
+
+.vender__titulo-mosaicos {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mosaicos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 600px) {
+  .mosaicos {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) and (pointer: fine) {
+  .mosaicos {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1600px) and (pointer: fine) {
+  .mosaicos {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.mosaico {
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px;
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.mosaico:active {
+  transform: scale(0.98);
+}
+
+.mosaico__nombre {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.mosaico__precio {
+  padding: var(--price-pad);
+  background: var(--price-bg);
+  color: var(--price-ink);
+  font-size: 22px;
+  font-weight: 800;
+  font-stretch: 80%;
+}
+
+.mosaico--libre {
+  border-style: dashed;
+  border-color: var(--line-dashed);
+  background: transparent;
+}
+
+.mosaico__libre {
+  font-size: 14px;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.chips--categorias {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .chips--categorias {
+    display: flex;
+  }
+}
+
+.desconocido p {
+  margin: 0 0 8px;
+}
+
+.ticket__lineas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 26vh;
+  overflow: auto;
+}
+
+@media (min-width: 600px) {
+  .ticket__lineas {
+    max-height: 34vh;
+  }
+}
+
+.ticket__linea {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 2px;
+  border-radius: 6px;
+}
+
+.ticket__linea--sel {
+  outline: 2px solid var(--paper-ink);
+}
+
+.ticket__cant {
+  min-width: 34px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--qty-bg);
+  color: var(--qty-ink);
+  font-weight: 800;
+  font-size: 14px;
+  text-align: center;
+}
+
+.ticket__desc {
+  font-size: 15px;
+}
+
+.ticket__sub {
+  font-weight: 800;
+}
+
+.ticket__botones {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .ticket__linea {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+  .ticket__botones {
+    display: flex;
+    gap: 4px;
+  }
+}
+
+.ticket__boton {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid var(--paper-line);
+  background: transparent;
+  color: var(--paper-ink);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ticket__total {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 18px;
+}
+
+.vaciar {
+  align-self: flex-start;
+  font-size: 15px;
+}
+
+.nota-sin-qr {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-soft);
+}
+
+.botones-cobro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.m-boton--cobro {
+  min-height: 52px;
+  font-size: 18px;
+}
+
+.cobrar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cobrar--panel {
+  padding: 4px;
+}
+
+.cobrar__total {
+  display: flex;
+  justify-content: center;
+}
+
+.medios {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.medio {
+  min-height: 56px;
+  border-radius: var(--radio);
+  border: var(--line-w) solid var(--line-control);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.medio[aria-pressed='true'] {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.montos-rapidos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.vuelto {
+  min-height: 64px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vuelto__etiqueta {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.vuelto__monto {
+  font-size: 44px;
+  font-weight: 800;
+  font-stretch: 80%;
+  color: var(--price-ink);
+  background: var(--price-bg);
+  padding: var(--price-pad);
+}
+
+.vuelto__falta {
+  color: var(--danger);
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.cobrado {
+  align-items: center;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.cobrado__detalle {
+  margin: 0;
+  font-size: 17px;
+}
+
+.cobrado__ticket {
+  width: 100%;
+  max-width: 380px;
+  position: relative;
+  text-align: left;
+}
+
+.sello {
+  position: absolute;
+  right: 18px;
+  bottom: 26px;
+  padding: 2px 10px;
+  border: 3px solid var(--stamp);
+  border-radius: 8px;
+  color: var(--stamp);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 2px;
+  transform: rotate(-8deg);
+  opacity: 0.9;
+}
+
+.acciones--columna {
+  flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+}
+
+.dialogo {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(420px, calc(100vw - 32px));
+  height: fit-content;
+  padding: 18px;
+  border: var(--line-w) solid var(--line-control);
+  border-radius: var(--radio-grande);
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.55);
+  z-index: 20;
+}
+
+.dialogo p {
+  margin: 8px 0 14px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Caja
+ * ------------------------------------------------------------------------- */
+
+.caja__vendido {
+  margin: 0;
+  font-size: 22px;
+}
+
+.barra-medios {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.barra-medios__barra {
+  display: flex;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+  background: var(--bg);
+}
+
+.barra-medios__tramo {
+  display: block;
+  min-width: 4px;
+}
+
+[data-tema='contraste'] .barra-medios__tramo--qr_mp {
+  background-image: repeating-linear-gradient(45deg, transparent 0 4px, #000 4px 6px) !important;
+}
+
+[data-tema='contraste'] .barra-medios__tramo--transferencia {
+  background-image: repeating-linear-gradient(0deg, transparent 0 4px, #000 4px 6px) !important;
+}
+
+.leyenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  font-size: 16px;
+}
+
+.leyenda__muestra {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border-radius: 3px;
+  vertical-align: -2px;
+}
+
+.tarjeta-efectivo {
+  padding: 14px;
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio-grande);
+  background: var(--surface);
+}
+
+.tarjeta-efectivo dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tarjeta-efectivo dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tarjeta-efectivo dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.tarjeta-efectivo__total {
+  padding-top: 8px;
+  border-top: 2px dotted var(--line-dashed);
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.diferencia {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.diferencia--justo {
+  color: var(--ok);
+}
+
+.diferencia--mal {
+  color: var(--danger);
+}
+
+/* ---------------------------------------------------------------------------
+ * Ticket impreso (58 y 80 mm)
+ * ------------------------------------------------------------------------- */
+
+.impreso {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: var(--ancho-ticket, 58mm) auto;
+    margin: 0;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .impreso,
+  .impreso * {
+    visibility: visible;
+  }
+  .impreso {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 2mm;
+    font-family: ui-monospace, 'Courier New', monospace;
+    font-size: 11px;
+    color: #000;
+  }
+  .impreso p {
+    margin: 1mm 0;
+  }
+  .impreso hr {
+    border: 0;
+    border-top: 1px dashed #000;
+  }
+  .impreso__kiosco {
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+  }
+  .impreso__item {
+    display: flex;
+    justify-content: space-between;
+    gap: 2mm;
+  }
+  .impreso__total {
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .impreso__legal {
+    text-align: center;
+  }
+}
+
+/* Celular: los productos siempre tienen lugar; el ticket y el cartel se achican en pantallas bajas. */
+@media (max-width: 599px) {
+  .vender__productos {
+    flex: 1 1 45%;
+    min-height: 170px;
+  }
+  .vender__ticket {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+  .ticket__lineas {
+    max-height: 15vh;
+  }
+  .vender__ticket .m-ticket {
+    padding: 10px 14px 4px;
+  }
+  .vender__ticket .m-ticket__separador {
+    margin: 6px 0;
+  }
+}
+
+@media (max-height: 760px) {
+  .vender__total .m-cartel {
+    width: 168px !important;
+  }
+  .vender__total .m-cartel__monto {
+    font-size: 32px;
+  }
+  .vender__total .m-cartel__etiqueta {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 599px) and (max-height: 700px) {
+  .vender {
+    gap: 8px;
+    padding-top: 8px;
+  }
+  .vender__ticket {
+    gap: 4px;
+  }
+  .vender__ticket .m-boton--principal {
+    min-height: 56px;
+  }
+}
+
+@media (max-width: 599px) {
+  .vender__ticket {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 10px;
+  }
+  .vender__ticket > section,
+  .vender__ticket > .vaciar,
+  .vender__ticket > .nota-sin-qr {
+    grid-column: 1 / -1;
+  }
+  .vender__ticket .vender__total .m-cartel {
+    width: 150px !important;
+  }
+  .vender__ticket .vender__total .m-cartel__monto {
+    font-size: 28px;
+  }
+  .vaciar {
+    min-height: 32px;
+  }
+}
+
+@media (max-width: 599px) {
+  .vender__ticket > .vaciar {
+    justify-self: start;
+  }
 }

@@ -62,13 +62,11 @@ test('importar 200 productos desde un CSV', async ({ page }) => {
     filas.push(
       `Producto ${i};${1000 + i};779${String(i).padStart(10, '0')};${i % 2 ? 'Bebidas' : 'Almacén'}`,
     );
-  await page
-    .locator('input[type=file]')
-    .setInputFiles({
-      name: 'productos.csv',
-      mimeType: 'text/csv',
-      buffer: Buffer.from(filas.join('\n')),
-    });
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'productos.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(filas.join('\n')),
+  });
   await expect(page.getByText('Listo: 200 productos nuevos y 0 actualizados.')).toBeVisible();
   await page.goto('/stock');
   await expect(page.getByRole('button', { name: 'Todos (200)' })).toBeVisible();

@@ -16,6 +16,11 @@ export class ErrorApi extends Error {
 /** Se dispara cuando el servidor dice que la sesión venció, para volver a la pantalla de ingreso. */
 export const eventosSesion = new EventTarget();
 
+/** "conexion" con detail true/false según si el último pedido llegó al servidor. */
+export const eventosConexion = new EventTarget();
+const avisarConexion = (ok: boolean) =>
+  eventosConexion.dispatchEvent(new CustomEvent('conexion', { detail: ok }));
+
 export async function api<T = unknown>(
   metodo: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
@@ -30,8 +35,11 @@ export async function api<T = unknown>(
       body: cuerpo === undefined ? null : JSON.stringify(cuerpo),
     });
   } catch {
+    avisarConexion(false);
     throw new ErrorApi(0, 'sin_conexion', 'No hay conexión. Revisá internet y probá de nuevo.');
   }
+  // 502 a 504: el proxy no llega a la API (por ejemplo, el servidor reiniciando).
+  avisarConexion(r.status < 502 || r.status > 504);
   const datos = (await r.json().catch(() => ({}))) as {
     error?: string;
     codigo?: string;

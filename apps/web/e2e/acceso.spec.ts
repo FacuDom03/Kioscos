@@ -69,7 +69,7 @@ test('el cajero entra con PIN en el equipo autorizado y no en otro', async ({ pa
   await page.getByLabel('PIN').fill('2468');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   await expect(page.getByRole('heading', { name: d.kiosco })).toBeVisible();
-  await expect(page.getByText('Atiende Juli')).toBeVisible();
+  await expect(page.getByText('Caja de Juli')).toBeVisible();
 
   // Otro equipo (sin la cookie del equipo) no muestra el PIN: pide email.
   const otro = await browser.newContext();

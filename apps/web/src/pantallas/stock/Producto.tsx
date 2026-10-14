@@ -1,0 +1,320 @@
+import { formatearPlata } from '@mostrador/shared';
+import { useState, type FormEvent } from 'react';
+import { CampoPlata } from '../../componentes/CampoPlata.tsx';
+import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
+import { api, mensajeDeError } from '../../nucleo/api.ts';
+import { refrescarCatalogo, useCatalogo } from '../../nucleo/catalogo.ts';
+import { navegar } from '../../nucleo/ruta.ts';
+import { useDatos } from '../../nucleo/usar-datos.ts';
+
+interface Detalle {
+  id: string;
+  nombre: string;
+  precio: number;
+  costo?: number | null;
+  categoriaId: string | null;
+  stock: number;
+  minimo: number;
+  activo: boolean;
+  codigos: string[];
+  movimientos: {
+    id: string;
+    tipo: string;
+    cantidad: number;
+    motivo: string | null;
+    created_at: string;
+    nombre: string | null;
+  }[];
+}
+
+const TIPOS: Record<string, string> = {
+  venta: 'Venta',
+  compra: 'Compra',
+  ajuste: 'Ajuste',
+  anulacion: 'Anulación',
+};
+
+export function ProductoPantalla({
+  id,
+  codigoInicial,
+}: {
+  id: string | null;
+  codigoInicial?: string | null;
+}) {
+  const { datos, recargar } = useDatos<Detalle>(id ? `/api/v1/productos/${id}` : null);
+  if (id && !datos) return <div className="pantalla" aria-busy="true" />;
+  return (
+    <FormProducto
+      key={datos?.id ?? 'nuevo'}
+      detalle={datos}
+      codigoInicial={codigoInicial ?? null}
+      recargar={recargar}
+    />
+  );
+}
+
+function FormProducto({
+  detalle,
+  codigoInicial,
+  recargar,
+}: {
+  detalle: Detalle | null;
+  codigoInicial: string | null;
+  recargar: () => Promise<void>;
+}) {
+  const { catalogo } = useCatalogo();
+  const [precio, setPrecio] = useState<number | null>(detalle?.precio ?? null);
+  const [costo, setCosto] = useState<number | null>(detalle?.costo ?? null);
+  const [codigos, setCodigos] = useState<string[]>(
+    detalle?.codigos ?? (codigoInicial ? [codigoInicial] : []),
+  );
+  const [codigoNuevo, setCodigoNuevo] = useState('');
+  const [categoria, setCategoria] = useState(detalle?.categoriaId ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [ajuste, setAjuste] = useState(false);
+  const volver = () => navegar('/stock');
+
+  async function guardar(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const f = new FormData(ev.currentTarget);
+    if (precio === null) {
+      setError('Poné el precio de venta.');
+      return;
+    }
+    const extra = codigoNuevo.trim() ? [codigoNuevo.trim()] : [];
+    const cuerpo = {
+      nombre: String(f.get('nombre') ?? ''),
+      precio,
+      costo,
+      categoriaId: categoria || null,
+      minimo: Number(String(f.get('minimo') ?? '0').replace(',', '.')) || 0,
+      codigos: [...new Set([...codigos, ...extra])],
+      ...(detalle
+        ? {}
+        : { stockInicial: Number(String(f.get('stock') ?? '0').replace(',', '.')) || 0 }),
+    };
+    try {
+      if (detalle) await api('PATCH', `/api/v1/productos/${detalle.id}`, cuerpo);
+      else await api('POST', '/api/v1/productos', cuerpo);
+      await refrescarCatalogo();
+      volver();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
+  }
+
+  async function nuevaCategoria() {
+    const nombre = prompt('Nombre de la categoría nueva');
+    if (!nombre) return;
+    try {
+      const r = await api<{ id: string }>('POST', '/api/v1/categorias', { nombre });
+      await refrescarCatalogo();
+      setCategoria(r.id);
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
+  }
+
+  async function archivar() {
+    if (
+      !detalle ||
+      !confirm(`¿Sacar "${detalle.nombre}" del catálogo? Las ventas viejas no se tocan.`)
+    )
+      return;
+    await api('PATCH', `/api/v1/productos/${detalle.id}`, { activo: false });
+    await refrescarCatalogo();
+    volver();
+  }
+
+  return (
+    <div className="pantalla">
+      <Volver onClick={volver} />
+      <h1 className="m-titulo">{detalle ? 'Editar producto' : 'Nuevo producto'}</h1>
+      <form className="formulario" onSubmit={guardar}>
+        <Campo
+          etiqueta="Nombre"
+          name="nombre"
+          defaultValue={detalle?.nombre ?? ''}
+          required
+          maxLength={120}
+        />
+        <div className="dos-columnas">
+          <CampoPlata etiqueta="Precio de venta" valor={precio} alCambiar={setPrecio} required />
+          <CampoPlata etiqueta="Costo (opcional)" valor={costo} alCambiar={setCosto} />
+        </div>
+        {precio !== null && costo !== null && costo > 0 && (
+          <p className="texto-suave">
+            Margen: {Math.round(((precio - costo) / costo) * 100)} % sobre el costo.
+          </p>
+        )}
+        <div className="campo">
+          <label htmlFor="categoria">Categoría</label>
+          <div className="fila-control">
+            <select
+              id="categoria"
+              className="campo__entrada"
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+            >
+              <option value="">Sin categoría</option>
+              {catalogo?.categorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="m-boton" onClick={nuevaCategoria}>
+              Nueva
+            </button>
+          </div>
+        </div>
+        <div className="dos-columnas">
+          <Campo
+            etiqueta="Stock mínimo"
+            name="minimo"
+            inputMode="decimal"
+            defaultValue={String(detalle?.minimo ?? 0)}
+            ayuda="Por debajo de esto aparece en Por reponer."
+          />
+          {!detalle && (
+            <Campo etiqueta="Stock actual" name="stock" inputMode="decimal" defaultValue="0" />
+          )}
+        </div>
+        <fieldset className="campo">
+          <legend>Códigos de barras</legend>
+          <ul className="codigos-producto">
+            {codigos.map((c) => (
+              <li key={c}>
+                <code>{c}</code>
+                <button
+                  type="button"
+                  className="enlace-boton"
+                  onClick={() => setCodigos(codigos.filter((x) => x !== c))}
+                  aria-label={`Quitar código ${c}`}
+                >
+                  Quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="fila-control">
+            <label className="m-solo-lectores" htmlFor="codigo-nuevo">
+              Código nuevo
+            </label>
+            <input
+              id="codigo-nuevo"
+              className="campo__entrada"
+              placeholder="Escaneá o escribí el código"
+              value={codigoNuevo}
+              onChange={(e) => setCodigoNuevo(e.target.value.trim())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (codigoNuevo) setCodigos([...new Set([...codigos, codigoNuevo])]);
+                  setCodigoNuevo('');
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="m-boton"
+              onClick={() => {
+                if (codigoNuevo) setCodigos([...new Set([...codigos, codigoNuevo])]);
+                setCodigoNuevo('');
+              }}
+            >
+              Agregar
+            </button>
+          </div>
+        </fieldset>
+        {error && <Aviso>{error}</Aviso>}
+        <button className="m-boton m-boton--principal">Guardar</button>
+      </form>
+
+      {detalle && (
+        <>
+          <section className="tarjeta-form">
+            <h2 className="subtitulo">Stock: {detalle.stock.toLocaleString('es-AR')}</h2>
+            {ajuste ? (
+              <AjusteStock
+                id={detalle.id}
+                alTerminar={async () => {
+                  setAjuste(false);
+                  await recargar();
+                }}
+              />
+            ) : (
+              <button type="button" className="m-boton" onClick={() => setAjuste(true)}>
+                Ajustar stock
+              </button>
+            )}
+            <ul className="lista-movimientos">
+              {detalle.movimientos.map((m) => (
+                <li key={m.id}>
+                  <span>
+                    {TIPOS[m.tipo]}
+                    {m.motivo ? ` · ${m.motivo}` : ''}
+                  </span>
+                  <span className={`m-plata ${m.cantidad < 0 ? 'negativo' : ''}`}>
+                    {m.cantidad > 0 ? `+${m.cantidad}` : m.cantidad}
+                  </span>
+                  <span className="texto-suave">
+                    {new Date(m.created_at).toLocaleString('es-AR')} · {m.nombre ?? ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <p className="texto-suave">Precio actual: {formatearPlata(detalle.precio)}</p>
+          <button type="button" className="m-boton m-boton--peligro" onClick={archivar}>
+            Sacar del catálogo
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function AjusteStock({ id, alTerminar }: { id: string; alTerminar: () => Promise<void> }) {
+  const [error, setError] = useState<string | null>(null);
+  async function enviar(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const f = new FormData(ev.currentTarget);
+    const motivo = String(f.get('motivo'));
+    const valor = Number(String(f.get('valor') ?? '').replace(',', '.'));
+    if (!Number.isFinite(valor)) {
+      setError('Poné un número.');
+      return;
+    }
+    try {
+      await api('POST', '/api/v1/stock/ajustes', {
+        productoId: id,
+        motivo,
+        ...(motivo === 'conteo' ? { contado: valor } : { cantidad: -Math.abs(valor) }),
+        nota: String(f.get('nota') ?? '') || undefined,
+      });
+      await refrescarCatalogo();
+      await alTerminar();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
+  }
+  return (
+    <form className="formulario" onSubmit={enviar}>
+      <div className="campo">
+        <label htmlFor="motivo">Motivo</label>
+        <select id="motivo" name="motivo" className="campo__entrada" defaultValue="conteo">
+          <option value="conteo">Conté el estante (pongo lo que hay)</option>
+          <option value="rotura">Se rompió (resto)</option>
+          <option value="vencido">Se venció (resto)</option>
+          <option value="robo">Faltante (resto)</option>
+          <option value="otro">Otro (resto)</option>
+        </select>
+      </div>
+      <Campo etiqueta="Cantidad" name="valor" inputMode="decimal" required />
+      <Campo etiqueta="Nota (opcional)" name="nota" maxLength={150} />
+      {error && <Aviso>{error}</Aviso>}
+      <button className="m-boton">Guardar ajuste</button>
+    </form>
+  );
+}

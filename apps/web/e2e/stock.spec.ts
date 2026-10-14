@@ -1,0 +1,77 @@
+import { expect, test } from '@playwright/test';
+import { entrar, kioscoConDueno } from './ayuda.ts';
+
+test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ page }, info) => {
+  const d = await kioscoConDueno();
+  await entrar(page, d);
+  await page.goto('/stock');
+  await expect(page.getByRole('heading', { name: 'Stock' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Nuevo producto' }).click();
+  await page.getByLabel('Nombre').fill('Alfajor triple');
+  await page.getByLabel('Precio de venta').fill('1.200');
+  await page.getByLabel('Costo (opcional)').fill('700');
+  await page.getByLabel('Stock mínimo').fill('10');
+  await page.getByLabel('Stock actual').fill('3');
+  await page.getByLabel('Código nuevo').fill('7790040000001');
+  await page.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await page.getByRole('button', { name: 'Guardar' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Stock' })).toBeVisible();
+  await expect(page.getByText('Alfajor triple')).toBeVisible();
+  await expect(page.getByText('Quedan 3')).toBeVisible();
+  await page.getByRole('button', { name: /Por reponer \(1\)/ }).click();
+  await expect(page.getByText('Alfajor triple')).toBeVisible();
+
+  // Cargar compra: llegan 24 a $ 800 con 50 % de margen.
+  await page.getByRole('button', { name: 'Cargar compra' }).click();
+  await page.getByLabel('Agregar producto').fill('7790040000001');
+  await page.getByLabel('Agregar producto').press('Enter');
+  await page.getByLabel('Cantidad').fill('24');
+  await page.getByLabel('Costo por unidad').fill('800');
+  await page.getByLabel(/Margen/).fill('50');
+  await expect(page.getByText('$ 19.200')).toBeVisible();
+  await page.getByRole('button', { name: 'Guardar compra' }).click();
+  await expect(page.getByText('27 en stock')).toBeVisible();
+  await expect(page.getByText('$ 1.200').first()).toBeVisible();
+
+  // Aumento masivo con vista previa y deshacer.
+  await page.getByRole('button', { name: 'Aumentar precios' }).click();
+  await page.getByLabel('Porcentaje de aumento').fill('10');
+  await page.getByLabel('Redondear al').selectOption('5000');
+  await page.getByRole('button', { name: 'Ver cómo quedan' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Vista previa: cambian 1 precios' }),
+  ).toBeVisible();
+  await expect(page.getByRole('cell', { name: '$ 1.200' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: '$ 1.300' })).toBeVisible();
+  await page.getByRole('button', { name: 'Aplicar aumento' }).click();
+  await expect(page.getByText(/cambiaron 1 precios/)).toBeVisible();
+  page.once('dialog', (dlg) => void dlg.accept());
+  await page.getByRole('button', { name: 'Deshacer' }).click();
+  await expect(page.getByText('Volvieron 1 precios a como estaban.')).toBeVisible();
+  void info;
+});
+
+test('importar 200 productos desde un CSV', async ({ page }) => {
+  const d = await kioscoConDueno();
+  await entrar(page, d);
+  await page.goto('/stock/importar');
+  const filas = ['nombre;precio;codigo;categoria'];
+  for (let i = 0; i < 200; i++)
+    filas.push(
+      `Producto ${i};${1000 + i};779${String(i).padStart(10, '0')};${i % 2 ? 'Bebidas' : 'Almacén'}`,
+    );
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({
+      name: 'productos.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(filas.join('\n')),
+    });
+  await expect(page.getByText('Listo: 200 productos nuevos y 0 actualizados.')).toBeVisible();
+  await page.goto('/stock');
+  await expect(page.getByRole('button', { name: 'Todos (200)' })).toBeVisible();
+  await page.getByLabel('Buscar producto').fill('producto 199');
+  await expect(page.getByText('Producto 199')).toBeVisible();
+});

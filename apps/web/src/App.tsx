@@ -1,4 +1,5 @@
 import { Marco, type Seccion } from '@mostrador/ui';
+import { iniciarRefrescoCatalogo, olvidarCatalogo } from './nucleo/catalogo.ts';
 import { useEffect, useState } from 'react';
 import { api } from './nucleo/api.ts';
 import { navegar, useRuta } from './nucleo/ruta.ts';
@@ -18,6 +19,11 @@ import { Seguridad } from './pantallas/mas/Seguridad.tsx';
 import { Usuarios } from './pantallas/mas/Usuarios.tsx';
 import { Proximamente } from './pantallas/Proximamente.tsx';
 import { Vender } from './pantallas/Vender.tsx';
+import { AumentoPrecios } from './pantallas/stock/Aumento.tsx';
+import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
+import { ImportarProductos } from './pantallas/stock/Importar.tsx';
+import { ProductoPantalla } from './pantallas/stock/Producto.tsx';
+import { Stock } from './pantallas/stock/Stock.tsx';
 
 export function App() {
   return (
@@ -75,14 +81,42 @@ const SECCION_DE_RUTA: [string, Seccion][] = [
 
 function AppConSesion({ ruta }: { ruta: string }) {
   const { estado } = useSesion();
+  useEffect(() => {
+    const parar = iniciarRefrescoCatalogo();
+    return () => {
+      parar();
+      olvidarCatalogo();
+    };
+  }, []);
   const seccion: Seccion = SECCION_DE_RUTA.find(([p]) => ruta.startsWith(p))?.[1] ?? 'vender';
   const estadoConexion = <span className="m-estado">En línea</span>;
   const volverAMas = () => navegar('/mas');
 
   let pantalla;
-  switch (ruta) {
+  const producto = /^\/stock\/producto\/([0-9a-f-]{36})$/.exec(ruta);
+  switch (producto ? '/stock/producto/:id' : ruta) {
     case '/stock':
-      pantalla = <Proximamente titulo="Stock" />;
+      pantalla = <Stock />;
+      break;
+    case '/stock/producto/nuevo':
+      pantalla = (
+        <ProductoPantalla
+          id={null}
+          codigoInicial={new URLSearchParams(location.search).get('codigo')}
+        />
+      );
+      break;
+    case '/stock/producto/:id':
+      pantalla = <ProductoPantalla key={producto?.[1]} id={producto?.[1] ?? null} />;
+      break;
+    case '/stock/compra':
+      pantalla = <CargarCompra />;
+      break;
+    case '/stock/aumento':
+      pantalla = <AumentoPrecios />;
+      break;
+    case '/stock/importar':
+      pantalla = <ImportarProductos />;
       break;
     case '/caja':
       pantalla = <Proximamente titulo="Caja" />;

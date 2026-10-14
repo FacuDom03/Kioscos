@@ -92,4 +92,42 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   caso('GET', '/api/v1/kiosco', 'sin_datos_de_b'),
   caso('PUT', '/api/v1/kiosco/soporte', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
   caso('GET', '/api/v1/auditoria', 'sin_datos_de_b'),
+
+  // Catálogo y stock
+  caso('GET', '/api/v1/catalogo', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/categorias', 'escribe_solo_lo_propio', { cuerpo: { nombre: 'Varios A' } }),
+  caso('PATCH', '/api/v1/categorias/:id', 'no_encontrado', {
+    tabla: 'categorias',
+    cuerpo: { nombre: 'Robada' },
+  }),
+  caso('DELETE', '/api/v1/categorias/:id', 'no_encontrado', { tabla: 'categorias' }),
+  caso('GET', '/api/v1/productos', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/productos/:id', 'no_encontrado', { tabla: 'productos' }),
+  caso('POST', '/api/v1/productos', 'escribe_solo_lo_propio', {
+    cuerpo: { nombre: 'Intruso', precio: 100, categoriaId: '$B:categorias' },
+  }),
+  caso('PATCH', '/api/v1/productos/:id', 'no_encontrado', {
+    tabla: 'productos',
+    cuerpo: { precio: 1 },
+  }),
+  caso('POST', '/api/v1/stock/ajustes', 'no_encontrado', {
+    cuerpo: { productoId: '$B:productos', motivo: 'rotura', cantidad: -1 },
+  }),
+  caso('POST', '/api/v1/productos/importar', 'escribe_solo_lo_propio', {
+    cuerpo: { csv: 'nombre;precio;codigo\nCoca de A;100;7790895000997' },
+  }),
+  caso('POST', '/api/v1/compras', 'no_encontrado', {
+    cuerpo: { items: [{ productoId: '$B:productos', cantidad: 1, costoUnitario: 100 }] },
+  }),
+  caso('GET', '/api/v1/compras', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/precios/vista-previa', 'sin_datos_de_b', {
+    cuerpo: { alcance: 'seleccion', productoIds: ['$B:productos'], porcentaje: 10, redondeo: 1000 },
+  }),
+  caso('POST', '/api/v1/precios/aumentos', 'escribe_solo_lo_propio', {
+    cuerpo: { alcance: 'categoria', categoriaId: '$B:categorias', porcentaje: 50, redondeo: 1000 },
+  }),
+  caso('GET', '/api/v1/precios/aumentos', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/precios/aumentos/:id/deshacer', 'no_encontrado', {
+    tabla: 'cambios_precio',
+  }),
 ];

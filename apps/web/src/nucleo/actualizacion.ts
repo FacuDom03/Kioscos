@@ -22,7 +22,20 @@ export async function registrarServiceWorker(): Promise<void> {
 /** Aplica la versión nueva si no hay ticket en curso. Devuelve false si no pudo. */
 export async function aplicarActualizacion(): Promise<boolean> {
   if (!hayNueva || !aplicar || ticketActual().length > 0) return false;
+  // Cuando la versión nueva toma el control, se recarga la página. Si el navegador la había
+  // bajado antes de abrir la pestaña, workbox no siempre recarga: lo hacemos acá, y si en unos
+  // segundos no pasó nada, se recarga igual (sin ticket abierto no se pierde nada).
+  let recargando = false;
+  const recargar = () => {
+    if (recargando) return;
+    recargando = true;
+    window.location.reload();
+  };
+  navigator.serviceWorker?.addEventListener('controllerchange', recargar, { once: true });
+  const registro = await navigator.serviceWorker?.getRegistration();
+  registro?.waiting?.postMessage({ type: 'SKIP_WAITING' });
   await aplicar(true);
+  setTimeout(recargar, 3000);
   return true;
 }
 

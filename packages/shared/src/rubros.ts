@@ -27,6 +27,13 @@ export const MODULOS = [
 ] as const;
 export type Modulo = (typeof MODULOS)[number];
 
+/** Funciones que trae solo el plan Comercio (sección 2 de docs/SPEC.md). Lo valida el servidor. */
+export const MODULOS_PLAN_COMERCIO: readonly Modulo[] = ['cuenta_corriente', 'precios_proveedor'];
+
+/** Si el plan del comercio incluye la función. */
+export const moduloEnPlan = (modulo: Modulo, plan: string): boolean =>
+  plan === 'comercio' || !MODULOS_PLAN_COMERCIO.includes(modulo);
+
 /**
  * `kiosco`: toldo, cartel estrella y letra de marcador. `sobrio`: sin adornos, más información
  * por pantalla, pensado para la PC del mostrador.

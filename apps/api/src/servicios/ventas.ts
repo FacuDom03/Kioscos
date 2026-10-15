@@ -13,6 +13,8 @@ import { ErrorPublico } from '../errores.ts';
 import type { SesionCompleta } from './sesiones.ts';
 import { moverStock } from './stock.ts';
 import { clienteParaCuenta, saldoDe } from './clientes.ts';
+import { tieneModulo } from './negocio.ts';
+import { auditar } from './auditoria.ts';
 
 const centavos = z.number().int().min(0).max(100_000_000_000);
 const fecha = z.iso.datetime({ offset: true });
@@ -156,7 +158,9 @@ export async function registrarVenta(
   const suma = v.items.reduce((t, i) => t + subtotal(i.cantidad, i.precioUnitario), 0);
   const descuentos = await descuentosDeVenta(tx, v.items, v.descuentos ?? [], v.creadaEn);
   if ('error' in descuentos) return rechazo(descuentos.error);
-  const cambio = v.cambio ? await devolucionesDeCambio(tx, v.cambio) : null;
+  const cambio = v.cambio
+    ? await devolucionesDeCambio(tx, v.cambio, s.rol === 'cajero' ? 30 : 90)
+    : null;
   if (cambio && 'error' in cambio) return rechazo(cambio.error);
   const devuelto = cambio?.total ?? 0;
   if (devuelto > suma - descuentos.total)
@@ -185,6 +189,8 @@ export async function registrarVenta(
     .filter((p) => p.medio === 'cuenta_corriente')
     .reduce((t, p) => t + p.monto, 0);
   if (aCuenta > 0) {
+    if (!(await tieneModulo(tx, 'cuenta_corriente')))
+      return rechazo('La cuenta corriente no está activada en este comercio.');
     if (!v.clienteId) return rechazo('Falta elegir a quién se le anota la venta.');
     const cliente = await clienteParaCuenta(tx, v.clienteId);
     if (!cliente?.activo) return rechazo('El cliente de la cuenta no existe.');
@@ -246,6 +252,15 @@ export async function registrarVenta(
       .values({ id: uuidv7(), kiosco_id: s.kioscoId, venta_id: v.id, ...d })
       .execute();
   }
+  if (descuentos.revisar.length)
+    await auditar(tx, s, 'promo.revisar', { ventaId: v.id, promos: descuentos.revisar });
+  if (cambio)
+    // Un cambio devuelve mercadería y plata a favor: queda en la actividad, como una anulación.
+    await auditar(tx, s, 'venta.cambio', {
+      ventaId: v.id,
+      ventaOriginal: v.cambio?.ventaId,
+      devuelto: cambio.total,
+    });
   for (const d of cambio?.filas ?? []) {
     await tx
       .insertInto('devoluciones')

@@ -78,15 +78,15 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
                 </span>
               </li>
             ))}
-            {venta.descuentos?.map((d) => (
-              <li key={d.descripcion} className="ticket__linea ticket__linea--promo">
+            {venta.descuentos?.map((d, i) => (
+              <li key={`promo-${i}`} className="ticket__linea ticket__linea--promo">
                 <span className="ticket__cant">Promo</span>
                 <span className="ticket__desc">{d.descripcion}</span>
                 <span className="ticket__sub m-plata">−{formatearPlata(d.monto)}</span>
               </li>
             ))}
-            {venta.cambio?.items.map((x) => (
-              <li key={x.descripcion} className="ticket__linea ticket__linea--promo">
+            {venta.cambio?.items.map((x, i) => (
+              <li key={`devuelve-${i}`} className="ticket__linea ticket__linea--promo">
                 <span className="ticket__cant m-plata">{x.cantidad}×</span>
                 <span className="ticket__desc">Devuelve {x.descripcion}</span>
                 <span className="ticket__sub m-plata">−{formatearPlata(x.importe)}</span>

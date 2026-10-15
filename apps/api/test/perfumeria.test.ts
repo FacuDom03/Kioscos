@@ -6,6 +6,7 @@ import {
   altaConInvitacion,
   cajeroEnEquipo,
   crearEntorno,
+  KIOSCO_B,
   nuevoKiosco,
   type Cliente,
   type Entorno,
@@ -253,12 +254,15 @@ describe('promos', () => {
     expect((await cajero.get('/api/v1/catalogo')).json<{ promos: unknown[] }>().promos).toEqual([]);
     expect(await sync(op)).toMatchObject({ estado: 'ok' });
     await dueno.cliente.patch(`/api/v1/promos/${promo}`, { activa: true });
-    // Con fecha de fin, la venta tiene que ser de antes.
-    await dueno.cliente.patch(`/api/v1/promos/${promo}`, { hasta: dia(-1) });
+    // La fecha de fin no puede quedar en el pasado (para terminarla hoy, se apaga).
     expect(
-      await sync(venta({ total: 640000, descuentos: [{ promoId: promo, monto: 320000 }] })),
-    ).toMatchObject({ estado: 'rechazada' });
-    await dueno.cliente.patch(`/api/v1/promos/${promo}`, { hasta: null });
+      (await dueno.cliente.patch(`/api/v1/promos/${promo}`, { hasta: dia(-1) })).statusCode,
+    ).toBe(400);
+    // Una venta de un día en que la promo ya no corría se rechaza.
+    const vieja = venta({ total: 640000, descuentos: [{ promoId: promo, monto: 320000 }] });
+    await e.admin.query(`update promos set desde = $2 where id = $1`, [promo, dia(1)]);
+    expect(await sync(vieja)).toMatchObject({ estado: 'rechazada' });
+    await e.admin.query(`update promos set desde = null where id = $1`, [promo]);
     const lista = (await dueno.cliente.get('/api/v1/promos')).json();
     expect(lista[0]).toMatchObject({
       alcance: 'Esmalte cremoso',
@@ -282,6 +286,7 @@ describe('promos sin la función', () => {
 describe('cambios', () => {
   let itemRojo: string;
   let cambio: string;
+  let cambioIgual: string;
 
   it('se busca la venta por el código del ticket de cambio o por el producto', async () => {
     const codigo = ventaPromo.slice(-8).toUpperCase();
@@ -355,27 +360,34 @@ describe('cambios', () => {
       items: [item('Nude')],
       cambio: { ventaId: cambio, items: [{ itemId: coral, cantidad: 1 }] },
     });
+    cambioIgual = igual.datos.id;
     expect(await sync(igual)).toMatchObject({ estado: 'ok' });
     expect(await stock(tonos.Coral!)).toBe(8);
     expect(await stock(tonos.Nude!)).toBe(7);
   });
 
   it('anular el cambio vuelve todo atrás y lo devuelto se puede cambiar otra vez', async () => {
+    // El Coral de ese cambio se volvió a cambiar: primero se anula el último cambio.
+    expect(
+      (await dueno.cliente.post(`/api/v1/ventas/${cambio}/anular`, { motivo: 'Se equivocó' }))
+        .statusCode,
+    ).toBe(409);
+    await dueno.cliente.post(`/api/v1/ventas/${cambioIgual}/anular`, { motivo: 'Se equivocó' });
     const r = await dueno.cliente.post(`/api/v1/ventas/${cambio}/anular`, {
       motivo: 'Se equivocó de tono',
     });
     expect(r.statusCode, r.body).toBe(200);
-    // El Rojo devuelto sale otra vez. El Coral de ese cambio ya había vuelto con el cambio
-    // siguiente: no vuelve dos veces.
+    // Todo como después de la venta con el 3x2: el Rojo devuelto sale otra vez.
     expect(await stock(tonos.Rojo!)).toBe(8);
     expect(await stock(tonos.Coral!)).toBe(8);
+    expect(await stock(tonos.Nude!)).toBe(8);
     const { ventas } = (
       await cajero.get(`/api/v1/cambios/ventas?codigo=${ventaPromo.slice(-8)}`)
     ).json<{ ventas: { items: { id: string; devuelto: number }[] }[] }>();
     expect(ventas[0]!.items.find((i) => i.id === itemRojo)?.devuelto).toBe(0);
   });
 
-  it('anular una venta no devuelve dos veces lo que ya volvió con un cambio', async () => {
+  it('una venta con algo cambiado no se anula hasta anular el cambio', async () => {
     const original = venta({ total: 640000, descuentos: [{ promoId: promo, monto: 320000 }] });
     await sync(original);
     const { rows } = await e.admin.query<{ id: string; producto_id: string }>(
@@ -383,16 +395,27 @@ describe('cambios', () => {
       [original.datos.id],
     );
     const rojo = rows.find((x) => x.producto_id === tonos.Rojo)!.id;
-    await sync(
-      venta({
-        total: 106667,
-        items: [item('Coral')],
-        cambio: { ventaId: original.datos.id, items: [{ itemId: rojo, cantidad: 1 }] },
-      }),
-    );
-    const antes = await stock(tonos.Rojo!);
-    await dueno.cliente.post(`/api/v1/ventas/${original.datos.id}/anular`, { motivo: 'Prueba' });
-    expect(await stock(tonos.Rojo!)).toBe(antes);
+    const cambioOp = venta({
+      total: 106667,
+      items: [item('Coral')],
+      cambio: { ventaId: original.datos.id, items: [{ itemId: rojo, cantidad: 1 }] },
+    });
+    await sync(cambioOp);
+    const antes = { rojo: await stock(tonos.Rojo!), coral: await stock(tonos.Coral!) };
+    // Anular la original devolvería dos veces la plata de lo cambiado.
+    const r = await dueno.cliente.post(`/api/v1/ventas/${original.datos.id}/anular`, {
+      motivo: 'Prueba',
+    });
+    expect(r.statusCode).toBe(409);
+    expect(r.json().error).toContain('Primero anulá el cambio');
+    // En orden: primero el cambio, después la venta. El stock queda como antes de las dos.
+    await dueno.cliente.post(`/api/v1/ventas/${cambioOp.datos.id}/anular`, { motivo: 'Prueba' });
+    const r2 = await dueno.cliente.post(`/api/v1/ventas/${original.datos.id}/anular`, {
+      motivo: 'Prueba',
+    });
+    expect(r2.statusCode, r2.body).toBe(200);
+    expect(await stock(tonos.Rojo!)).toBe(antes.rojo - 1 + 1);
+    expect(await stock(tonos.Coral!)).toBe(antes.coral + 1 + 1);
   });
 });
 
@@ -433,5 +456,114 @@ describe('vencimientos', () => {
     ]);
     await dueno.cliente.post(`/api/v1/lotes/${l1.json<{ id: string }>().id}/retirar`, {});
     expect((await cajero.get('/api/v1/vencimientos')).json().lotes).toHaveLength(1);
+  });
+});
+
+describe('exportación para el contador', () => {
+  it('el CSV de ventas muestra lo descontado por promos y lo devuelto en cambios', async () => {
+    const r = await dueno.cliente.get(
+      `/api/v1/exportar/ventas.csv?desde=${dia(0)}&hasta=${dia(0)}`,
+    );
+    expect(r.statusCode, r.body).toBe(200);
+    expect(r.body).toContain(';6400,00;3200,00;Efectivo;Cobrada;');
+    expect(r.body).toContain('cambio: devuelve 1 x Esmalte cremoso Rojo (2133,33)');
+  });
+});
+
+describe('promos y cambios de catálogo', () => {
+  it('una venta sin conexión con la promo se acepta aunque el producto haya cambiado de grupo, y queda para revisar', async () => {
+    const op = venta({ total: 640000, descuentos: [{ promoId: promo, monto: 320000 }] });
+    await e.admin.query(`update productos set grupo_id = null, variante = null where id = $1`, [
+      tonos.Coral,
+    ]);
+    expect(await sync(op)).toMatchObject({ estado: 'ok' });
+    await e.admin.query(`update productos set grupo_id = $2, variante = 'Coral' where id = $1`, [
+      tonos.Coral,
+      grupo,
+    ]);
+    const { rows } = await e.admin.query(
+      `select 1 from auditoria where kiosco_id = $1 and accion = 'promo.revisar'`,
+      [kiosco],
+    );
+    expect(rows).toHaveLength(1);
+    // Igual tiene tope: no se acepta más que la regla con todo adentro.
+    expect(
+      await sync(venta({ total: 0, descuentos: [{ promoId: promo, monto: 960000 }] })),
+    ).toMatchObject({ estado: 'rechazada' });
+  });
+});
+
+describe('plazo de los cambios', () => {
+  it('el cajero cambia hasta 30 días después de la venta; el dueño, hasta 90', async () => {
+    const vieja = venta({ total: 960000, items: [item('Nude'), item('Nude'), item('Nude')] });
+    await sync(vieja);
+    await e.admin.query(
+      `update ventas set creada_en_dispositivo = now() - interval '40 days' where id = $1`,
+      [vieja.datos.id],
+    );
+    const { rows } = await e.admin.query<{ id: string }>(
+      'select id from venta_items where venta_id = $1 limit 1',
+      [vieja.datos.id],
+    );
+    const op = () =>
+      venta({
+        total: 0,
+        items: [item('Nude')],
+        cambio: { ventaId: vieja.datos.id, items: [{ itemId: rows[0]!.id, cantidad: 1 }] },
+      });
+    expect(await sync(op())).toMatchObject({
+      estado: 'rechazada',
+      mensaje:
+        'Esa venta es de hace más de 30 días. El cambio lo puede hacer el dueño o el encargado.',
+    });
+    const r = await dueno.cliente.post('/api/v1/sync', { ops: [op()] });
+    expect(r.json().resultados[0]).toMatchObject({ estado: 'ok' });
+    const { rows: audit } = await e.admin.query(
+      `select 1 from auditoria where kiosco_id = $1 and accion = 'venta.cambio'`,
+      [kiosco],
+    );
+    expect(audit.length).toBeGreaterThan(0);
+  });
+});
+
+describe('aislamiento en las ventas', () => {
+  it('una venta no puede usar una promo, una venta ni un cliente de otro comercio', async () => {
+    const otro = async (tabla: string) =>
+      (
+        await e.admin.query<{ id: string }>(
+          `select id from ${tabla} where kiosco_id = $1 limit 1`,
+          [KIOSCO_B],
+        )
+      ).rows[0]!.id;
+    const promoB = await otro('promos');
+    const ventaB = await otro('ventas');
+    const itemB = await otro('venta_items');
+    const clienteB = await otro('clientes');
+    const huella = async () =>
+      (
+        await e.admin.query(
+          `select (select count(*) from ventas where kiosco_id = $1) as v,
+                  (select count(*) from devoluciones where kiosco_id = $1) as d,
+                  (select coalesce(sum(monto), 0) from movimientos_cuenta where kiosco_id = $1) as m`,
+          [KIOSCO_B],
+        )
+      ).rows[0];
+    const antes = await huella();
+    expect(
+      await sync(venta({ total: 640000, descuentos: [{ promoId: promoB, monto: 320000 }] })),
+    ).toMatchObject({ estado: 'rechazada', mensaje: 'Una promo de la venta no existe.' });
+    expect(
+      await sync(
+        venta({
+          total: 0,
+          items: [item('Nude')],
+          cambio: { ventaId: ventaB, items: [{ itemId: itemB, cantidad: 1 }] },
+        }),
+      ),
+    ).toMatchObject({ estado: 'rechazada', mensaje: 'La venta del cambio no existe.' });
+    const aCuenta = venta({ total: 960000, clienteId: clienteB });
+    aCuenta.datos.pagos = [{ id: uuidv7(), medio: 'cuenta_corriente', monto: 960000 }];
+    expect(await sync(aCuenta)).toMatchObject({ estado: 'rechazada' });
+    expect(await huella()).toEqual(antes);
   });
 });

@@ -65,9 +65,9 @@ describe('exportar', () => {
     expect(r.headers['content-type']).toContain('text/csv');
     const lineas = r.body.replace('﻿', '').trim().split('\r\n');
     expect(lineas[0]).toBe(
-      'Fecha;Total;Medio de pago;Estado;Atendió;Productos;Motivo de anulación;ID',
+      'Fecha;Total;Descuento por promos;Medio de pago;Estado;Atendió;Productos;Motivo de anulación;ID',
     );
-    expect(lineas[1]).toContain(';2401,00;Efectivo;Cobrada;');
+    expect(lineas[1]).toContain(';2401,00;;Efectivo;Cobrada;');
     expect(lineas[1]).toContain('"2 x Alfajor ""triple"""');
     const audit = (await dueno.cliente.get('/api/v1/auditoria')).json<{ accion: string }[]>();
     expect(audit.map((a) => a.accion)).toContain('exportacion.csv');

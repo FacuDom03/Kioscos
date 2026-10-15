@@ -5,6 +5,7 @@ import {
   altaConInvitacion,
   cajeroEnEquipo,
   crearEntorno,
+  activarModulos,
   nuevoKiosco,
   type Cliente,
   type Entorno,
@@ -51,6 +52,7 @@ async function sync(op: unknown) {
 beforeAll(async () => {
   e = await crearEntorno();
   kiosco = await nuevoKiosco(e.admin);
+  await activarModulos(e.admin, kiosco, ['cuenta_corriente']);
   dueno = await altaConInvitacion(e.app, e.admin, kiosco);
   queso = (
     await dueno.cliente.post('/api/v1/productos', {
@@ -75,12 +77,22 @@ afterAll(async () => {
 });
 
 describe('cuenta corriente', () => {
-  it('el cajero da de alta un cliente pero no le pone límite', async () => {
+  it('el cajero da de alta un cliente, pero sin fiado hasta que el dueño le ponga límite', async () => {
     expect(
       (await cajero.post('/api/v1/clientes', { nombre: 'Rosa', limite: 100000 })).statusCode,
     ).toBe(403);
     const r = await cajero.post('/api/v1/clientes', { nombre: 'Rosa', telefono: '11 5555-0000' });
     expect(r.statusCode, r.body).toBe(200);
+    const { id, limite } = r.json<{ id: string; limite: number | null }>();
+    expect(limite).toBe(0);
+    expect(await sync(ventaACuenta(id, 100))).toMatchObject({ estado: 'rechazada' });
+    // El alta queda en la actividad, sin datos personales.
+    const { rows } = await e.admin.query<{ detalle: unknown }>(
+      `select detalle from auditoria where kiosco_id = $1 and accion = 'cliente.alta'`,
+      [kiosco],
+    );
+    expect(JSON.stringify(rows)).not.toContain('5555');
+    expect(rows).toHaveLength(1);
   });
 
   it('fiar suma a la deuda en la misma transacción que la venta y respeta el límite', async () => {
@@ -116,8 +128,9 @@ describe('cuenta corriente', () => {
   });
 
   it('un pago en efectivo baja la deuda y entra en la caja, sin duplicarse', async () => {
-    const id = (await cajero.post('/api/v1/clientes', { nombre: 'Carlos' })).json<{ id: string }>()
-      .id;
+    const id = (await dueno.cliente.post('/api/v1/clientes', { nombre: 'Carlos' })).json<{
+      id: string;
+    }>().id;
     await sync(ventaACuenta(id, 650000));
     const antes = (await cajero.get('/api/v1/caja')).json().resumen;
     const pago = { id: uuidv7(), monto: 500000, medio: 'efectivo' };
@@ -133,8 +146,9 @@ describe('cuenta corriente', () => {
   });
 
   it('anular una venta fiada la descuenta de la deuda', async () => {
-    const id = (await cajero.post('/api/v1/clientes', { nombre: 'Beto' })).json<{ id: string }>()
-      .id;
+    const id = (await dueno.cliente.post('/api/v1/clientes', { nombre: 'Beto' })).json<{
+      id: string;
+    }>().id;
     const op = ventaACuenta(id, 300000);
     await sync(op);
     const r = await dueno.cliente.post(`/api/v1/ventas/${op.datos.id}/anular`, {
@@ -142,6 +156,55 @@ describe('cuenta corriente', () => {
     });
     expect(r.statusCode, r.body).toBe(200);
     expect((await cajero.get(`/api/v1/clientes/${id}`)).json().saldo).toBe(0);
+  });
+
+  it('el cajero no cobra más de lo que se debe; el pago queda en la actividad', async () => {
+    const id = (await dueno.cliente.post('/api/v1/clientes', { nombre: 'Nora' })).json<{
+      id: string;
+    }>().id;
+    await sync(ventaACuenta(id, 2000));
+    const demas = await cajero.post(`/api/v1/clientes/${id}/pagos`, {
+      id: uuidv7(),
+      monto: 5000,
+      medio: 'transferencia',
+    });
+    expect(demas.statusCode).toBe(409);
+    expect(demas.json().error).toContain('debe $ 20');
+    // Dejar plata a favor lo decide el dueño.
+    const r = await dueno.cliente.post(`/api/v1/clientes/${id}/pagos`, {
+      id: uuidv7(),
+      monto: 5000,
+      medio: 'transferencia',
+    });
+    expect(r.json()).toMatchObject({ saldo: -3000 });
+    const { rows } = await e.admin.query(
+      `select 1 from auditoria where kiosco_id = $1 and accion = 'cuenta.pago'`,
+      [kiosco],
+    );
+    expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it('sin la función activada (o sin el plan Comercio) no se fía, pero se cobra lo que se debe', async () => {
+    const id = (await dueno.cliente.post('/api/v1/clientes', { nombre: 'Tito' })).json<{
+      id: string;
+    }>().id;
+    expect(await sync(ventaACuenta(id, 300))).toMatchObject({ estado: 'ok' });
+    await e.admin.query(`update kioscos set plan = 'esencial' where id = $1`, [kiosco]);
+    expect(await sync(ventaACuenta(id, 100))).toMatchObject({
+      estado: 'rechazada',
+      mensaje: 'La cuenta corriente no está activada en este comercio.',
+    });
+    await e.admin.query(`update kioscos set plan = 'comercio', modulos = '{}' where id = $1`, [
+      kiosco,
+    ]);
+    expect((await dueno.cliente.post('/api/v1/clientes', { nombre: 'Lola' })).statusCode).toBe(403);
+    const pago = await cajero.post(`/api/v1/clientes/${id}/pagos`, {
+      id: uuidv7(),
+      monto: 300,
+      medio: 'transferencia',
+    });
+    expect(pago.json()).toMatchObject({ saldo: 0 });
+    await activarModulos(e.admin, kiosco, ['cuenta_corriente']);
   });
 
   it('los datos del cliente salen en la exportación completa', async () => {

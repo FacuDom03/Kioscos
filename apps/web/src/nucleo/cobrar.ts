@@ -1,4 +1,4 @@
-import { uuidv7 } from '@mostrador/shared';
+import { formatearPlata, uuidv7 } from '@mostrador/shared';
 import { api } from './api.ts';
 import { encolar, sincronizar } from './bandeja.ts';
 import {
@@ -113,6 +113,9 @@ export async function cobrar(
     throw new Error('Lo que se lleva tiene que valer lo mismo o más que lo que devuelve.');
   // Sin plata de por medio solo un cambio por algo del mismo valor.
   if (total === 0 && !cambioActual()) throw new Error('El ticket está vacío.');
+  // El total se vuelve a calcular acá (una promo pudo terminar a la medianoche).
+  if (medio === 'efectivo' && recibido !== undefined && recibido < total)
+    throw new Error(`Falta plata: el total quedó en ${formatearPlata(total)}.`);
   const lista = listaActual();
   const venta: VentaHecha = {
     id: uuidv7(),
@@ -148,6 +151,17 @@ export async function cobrar(
 }
 
 /**
+ * Último intento de anotar a cuenta. Si se cortó la conexión después de que el servidor la
+ * guardó, reintentar con el mismo ticket manda la misma venta (el servidor no la duplica).
+ */
+let intentoACuenta: {
+  firma: string;
+  id: string;
+  pagoId: string;
+  creadaEn: string;
+} | null = null;
+
+/**
  * Anota la venta en la cuenta del cliente. Necesita conexión: el servidor revisa el límite en el
  * momento, así nadie se lleva mercadería que después no se puede anotar.
  */
@@ -155,6 +169,8 @@ export async function cobrarACuenta(cliente: {
   id: string;
   nombre: string;
   telefono: string | null;
+  /** Lo que debía antes: si no se puede preguntar el saldo nuevo, se calcula. */
+  saldo?: number;
 }): Promise<VentaHecha> {
   const items = ticketActual();
   const cuenta = cuentaTicket(items);
@@ -162,8 +178,15 @@ export async function cobrarACuenta(cliente: {
   if (!items.length || total <= 0) throw new Error('El ticket está vacío.');
   // Primero lo pendiente (por ejemplo, la apertura de la caja hecha sin internet).
   await sincronizar();
-  const id = uuidv7();
-  const creadaEn = new Date().toISOString();
+  const firma = JSON.stringify({ items, cliente: cliente.id, total });
+  if (intentoACuenta?.firma !== firma)
+    intentoACuenta = {
+      firma,
+      id: uuidv7(),
+      pagoId: uuidv7(),
+      creadaEn: new Date().toISOString(),
+    };
+  const { id, pagoId, creadaEn } = intentoACuenta;
   const lista = listaActual();
   const r = await api<{ resultados: { estado: string; mensaje?: string }[] }>(
     'POST',
@@ -175,7 +198,7 @@ export async function cobrarACuenta(cliente: {
           datos: datosVenta(
             id,
             creadaEn,
-            [{ id: uuidv7(), medio: 'cuenta_corriente', monto: total }],
+            [{ id: pagoId, medio: 'cuenta_corriente', monto: total }],
             { clienteId: cliente.id },
           ),
         },
@@ -184,8 +207,12 @@ export async function cobrarACuenta(cliente: {
   );
   const res = r.resultados[0];
   if (!res || res.estado === 'rechazada') throw new Error(res?.mensaje ?? 'No se pudo anotar.');
+  intentoACuenta = null;
   const extras = extrasDeVenta(cuenta);
-  const { saldo } = await api<{ saldo: number }>('GET', `/api/v1/clientes/${cliente.id}`);
+  // La venta ya quedó anotada: si no se puede preguntar el saldo, se muestra el calculado.
+  const saldo = await api<{ saldo: number }>('GET', `/api/v1/clientes/${cliente.id}`)
+    .then((r) => r.saldo)
+    .catch(() => (cliente.saldo ?? 0) + total);
   vaciarTicket();
   return {
     id,

@@ -47,17 +47,21 @@ export function ACuenta({
     const nombre = String(f.get('nombre') ?? '').trim();
     const telefono = String(f.get('telefono') ?? '').trim();
     try {
-      const { id } = await api<{ id: string }>('POST', '/api/v1/clientes', {
-        id: uuidv7(),
-        nombre,
-        ...(telefono ? { telefono } : {}),
-      });
+      const { id, limite } = await api<{ id: string; limite: number | null }>(
+        'POST',
+        '/api/v1/clientes',
+        {
+          id: uuidv7(),
+          nombre,
+          ...(telefono ? { telefono } : {}),
+        },
+      );
       setElegido({
         id,
         nombre,
         telefono: telefono || null,
         nota: null,
-        limite: null,
+        limite,
         saldo: 0,
         ultimo: null,
       });
@@ -117,12 +121,18 @@ export function ACuenta({
               </div>
             )}
           </dl>
-          {pasa && (
-            <Aviso>
-              Con esta compra pasa su límite. Cobrale una parte o pedile al dueño que le suba el
-              límite.
-            </Aviso>
-          )}
+          {pasa &&
+            (elegido.limite === 0 ? (
+              <Aviso>
+                Todavía no tiene fiado: el dueño o el encargado le tiene que poner un límite en{' '}
+                {nombreModulo(rubro, 'cuenta_corriente')}.
+              </Aviso>
+            ) : (
+              <Aviso>
+                Con esta compra pasa su límite. Cobrale una parte o pedile al dueño que le suba el
+                límite.
+              </Aviso>
+            ))}
         </section>
       ) : nuevo ? (
         <form className="formulario tarjeta-form" onSubmit={alta}>

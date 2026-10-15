@@ -34,6 +34,22 @@ test('una etiqueta de balanza suma el producto con el precio de la etiqueta', as
   );
 });
 
+test('una etiqueta de balanza con peso suma los kilos con sus decimales', async ({ page }) => {
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'mostrador.equipo',
+      JSON.stringify({ balanza: { valor: 'peso', activa: true } }),
+    ),
+  );
+  await page.reload();
+  const doce = '200012300350'; // producto 00123, 0,350 kg
+  await page.getByLabel('Buscar producto').fill(doce + digitoVerificadorEan13(doce));
+  await page.getByLabel('Buscar producto').press('Enter');
+  const linea = page.locator('.ticket__linea', { hasText: 'Queso por kilo' });
+  await expect(linea).toContainText('0,35');
+  await expect(linea).toContainText('$ 3.150');
+});
+
 test('el ticket impreso lleva lo que pide la ley', async ({ page }) => {
   await page.locator('.mosaico', { hasText: 'Coca-Cola' }).click();
   await page

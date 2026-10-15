@@ -8,6 +8,7 @@ import { auditar } from '../servicios/auditoria.ts';
 import { clienteParaCuenta, saldoDe } from '../servicios/clientes.ts';
 import { turnoAbierto } from '../servicios/ventas.ts';
 import { validar } from '../validar.ts';
+import { exigirModulo } from '../servicios/negocio.ts';
 
 const VENDEN = ['dueno', 'encargado', 'cajero', 'soporte'] as const;
 const EDITAN = ['dueno', 'encargado', 'soporte'] as const;
@@ -59,12 +60,19 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
         );
       if (deben === 'si') consulta = consulta.where(saldo, '>', '0');
       const filas = await consulta.execute();
-      const total = await tx
-        .selectFrom('movimientos_cuenta')
-        .select((eb) => eb.fn.sum<string>('monto').as('t'))
-        .executeTakeFirst();
+      // Lo que se debe en total: solo los saldos deudores de clientes activos (la plata a favor
+      // de uno no descuenta la deuda de otro).
+      const total = await sql<{ t: string | null }>`
+        select sum(s.saldo) as t from (
+          select sum(m.monto) as saldo
+          from movimientos_cuenta m
+          join clientes c on c.kiosco_id = m.kiosco_id and c.id = m.cliente_id
+          where c.activo
+          group by m.cliente_id
+          having sum(m.monto) > 0
+        ) s`.execute(tx);
       return {
-        totalDeuda: Number(total?.t ?? 0),
+        totalDeuda: Number(total.rows[0]?.t ?? 0),
         clientes: filas.map((f) => ({ ...f, saldo: Number(f.saldo) })),
       };
     });
@@ -73,17 +81,20 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
   app.post('/api/v1/clientes', { config: { roles: VENDEN } }, async (req) => {
     const d = validar(z.strictObject({ id: z.uuid().optional(), ...datosCliente }), req.body);
     const s = req.completa;
-    // El límite lo pone el dueño o el encargado.
+    // El límite lo pone el dueño o el encargado. El cliente que da de alta el cajero arranca sin
+    // fiado (límite 0) hasta que le pongan uno: ante la duda, no se fía.
     if (d.limite != null && s.rol === 'cajero')
       throw new ErrorPublico(403, 'sin_permiso', 'El límite lo pone el dueño o el encargado.');
+    const limite = s.rol === 'cajero' ? 0 : (d.limite ?? null);
     const id = d.id ?? uuidv7();
     return req.db(async (tx) => {
+      await exigirModulo(tx, 'cuenta_corriente');
       const ya = await tx
         .selectFrom('clientes')
-        .select('id')
+        .select(['id', 'limite'])
         .where('id', '=', id)
         .executeTakeFirst();
-      if (ya) return { id };
+      if (ya) return { id, limite: ya.limite };
       await tx
         .insertInto('clientes')
         .values({
@@ -92,10 +103,12 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
           nombre: d.nombre,
           telefono: d.telefono ?? null,
           nota: d.nota ?? null,
-          limite: d.limite ?? null,
+          limite,
         })
         .execute();
-      return { id };
+      // Sin datos personales en la auditoría: solo el ID.
+      await auditar(tx, s, 'cliente.alta', { clienteId: id, limite }, req.ip);
+      return { id, limite };
     });
   });
 
@@ -168,55 +181,74 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
   });
 
   // Pago a cuenta. El efectivo entra en la caja abierta.
-  app.post('/api/v1/clientes/:id/pagos', { config: { roles: VENDEN } }, async (req) => {
-    const { id } = validar(idParam, req.params);
-    const d = validar(
-      z.strictObject({
-        id: z.uuid(),
-        monto: centavos.refine((n) => n > 0),
-        medio: z.enum(['efectivo', 'transferencia']),
-        nota: z.string().trim().min(1).max(200).optional(),
-      }),
-      req.body,
-    );
-    const s = req.completa;
-    return req.db(async (tx) => {
-      const c = await clienteParaCuenta(tx, id);
-      if (!c) throw noEncontrado();
-      const ya = await tx
-        .selectFrom('movimientos_cuenta')
-        .select('id')
-        .where('id', '=', d.id)
-        .executeTakeFirst();
-      if (!ya) {
-        const turno = await turnoAbierto(tx);
-        if (d.medio === 'efectivo' && !turno)
-          throw new ErrorPublico(409, 'sin_caja', 'Abrí la caja para cobrar en efectivo.');
-        await tx
-          .insertInto('movimientos_cuenta')
-          .values({
-            id: d.id,
-            kiosco_id: s.kioscoId,
-            cliente_id: id,
-            tipo: 'pago',
-            monto: -d.monto,
-            medio: d.medio,
-            turno_id: turno?.id ?? null,
-            usuario_id: s.usuarioId,
-            nota: d.nota ?? null,
-          })
-          .execute();
-      }
-      const saldo = await saldoDe(tx, id);
-      return {
-        saldo,
-        mensaje:
-          saldo > 0
-            ? `${c.nombre} todavía debe ${formatearPlata(saldo)}.`
-            : saldo < 0
-              ? `${c.nombre} queda con ${formatearPlata(-saldo)} a favor.`
-              : `${c.nombre} quedó al día.`,
-      };
-    });
-  });
+  app.post(
+    '/api/v1/clientes/:id/pagos',
+    { config: { roles: ['dueno', 'encargado', 'cajero'] } },
+    async (req) => {
+      const { id } = validar(idParam, req.params);
+      const d = validar(
+        z.strictObject({
+          id: z.uuid(),
+          monto: centavos.refine((n) => n > 0),
+          medio: z.enum(['efectivo', 'transferencia']),
+          nota: z.string().trim().min(1).max(200).optional(),
+        }),
+        req.body,
+      );
+      const s = req.completa;
+      return req.db(async (tx) => {
+        const c = await clienteParaCuenta(tx, id);
+        if (!c) throw noEncontrado();
+        const ya = await tx
+          .selectFrom('movimientos_cuenta')
+          .select('id')
+          .where('id', '=', d.id)
+          .executeTakeFirst();
+        if (!ya) {
+          const turno = await turnoAbierto(tx);
+          if (d.medio === 'efectivo' && !turno)
+            throw new ErrorPublico(409, 'sin_caja', 'Abrí la caja para cobrar en efectivo.');
+          // Dejar plata a favor (pagar de más) lo decide el dueño o el encargado.
+          const debe = await saldoDe(tx, id);
+          if (s.rol === 'cajero' && d.monto > Math.max(0, debe))
+            throw new ErrorPublico(
+              409,
+              'pago_de_mas',
+              `${c.nombre} debe ${formatearPlata(Math.max(0, debe))}: no se puede cobrar más que eso.`,
+            );
+          await tx
+            .insertInto('movimientos_cuenta')
+            .values({
+              id: d.id,
+              kiosco_id: s.kioscoId,
+              cliente_id: id,
+              tipo: 'pago',
+              monto: -d.monto,
+              medio: d.medio,
+              turno_id: turno?.id ?? null,
+              usuario_id: s.usuarioId,
+              nota: d.nota ?? null,
+            })
+            .execute();
+          await auditar(
+            tx,
+            s,
+            'cuenta.pago',
+            { clienteId: id, monto: d.monto, medio: d.medio },
+            req.ip,
+          );
+        }
+        const saldo = await saldoDe(tx, id);
+        return {
+          saldo,
+          mensaje:
+            saldo > 0
+              ? `${c.nombre} todavía debe ${formatearPlata(saldo)}.`
+              : saldo < 0
+                ? `${c.nombre} queda con ${formatearPlata(-saldo)} a favor.`
+                : `${c.nombre} quedó al día.`,
+        };
+      });
+    },
+  );
 }

@@ -119,7 +119,8 @@ export function venderPresupuesto(p: Presupuesto, preciosDeHoy: boolean): void {
     p.items.map((i) => {
       const producto = i.productoId ? productoPorId(i.productoId) : undefined;
       return {
-        productoId: producto ? i.productoId : null,
+        // Aunque ya no esté en el catálogo del equipo, la venta descuenta su stock.
+        productoId: i.productoId,
         descripcion: i.descripcion,
         cantidad: i.cantidad,
         precioUnitario:

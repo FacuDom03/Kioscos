@@ -21,6 +21,7 @@ const MEDIOS: Record<string, string> = {
   efectivo: 'Efectivo',
   qr_mp: 'QR Mercado Pago',
   transferencia: 'Transferencia',
+  cuenta_corriente: 'A cuenta',
 };
 const ESTADOS: Record<string, string> = {
   cobrada: 'Cobrada',
@@ -64,11 +65,27 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
             .where('venta_id', 'in', ids)
             .execute()
         : [];
+      // Promos y cambios (etapa I7): el total ya viene neto; esto explica la diferencia.
+      const descuentos = ids.length
+        ? await tx
+            .selectFrom('venta_descuentos')
+            .select(['venta_id', 'monto'])
+            .where('venta_id', 'in', ids)
+            .execute()
+        : [];
+      const devueltos = ids.length
+        ? await tx
+            .selectFrom('devoluciones')
+            .select(['venta_id', 'descripcion', 'cantidad', 'importe'])
+            .where('venta_id', 'in', ids)
+            .execute()
+        : [];
       await auditar(tx, req.completa, 'exportacion.csv', { tipo: 'ventas', desde, hasta }, req.ip);
       return armarCsv([
         [
           'Fecha',
           'Total',
+          'Descuento por promos',
           'Medio de pago',
           'Estado',
           'Atendió',
@@ -79,15 +96,25 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
         ...ventas.map((v) => [
           fechaAR(v.creada_en_dispositivo),
           pesos(v.total),
+          pesos(
+            descuentos.filter((d) => d.venta_id === v.id).reduce((t, d) => t + d.monto, 0) || null,
+          ),
           [...new Set(pagos.filter((p) => p.venta_id === v.id).map((p) => MEDIOS[p.medio]))].join(
             ' + ',
           ),
           ESTADOS[v.estado] ?? v.estado,
           v.nombre ?? '',
-          items
-            .filter((i) => i.venta_id === v.id)
-            .map((i) => `${Number(i.cantidad)} x ${i.descripcion}`)
-            .join(', '),
+          [
+            ...items
+              .filter((i) => i.venta_id === v.id)
+              .map((i) => `${Number(i.cantidad)} x ${i.descripcion}`),
+            ...devueltos
+              .filter((d) => d.venta_id === v.id)
+              .map(
+                (d) =>
+                  `cambio: devuelve ${Number(d.cantidad)} x ${d.descripcion} (${pesos(d.importe)})`,
+              ),
+          ].join(', '),
           v.motivo_anulacion ?? '',
           v.id,
         ]),

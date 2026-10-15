@@ -165,7 +165,8 @@ function fijarCambio(c: CambioEnCurso | null) {
 /** Arranca un cambio: lo devuelto se descuenta de lo que se lleve. */
 export function iniciarCambio(c: CambioEnCurso): void {
   fijarCambio(c);
-  avisar();
+  // Un cambio no es para regalo (aunque la venta anterior del ticket lo fuera).
+  fijarRegalo(false);
 }
 
 export function soltarCambio(): void {

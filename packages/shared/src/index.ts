@@ -1,6 +1,12 @@
 export { uuidv7, esUuid } from './uuid.ts';
 export { formatearPlata, centavosDesdePesos } from './dinero.ts';
-export { aplicarAumento, precioConMargen, parsearPesos, type Redondeo } from './precios.ts';
+export {
+  aplicarAumento,
+  precioConMargen,
+  parsearPesos,
+  redondearPrecio,
+  type Redondeo,
+} from './precios.ts';
 export { leerCsv, celdaCsv, armarCsv } from './csv.ts';
 export { normalizar, indexar, buscar, type Buscable, type Indice } from './busqueda.ts';
 export {
@@ -26,6 +32,8 @@ export {
   DATOS_RUBROS,
   DATOS_MODULOS,
   esRubro,
+  moduloEnPlan,
+  MODULOS_PLAN_COMERCIO,
   nombreModulo,
   tituloListo,
   type Rubro,
@@ -58,6 +66,7 @@ export {
   promoVigente,
   reglaPromo,
   importeDevuelto,
+  importeDeDevolucion,
   type Promo,
   type ItemPromo,
   type Descuento,

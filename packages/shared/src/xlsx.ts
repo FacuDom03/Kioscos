@@ -45,7 +45,10 @@ function entradasZip(datos: Uint8Array): Map<string, Entrada> {
   return entradas;
 }
 
-async function leerArchivo(datos: Uint8Array, e: Entrada): Promise<string> {
+/** Columnas que tiene Excel como máximo (XFD). */
+const MAX_COLUMNAS = 16_384;
+
+async function leerArchivo(datos: Uint8Array, e: Entrada, maxBytes: number): Promise<string> {
   const vista = new DataView(datos.buffer, datos.byteOffset, datos.byteLength);
   if (vista.getUint32(e.desplazamiento, true) !== FIRMA_LOCAL)
     throw new ErrorPlanilla('La planilla está dañada.');
@@ -58,12 +61,24 @@ async function leerArchivo(datos: Uint8Array, e: Entrada): Promise<string> {
   if (e.metodo === 0) return new TextDecoder().decode(bytes);
   if (e.metodo !== 8) throw new ErrorPlanilla('La planilla usa una compresión que no conocemos.');
   // Sin tipo explícito: en Node y en el navegador los tipos de los bytes difieren.
+  // Se cuenta lo descomprimido: un archivo chico que se infla a gigas colgaría el navegador.
+  let leidos = 0;
   const flujo = new ReadableStream({
     start(c) {
       c.enqueue(bytes.slice());
       c.close();
     },
-  }).pipeThrough(new DecompressionStream('deflate-raw'));
+  })
+    .pipeThrough(new DecompressionStream('deflate-raw'))
+    .pipeThrough(
+      new TransformStream({
+        transform(trozo, c) {
+          leidos += (trozo as Uint8Array).byteLength;
+          if (leidos > maxBytes) c.error(new ErrorPlanilla('La planilla es demasiado grande.'));
+          else c.enqueue(trozo);
+        },
+      }),
+    );
   return new Response(flujo).text();
 }
 
@@ -94,11 +109,15 @@ function columna(ref: string): number {
 }
 
 /** Primera hoja de la planilla, fila por fila, cada celda como texto (vacías como ""). */
-export async function leerXlsx(datos: Uint8Array, maxFilas = 50_000): Promise<string[][]> {
+export async function leerXlsx(
+  datos: Uint8Array,
+  maxFilas = 50_000,
+  maxBytes = 60_000_000,
+): Promise<string[][]> {
   const entradas = entradasZip(datos);
   const leer = async (nombre: string) => {
     const e = entradas.get(nombre);
-    return e ? leerArchivo(datos, e) : null;
+    return e ? leerArchivo(datos, e, maxBytes) : null;
   };
 
   // La primera hoja según el libro (no siempre es sheet1.xml).
@@ -142,6 +161,7 @@ export async function leerXlsx(datos: Uint8Array, maxFilas = 50_000): Promise<st
       else if (tipo === 'inlineStr') valor = textoDe(cuerpo);
       else if (v !== undefined) valor = desescapar(v);
       const i = ref ? columna(ref) : fila.length;
+      if (i >= MAX_COLUMNAS) throw new ErrorPlanilla('La planilla tiene columnas de más.');
       while (fila.length < i) fila.push('');
       fila[i] = valor.trim();
     }

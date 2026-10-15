@@ -178,7 +178,8 @@ export function Vender({ estado }: { estado: ReactNode }) {
     setActivo(0);
   }
 
-  function sumar(p: Producto, n?: number) {
+  /** `exacta`: la cantidad viene de la balanza y va tal cual, aunque el producto sea por unidad. */
+  function sumar(p: Producto, n?: number, exacta = false) {
     // Lo que se vende por metro, kilo o litro pregunta cuánto (salvo "12,5*cable").
     if (n === undefined && fraccionada && seFracciona(p.unidad)) {
       setPedirCantidad(p);
@@ -186,7 +187,14 @@ export function Vender({ estado }: { estado: ReactNode }) {
       setActivo(0);
       return;
     }
-    sumarProducto(p, seFracciona(p.unidad) ? (n ?? 1) : Math.max(1, Math.round(n ?? 1)));
+    sumarProducto(
+      p,
+      exacta && n !== undefined
+        ? n
+        : seFracciona(p.unidad)
+          ? (n ?? 1)
+          : Math.max(1, Math.round(n ?? 1)),
+    );
     setSeleccionado(null);
     setDesconocido(null);
     setQ('');
@@ -212,7 +220,8 @@ export function Vender({ estado }: { estado: ReactNode }) {
         setQ('');
         return enfocar();
       }
-      if (p && balanza.kilos !== undefined) return sumar(p, balanza.kilos);
+      // El peso de la etiqueta va con sus decimales (0,350 kg), también en un kiosco.
+      if (p && balanza.kilos !== undefined) return sumar(p, balanza.kilos, true);
     }
     if (/^\d{6,}$/.test(r)) {
       setDesconocido(r);

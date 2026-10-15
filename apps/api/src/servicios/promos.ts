@@ -1,7 +1,7 @@
 // Promos y cambios de una venta (etapa I7). El equipo arma el ticket con la misma cuenta de
 // @mostrador/shared; acá se vuelve a hacer con lo que hay en la base antes de guardar nada.
 import { sql, type TxKiosco } from '@mostrador/db';
-import { calcularPromos, diaArgentino, importeDevuelto } from '@mostrador/shared';
+import { calcularPromos, diaArgentino, importeDeDevolucion } from '@mostrador/shared';
 import { z } from 'zod';
 
 const centavos = z.number().int().min(0).max(100_000_000_000);
@@ -29,6 +29,11 @@ type Resultado<T> = T | { error: string };
 /**
  * Valida lo que descontó cada promo: tiene que existir y no descontar más de lo que da su regla
  * con los productos de la venta, el día de la venta. Devuelve las filas para `venta_descuentos`.
+ *
+ * Una venta hecha sin conexión puede llegar después de que el dueño cambió la categoría o el
+ * grupo de un producto: entonces la cuenta de hoy no coincide. En ese caso se acepta si no pasa
+ * de lo que daría la regla con todos los productos de la venta adentro, y se marca para revisar
+ * (queda en la actividad): rechazarla dejaría una venta cobrada sin registrar.
  */
 export async function descuentosDeVenta(
   tx: TxKiosco,
@@ -36,9 +41,14 @@ export async function descuentosDeVenta(
   pedidos: z.infer<typeof esquemaDescuentos>,
   creadaEn: string,
 ): Promise<
-  Resultado<{ filas: { promo_id: string; descripcion: string; monto: number }[]; total: number }>
+  Resultado<{
+    filas: { promo_id: string; descripcion: string; monto: number }[];
+    total: number;
+    /** Promos aceptadas sin que la cuenta de hoy coincida. */
+    revisar: string[];
+  }>
 > {
-  if (!pedidos.length) return { filas: [], total: 0 };
+  if (!pedidos.length) return { filas: [], total: 0, revisar: [] };
   const ids = [...new Set(pedidos.map((d) => d.promoId))];
   if (ids.length !== pedidos.length) return { error: 'Una promo está dos veces.' };
   const promos = await tx.selectFrom('promos').selectAll().where('id', 'in', ids).execute();
@@ -52,6 +62,18 @@ export async function descuentosDeVenta(
         .execute()
     : [];
   const porId = new Map(datos.map((p) => [p.id, p]));
+  const reglas = promos.map((p) => ({
+    id: p.id,
+    nombre: p.nombre,
+    lleva: p.lleva,
+    paga: p.paga,
+    descuento: p.descuento,
+    categoriaId: p.categoria_id,
+    grupoId: p.grupo_id,
+    desde: p.desde,
+    hasta: p.hasta,
+  }));
+  const dia = diaArgentino(creadaEn);
   const calculados = calcularPromos(
     items.map((i) => {
       const p = i.productoId ? porId.get(i.productoId) : undefined;
@@ -63,26 +85,38 @@ export async function descuentosDeVenta(
         grupoId: p?.grupo_id ?? null,
       };
     }),
-    promos.map((p) => ({
-      id: p.id,
-      nombre: p.nombre,
-      lleva: p.lleva,
-      paga: p.paga,
-      descuento: p.descuento,
-      categoriaId: p.categoria_id,
-      grupoId: p.grupo_id,
-      desde: p.desde,
-      hasta: p.hasta,
-    })),
-    diaArgentino(creadaEn),
+    reglas,
+    dia,
   );
   const filas = [];
+  const revisar: string[] = [];
   for (const d of pedidos) {
     const c = calculados.find((x) => x.promoId === d.promoId);
-    if (!c || d.monto > c.monto) return { error: 'La promo no coincide con los productos.' };
-    filas.push({ promo_id: d.promoId, descripcion: c.descripcion, monto: d.monto });
+    if (c && d.monto <= c.monto) {
+      filas.push({ promo_id: d.promoId, descripcion: c.descripcion, monto: d.monto });
+      continue;
+    }
+    // Tope: la misma regla con todos los productos de la venta adentro.
+    const regla = reglas.find((r) => r.id === d.promoId);
+    const tope = regla
+      ? calcularPromos(
+          items.map((i) => ({
+            productoId: i.productoId,
+            cantidad: i.cantidad,
+            precioUnitario: i.precioUnitario,
+            categoriaId: regla.categoriaId,
+            grupoId: regla.grupoId,
+          })),
+          [regla],
+          dia,
+        )[0]
+      : undefined;
+    if (!regla || !tope || d.monto > tope.monto)
+      return { error: 'La promo no coincide con los productos.' };
+    filas.push({ promo_id: d.promoId, descripcion: regla.nombre, monto: d.monto });
+    revisar.push(d.promoId);
   }
-  return { filas, total: filas.reduce((t, f) => t + f.monto, 0) };
+  return { filas, total: filas.reduce((t, f) => t + f.monto, 0), revisar };
 }
 
 /** Lo que ya se devolvió de cada ítem en cambios que no se anularon. */
@@ -111,6 +145,8 @@ export async function devueltoPorItem(tx: TxKiosco, ventaId: string): Promise<Ma
 export async function devolucionesDeCambio(
   tx: TxKiosco,
   cambio: z.infer<typeof esquemaCambio>,
+  /** Hasta cuántos días después de la venta se acepta el cambio. */
+  dias: number,
 ): Promise<
   Resultado<{
     filas: {
@@ -126,11 +162,15 @@ export async function devolucionesDeCambio(
   // Se bloquea la venta original: dos cambios a la vez no devuelven dos veces lo mismo.
   const original = await tx
     .selectFrom('ventas')
-    .select(['id', 'estado'])
+    .select(['id', 'estado', 'creada_en_dispositivo'])
     .where('id', '=', cambio.ventaId)
     .forUpdate()
     .executeTakeFirst();
   if (original?.estado !== 'cobrada') return { error: 'La venta del cambio no existe.' };
+  if (Date.now() - original.creada_en_dispositivo.getTime() > dias * 24 * 3600_000)
+    return {
+      error: `Esa venta es de hace más de ${dias} días.${dias < 90 ? ' El cambio lo puede hacer el dueño o el encargado.' : ''}`,
+    };
   const items = await tx
     .selectFrom('venta_items')
     .select(['id', 'producto_id', 'descripcion', 'cantidad', 'subtotal'])
@@ -153,7 +193,8 @@ export async function devolucionesDeCambio(
     const item = items.find((i) => i.id === x.itemId);
     if (!item) return { error: 'Lo que se devuelve no es de esa venta.' };
     const cantidad = Number(item.cantidad);
-    const queda = Math.round((cantidad - (yaDevuelto.get(item.id) ?? 0)) * 1000) / 1000;
+    const ya = yaDevuelto.get(item.id) ?? 0;
+    const queda = Math.round((cantidad - ya) * 1000) / 1000;
     if (x.cantidad > queda)
       return {
         error:
@@ -166,7 +207,7 @@ export async function devolucionesDeCambio(
       producto_id: item.producto_id,
       descripcion: item.descripcion,
       cantidad: x.cantidad,
-      importe: importeDevuelto({ cantidad, subtotal: item.subtotal }, x.cantidad, venta),
+      importe: importeDeDevolucion({ cantidad, subtotal: item.subtotal }, ya, x.cantidad, venta),
     });
   }
   return { filas, total: filas.reduce((t, f) => t + f.importe, 0) };

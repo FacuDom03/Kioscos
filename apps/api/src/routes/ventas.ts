@@ -100,8 +100,17 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
             'v.creada_en_dispositivo',
             'v.motivo_anulacion',
             'v.turno_id',
+            'v.regalo',
             'u.nombre',
           ])
+          .select(({ exists, selectFrom }) =>
+            exists(
+              selectFrom('devoluciones as d')
+                .select('d.id')
+                .whereRef('d.venta_id', '=', 'v.id')
+                .whereRef('d.kiosco_id', '=', 'v.kiosco_id'),
+            ).as('cambio'),
+          )
           .orderBy('v.creada_en_dispositivo', 'desc')
           .limit(300);
         if (turnoId) q = q.where('v.turno_id', '=', turnoId);
@@ -218,8 +227,15 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
           .select(['id', 'producto_id', 'cantidad'])
           .where('venta_id', '=', id)
           .execute();
-        // Lo que ya volvió al stock con un cambio no vuelve dos veces.
+        // Si algo de esta venta se cambió, la plata de lo devuelto ya pasó al cambio: anularla
+        // la devolvería dos veces. Primero se anula el cambio.
         const yaDevuelto = await devueltoPorItem(tx, id);
+        if ([...yaDevuelto.values()].some((n) => n > 0))
+          throw new ErrorPublico(
+            409,
+            'tiene_cambio',
+            'Algo de esta venta ya se cambió. Primero anulá el cambio y después esta venta.',
+          );
         for (const i of items) {
           const cantidad =
             Math.round((Number(i.cantidad) - (yaDevuelto.get(i.id) ?? 0)) * 1000) / 1000;

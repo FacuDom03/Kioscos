@@ -1,5 +1,5 @@
 // Rubro del comercio en la app: estilo, tema por defecto y funciones activas.
-import { DATOS_RUBROS, esRubro, type Modulo, type Rubro } from '@mostrador/shared';
+import { DATOS_RUBROS, esRubro, moduloEnPlan, type Modulo, type Rubro } from '@mostrador/shared';
 import { aplicarEstilo } from '@mostrador/ui';
 import { useSesionCompleta } from './sesion.tsx';
 
@@ -18,5 +18,10 @@ export function useNegocio() {
   const s = useSesionCompleta();
   const rubro = rubroDe(s.kiosco.rubro);
   const modulos: readonly Modulo[] = s.kiosco.modulos ?? [];
-  return { rubro, modulos, tiene: (m: Modulo) => modulos.includes(m) };
+  // Una función que el plan no incluye no se muestra aunque haya quedado activada.
+  return {
+    rubro,
+    modulos,
+    tiene: (m: Modulo) => modulos.includes(m) && moduloEnPlan(m, s.kiosco.plan),
+  };
 }

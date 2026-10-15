@@ -1,3 +1,4 @@
+import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { ErrorPlanilla, leerXlsx } from '../src/xlsx.ts';
 
@@ -29,4 +30,57 @@ describe('leerXlsx', () => {
   it('corta si la planilla es demasiado grande', async () => {
     await expect(leerXlsx(archivo(), 2)).rejects.toThrow(/más de 2 filas/);
   });
+
+  it('no se cuelga con un archivo que se infla al descomprimir ni con columnas imposibles', async () => {
+    const bomba = zip({ 'xl/worksheets/sheet1.xml': new Uint8Array(5_000_000) }, true);
+    await expect(leerXlsx(bomba, 50_000, 1_000_000)).rejects.toThrow(/demasiado grande/);
+    const columnas = zip({
+      'xl/worksheets/sheet1.xml': new TextEncoder().encode(
+        '<worksheet><sheetData><row r="1"><c r="XFDZZZZZ1" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>',
+      ),
+    });
+    await expect(leerXlsx(columnas)).rejects.toThrow(/columnas de más/);
+  });
 });
+
+/** Zip mínimo para las pruebas (sin CRC: el lector no lo usa). */
+function zip(archivos: Record<string, Uint8Array>, comprimir = false): Uint8Array {
+  const partes: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let desplazamiento = 0;
+  for (const [nombre, contenido] of Object.entries(archivos)) {
+    const n = new TextEncoder().encode(nombre);
+    const datos = comprimir ? new Uint8Array(deflateRawSync(contenido)) : contenido;
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(8, comprimir ? 8 : 0, true);
+    local.setUint32(18, datos.length, true);
+    local.setUint32(22, contenido.length, true);
+    local.setUint16(26, n.length, true);
+    partes.push(new Uint8Array(local.buffer), n, datos);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true);
+    c.setUint16(10, comprimir ? 8 : 0, true);
+    c.setUint32(20, datos.length, true);
+    c.setUint32(24, contenido.length, true);
+    c.setUint16(28, n.length, true);
+    c.setUint32(42, desplazamiento, true);
+    central.push(new Uint8Array(c.buffer), n);
+    desplazamiento += 30 + n.length + datos.length;
+  }
+  const tamCentral = central.reduce((t, x) => t + x.length, 0);
+  const fin = new DataView(new ArrayBuffer(22));
+  fin.setUint32(0, 0x06054b50, true);
+  fin.setUint16(8, Object.keys(archivos).length, true);
+  fin.setUint16(10, Object.keys(archivos).length, true);
+  fin.setUint32(12, tamCentral, true);
+  fin.setUint32(16, desplazamiento, true);
+  const todo = [...partes, ...central, new Uint8Array(fin.buffer)];
+  const salida = new Uint8Array(todo.reduce((t, x) => t + x.length, 0));
+  let p = 0;
+  for (const x of todo) {
+    salida.set(x, p);
+    p += x.length;
+  }
+  return salida;
+}

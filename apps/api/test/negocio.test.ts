@@ -73,6 +73,24 @@ describe('negocio', () => {
     }
   });
 
+  it('con el plan Esencial no se activan el fiado ni las listas de proveedores', async () => {
+    await e.admin.query(`update kioscos set plan = 'esencial' where id = $1`, [kiosco]);
+    const r = await dueno.cliente.put('/api/v1/kiosco/negocio', {
+      rubro: 'almacen',
+      modulos: ['cuenta_corriente', 'venta_fraccionada'],
+      categorias: [],
+    });
+    expect(r.statusCode).toBe(403);
+    expect(r.json().error).toContain('plan Comercio');
+    const ok = await dueno.cliente.put('/api/v1/kiosco/negocio', {
+      rubro: 'almacen',
+      modulos: ['venta_fraccionada'],
+      categorias: [],
+    });
+    expect(ok.statusCode, ok.body).toBe(200);
+    await e.admin.query(`update kioscos set plan = 'comercio' where id = $1`, [kiosco]);
+  });
+
   it('solo el dueño puede cambiar el rubro', async () => {
     const { cajero } = await cajeroEnEquipo(dueno, e.app);
     const r = await cajero.put('/api/v1/kiosco/negocio', {

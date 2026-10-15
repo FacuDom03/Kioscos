@@ -332,12 +332,15 @@ interface VentaFila {
   creada_en_dispositivo: string;
   nombre: string | null;
   medios: string[];
+  regalo?: boolean;
+  cambio?: boolean;
 }
 
 const MEDIO: Record<string, string> = {
   efectivo: 'Efectivo',
   qr_mp: 'QR',
   transferencia: 'Transferencia',
+  cuenta_corriente: 'A cuenta',
 };
 
 function VentasDelTurno({ turnoId }: { turnoId: string | null }) {
@@ -375,7 +378,9 @@ function VentasDelTurno({ turnoId }: { turnoId: string | null }) {
                 hour: '2-digit',
                 minute: '2-digit',
               })}{' '}
-              · {v.medios.map((m) => MEDIO[m]).join(' y ')}{' '}
+              {v.cambio && ' · Cambio'}
+              {v.medios.length > 0 && ` · ${v.medios.map((m) => MEDIO[m] ?? m).join(' y ')}`}
+              {v.regalo && ' · Para regalo'}{' '}
               {v.estado === 'anulada' && (
                 <strong className="negativo">
                   Anulada{v.devolucion_pendiente ? ', devolución pendiente' : ''}

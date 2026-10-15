@@ -84,10 +84,17 @@ Activá MFA en Tailscale, Hostinger, Cloudflare, GitHub y Mercado Pago.
 ```sh
 sudo mkdir -p /opt/mostrador && sudo chown mostrador: /opt/mostrador
 cd /opt/mostrador
-git clone https://github.com/FacuDom03/Kioscos.git app
+git clone -b claude/mostrador-etapa-a-7jft9w https://github.com/FacuDom03/Kioscos.git app
 cd app
 bash infra/preparar-secretos.sh
 ```
+
+El código está en la rama `claude/mostrador-etapa-a-7jft9w` (si después la pasás a `main`, cloná
+esa). Si el repositorio es privado, el servidor necesita permiso para leerlo: lo más simple es
+una clave de solo lectura. En el servidor, `ssh-keygen -t ed25519 -f ~/.ssh/kioscos -N ''`, pegá
+`~/.ssh/kioscos.pub` en GitHub → el repositorio → Settings → Deploy keys (sin permiso de
+escritura) y cloná con
+`GIT_SSH_COMMAND='ssh -i ~/.ssh/kioscos' git clone -b claude/mostrador-etapa-a-7jft9w git@github.com:FacuDom03/Kioscos.git app`.
 
 Configuración (no secreta):
 
@@ -150,10 +157,13 @@ Entrá al panel desde tu compu con Tailscale: `http://100.x.y.z:8081`.
 
 ### Dar de alta el primer kiosco
 
-En el panel: **Alta de kiosco** → nombre, plan y email del dueño → **Crear y generar invitación**.
-Mandale el enlace por WhatsApp (vence en 72 horas). El dueño elige su contraseña y su segundo
-paso (huella o app de códigos), abre la caja y ya puede vender. Desde **Más → Dispositivos**
-autoriza la PC del mostrador y desde **Más → Usuarios** crea a los cajeros con PIN.
+En el panel: **Alta de comercio** → nombre, rubro (kiosco, almacén, ferretería, perfumería,
+librería u otro), plan y email del dueño → **Crear y generar invitación**. Mandale el enlace por
+WhatsApp (vence en 72 horas). El dueño elige su contraseña y su segundo paso (huella o app de
+códigos), confirma el rubro y elige sus categorías y funciones (fiado, presupuestos, tonos,
+promos…), abre la caja y ya puede vender. El rubro define el diseño: una ferretería o una
+perfumería no se ven como un kiosco. Desde **Más → Dispositivos** autoriza la PC del mostrador y
+desde **Más → Usuarios** crea a los cajeros con PIN.
 
 ---
 
@@ -222,8 +232,18 @@ cd /opt/mostrador/app && git pull
 cd infra && docker compose -f compose.prod.yml --env-file /opt/mostrador/config.env up -d --build
 ```
 
-Las migraciones corren solas antes de levantar la API. La app de los kioscos muestra "Hay una
-versión nueva" y se actualiza cuando no hay un ticket abierto o al cerrar la caja.
+Las migraciones corren solas antes de levantar la API (`migrar` termina con "Migraciones
+aplicadas: …" o "Base al día"; si falla, no se levanta la API nueva). Cada migración corre en su
+propia transacción.
+Son compatibles: los comercios que ya existían quedan como kiosco, con su diseño de siempre. La
+app de los kioscos muestra "Hay una versión nueva" y se actualiza cuando no hay un ticket abierto
+o al cerrar la caja.
+
+Antes de actualizar, por las dudas, un respaldo a mano (paso 7) y mirá que termine bien:
+
+```sh
+docker compose -f compose.prod.yml --env-file /opt/mostrador/config.env logs migrar
+```
 
 ---
 

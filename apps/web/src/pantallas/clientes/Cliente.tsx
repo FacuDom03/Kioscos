@@ -1,5 +1,5 @@
 import { formatearPlata, uuidv7 } from '@mostrador/shared';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { CampoPlata } from '../../componentes/CampoPlata.tsx';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
@@ -33,6 +33,7 @@ export function ClientePantalla({ id }: { id: string }) {
   const [monto, setMonto] = useState<number | null>(null);
   const [medio, setMedio] = useState<'efectivo' | 'transferencia'>('efectivo');
   const [aviso, setAviso] = useState<string | null>(null);
+  const intentoPago = useRef<{ clave: string; id: string } | null>(null);
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [editando, setEditando] = useState(false);
   const [limite, setLimite] = useState<number | null>(null);
@@ -56,16 +57,20 @@ export function ClientePantalla({ id }: { id: string }) {
       return;
     }
     setErrorPago(null);
+    // Reintentar el mismo pago (por ejemplo, después de un corte) no lo registra dos veces.
+    const clave = `${id}|${monto}|${medio}`;
+    if (intentoPago.current?.clave !== clave) intentoPago.current = { clave, id: uuidv7() };
     try {
       const r = await api<{ saldo: number; mensaje: string }>(
         'POST',
         `/api/v1/clientes/${id}/pagos`,
         {
-          id: uuidv7(),
+          id: intentoPago.current.id,
           monto,
           medio,
         },
       );
+      intentoPago.current = null;
       setAviso(r.mensaje);
       setMonto(null);
       await recargar();

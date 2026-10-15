@@ -10,6 +10,17 @@ import { validar } from '../validar.ts';
 const VEN = ['dueno', 'encargado', 'soporte'] as const;
 const DIA = 24 * 3600_000;
 
+/**
+ * Lo que se cobró de verdad por un renglón (alias `i` de venta_items): el subtotal menos su parte
+ * de las promos de esa venta (un 3x2 no puede inflar lo vendido ni la ganancia).
+ */
+const netoRenglon = sql<string>`(i.subtotal - case
+  when exists (select 1 from venta_descuentos d where d.kiosco_id = i.kiosco_id and d.venta_id = i.venta_id)
+  then round(i.subtotal::numeric
+    * (select sum(d.monto) from venta_descuentos d where d.kiosco_id = i.kiosco_id and d.venta_id = i.venta_id)
+    / nullif((select sum(x.subtotal) from venta_items x where x.kiosco_id = i.kiosco_id and x.venta_id = i.venta_id), 0))
+  else 0 end)`;
+
 /** Medianoche de hoy en la Argentina (UTC−3, sin horario de verano). */
 function inicioDeHoy(): Date {
   const fecha = new Date().toLocaleDateString('en-CA', {
@@ -27,7 +38,11 @@ export async function rutasTablero(app: FastifyInstance): Promise<void> {
     const hasta = new Date();
     const desde =
       periodo === 'hoy' ? inicioDeHoy() : new Date(hasta.getTime() - Number(periodo) * DIA);
-    const antes = new Date(desde.getTime() - (hasta.getTime() - desde.getTime()));
+    // Contra qué se compara: "hoy" contra ayer hasta la misma hora; el resto, contra el período
+    // anterior del mismo largo.
+    const largo = hasta.getTime() - desde.getTime();
+    const antes = new Date(desde.getTime() - (periodo === 'hoy' ? DIA : largo));
+    const finAntes = new Date(antes.getTime() + largo);
 
     return req.db(async (tx) => {
       const totales = async (de: Date, a: Date) => {
@@ -44,7 +59,7 @@ export async function rutasTablero(app: FastifyInstance): Promise<void> {
         return { vendido: Number(r.vendido), ventas: Number(r.ventas) };
       };
       const actual = await totales(desde, hasta);
-      const anterior = await totales(antes, desde);
+      const anterior = await totales(antes, finAntes);
       const gremio = await tx
         .selectFrom('ventas')
         .select((eb) => [
@@ -67,7 +82,7 @@ export async function rutasTablero(app: FastifyInstance): Promise<void> {
         )
         .select(['p.id', 'p.nombre', 'p.unidad'])
         .select((eb) => [
-          eb.fn.sum<string>('i.subtotal').as('importe'),
+          sql<string>`sum(${netoRenglon})`.as('importe'),
           eb.fn.sum<string>('i.cantidad').as('cantidad'),
         ])
         .where('v.estado', '=', 'cobrada')
@@ -133,10 +148,10 @@ export async function rutasTablero(app: FastifyInstance): Promise<void> {
           j.onRef('c.id', '=', 'p.categoria_id').onRef('c.kiosco_id', '=', 'p.kiosco_id'),
         )
         .select(sql<string>`coalesce(c.nombre, 'Sin categoría')`.as('categoria'))
-        .select((eb) => [
-          eb.fn.sum<string>('i.subtotal').as('importe'),
+        .select(() => [
+          sql<string>`sum(${netoRenglon})`.as('importe'),
           // Solo lo que tiene costo cargado entra en la cuenta de la ganancia.
-          sql<string>`sum(case when p.costo is not null then i.subtotal else 0 end)`.as(
+          sql<string>`sum(case when p.costo is not null then ${netoRenglon} else 0 end)`.as(
             'importe_con_costo',
           ),
           sql<string>`sum(case when p.costo is not null then round(i.cantidad * p.costo) else 0 end)`.as(

@@ -10,7 +10,17 @@ export function aplicarAumento(precio: number, porcentaje: number, redondeo: Red
   if (!Number.isSafeInteger(precio) || precio < 0) throw new RangeError('Precio inválido');
   const basisPoints = Math.round(porcentaje * 100); // 7,5 % → 750
   const nuevo = Math.round((precio * (10_000 + basisPoints)) / 10_000);
-  return Math.max(0, Math.round(nuevo / redondeo) * redondeo);
+  return redondearPrecio(nuevo, redondeo);
+}
+
+/**
+ * Redondea al múltiplo más cercano de `paso`. Algo que vale más de cero nunca queda en $ 0, y si
+ * se pasa un `piso` (el costo), nunca queda por debajo: en esos casos redondea para arriba.
+ */
+export function redondearPrecio(valor: number, paso: number, piso = 0): number {
+  if (valor <= 0) return 0;
+  const cercano = Math.round(valor / paso) * paso;
+  return cercano > 0 && cercano >= piso ? cercano : Math.ceil(Math.max(valor, piso) / paso) * paso;
 }
 
 /** Precio de venta a partir del costo y un margen en porcentaje, redondeado. */

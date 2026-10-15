@@ -1,8 +1,9 @@
 // Datos del kiosco, rubro y funciones, acceso de soporte (24 horas) y auditoría visible para el
 // dueño.
-import { MODULOS, RUBROS, uuidv7 } from '@mostrador/shared';
+import { DATOS_MODULOS, MODULOS, RUBROS, moduloEnPlan, uuidv7 } from '@mostrador/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { ErrorPublico } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { validar } from '../validar.ts';
 
@@ -43,6 +44,14 @@ export async function rutasKiosco(app: FastifyInstance): Promise<void> {
     );
     const modulos = [...new Set(d.modulos)];
     return req.db(async (tx) => {
+      const { plan } = await tx.selectFrom('kioscos').select('plan').executeTakeFirstOrThrow();
+      const fuera = modulos.filter((m) => !moduloEnPlan(m, plan));
+      if (fuera.length)
+        throw new ErrorPublico(
+          403,
+          'fuera_del_plan',
+          `${fuera.map((m) => DATOS_MODULOS[m].nombre).join(' y ')}: es del plan Comercio.`,
+        );
       const existentes = await tx.selectFrom('categorias').select(['nombre', 'orden']).execute();
       const nombres = new Set(existentes.map((c) => c.nombre.toLowerCase()));
       let orden = Math.max(0, ...existentes.map((c) => c.orden));

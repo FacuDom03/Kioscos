@@ -1,5 +1,5 @@
 // Cambios (etapa I7): el ticket de cambio lleva un código corto para encontrar la venta.
-import { diaArgentino, importeDevuelto, sumarDias, type Unidad } from '@mostrador/shared';
+import { diaArgentino, importeDeDevolucion, sumarDias, type Unidad } from '@mostrador/shared';
 
 /** Días para cambiar lo que se compró (lo que dice el ticket de cambio). */
 export const DIAS_CAMBIO = 30;
@@ -30,9 +30,12 @@ export interface VentaCambiable {
   items: ItemCambiable[];
 }
 
-/** Lo que vale devolver `cantidad` de un ítem: lo que se pagó, con su parte de las promos. */
+/**
+ * Lo que vale devolver `cantidad` de un ítem: lo que se pagó, con su parte de las promos. La
+ * misma cuenta que hace el servidor (contando lo que ya se devolvió en cambios anteriores).
+ */
 export const valorDevuelto = (v: VentaCambiable, item: ItemCambiable, cantidad: number) =>
-  importeDevuelto(item, cantidad, { suma: v.suma, descuentos: v.descuentos });
+  importeDeDevolucion(item, item.devuelto, cantidad, { suma: v.suma, descuentos: v.descuentos });
 
 export const quedaParaCambiar = (item: ItemCambiable) =>
   Math.round((item.cantidad - item.devuelto) * 1000) / 1000;

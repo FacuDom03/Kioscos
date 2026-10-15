@@ -86,7 +86,8 @@ export function renglonesDeLista(
     if (fila.every((c) => !c?.trim())) continue;
     const codigo = (fila[col.codigo] ?? '').trim().slice(0, 60);
     const costo = precioDeCelda(fila[col.precio] ?? '', origen);
-    if (!codigo || costo === null) {
+    // Un precio en cero es un renglón sin precio (no hay de qué calcular la ganancia).
+    if (!codigo || costo === null || costo === 0) {
       descartados++;
       continue;
     }

@@ -213,3 +213,8 @@ export async function nuevoKiosco(
   await admin.query(`insert into cajas (id, kiosco_id) values ($1, $2)`, [uuidv7(), id]);
   return id;
 }
+
+/** Activa funciones del rubro (como lo hace el dueño en Más → Tu negocio). */
+export async function activarModulos(admin: pg.Pool, kioscoId: string, modulos: string[]) {
+  await admin.query('update kioscos set modulos = $2 where id = $1', [kioscoId, modulos]);
+}

@@ -8,7 +8,8 @@ import { devueltoPorItem } from '../servicios/promos.ts';
 import { validar } from '../validar.ts';
 
 const VENDEN = ['dueno', 'encargado', 'cajero', 'soporte'] as const;
-const DIAS = 90;
+/** El cajero busca en el plazo del ticket de cambio; el dueño y el encargado, más atrás. */
+const diasPara = (rol: string) => (rol === 'cajero' ? 30 : 90);
 
 export async function rutasCambios(app: FastifyInstance): Promise<void> {
   app.get('/api/v1/cambios/ventas', { config: { roles: VENDEN } }, async (req) => {
@@ -26,6 +27,7 @@ export async function rutasCambios(app: FastifyInstance): Promise<void> {
     );
     if (!d.codigo === !d.productoId)
       throw new ErrorPublico(400, 'datos_invalidos', 'Buscá por código o por producto.');
+    const DIAS = diasPara(req.completa.rol);
     return req.db(async (tx) => {
       let q = tx
         .selectFrom('ventas as v')

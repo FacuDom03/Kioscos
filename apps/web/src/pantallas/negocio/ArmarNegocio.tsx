@@ -6,6 +6,7 @@ import {
   tituloListo,
   type Modulo,
   type Rubro,
+  moduloEnPlan,
 } from '@mostrador/shared';
 import { Toldo } from '@mostrador/ui';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -61,8 +62,10 @@ export function ArmarNegocio({ alVolver }: { alVolver?: () => void }) {
   const [categorias, setCategorias] = useState<Set<string>>(() =>
     enAlta ? sugeridas(actual) : new Set(),
   );
+  // Lo que el plan no incluye no se ofrece activado (el servidor tampoco lo acepta).
+  const enPlan = (ms: readonly Modulo[]) => ms.filter((m) => moduloEnPlan(m, s.kiosco.plan));
   const [modulos, setModulos] = useState<Set<Modulo>>(
-    () => new Set(enAlta ? DATOS_RUBROS[actual].modulos : (s.kiosco.modulos ?? [])),
+    () => new Set(enPlan(enAlta ? DATOS_RUBROS[actual].modulos : (s.kiosco.modulos ?? []))),
   );
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -74,7 +77,7 @@ export function ArmarNegocio({ alVolver }: { alVolver?: () => void }) {
     setRubro(r);
     const mismo = !enAlta && r === actual;
     setCategorias(mismo ? new Set() : sugeridas(r));
-    setModulos(new Set(mismo ? (s.kiosco.modulos ?? []) : DATOS_RUBROS[r].modulos));
+    setModulos(new Set(enPlan(mismo ? (s.kiosco.modulos ?? []) : DATOS_RUBROS[r].modulos)));
   }
 
   function alternar<T>(conjunto: Set<T>, valor: T, fijar: (c: Set<T>) => void) {
@@ -185,11 +188,15 @@ export function ArmarNegocio({ alVolver }: { alVolver?: () => void }) {
                   {!DATOS_MODULOS[m].disponible && (
                     <span className="funcion__pronto">Estamos terminándola</span>
                   )}
+                  {!moduloEnPlan(m, s.kiosco.plan) && (
+                    <span className="funcion__pronto">Viene con el plan Comercio</span>
+                  )}
                 </span>
                 <input
                   type="checkbox"
                   className="funcion__check"
                   checked={modulos.has(m)}
+                  disabled={!moduloEnPlan(m, s.kiosco.plan)}
                   onChange={() => alternar(modulos, m, setModulos)}
                 />
               </label>

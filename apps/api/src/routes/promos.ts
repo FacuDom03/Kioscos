@@ -99,7 +99,9 @@ export async function rutasPromos(app: FastifyInstance): Promise<void> {
         })
         .refine((x) => x.paga < x.lleva, 'Tiene que pagar menos de lo que lleva.')
         .refine((x) => !x.categoriaId !== !x.grupoId, 'Elegí a qué se aplica.')
-        .refine((x) => !x.desde || !x.hasta || x.desde <= x.hasta, 'Las fechas están al revés.'),
+        .refine((x) => !x.desde || !x.hasta || x.desde <= x.hasta, 'Las fechas están al revés.')
+        // Terminar una promo en el pasado rechazaría ventas ya hechas sin conexión.
+        .refine((x) => !x.hasta || x.hasta >= diaArgentino(), 'La fecha de fin ya pasó.'),
       req.body,
     );
     const id = uuidv7();
@@ -161,6 +163,13 @@ export async function rutasPromos(app: FastifyInstance): Promise<void> {
       if (!p) throw noEncontrado();
       if (d.hasta && p.desde && d.hasta < p.desde)
         throw new ErrorPublico(400, 'datos_invalidos', 'Las fechas están al revés.');
+      // Para terminarla ya, se apaga: una fecha de fin pasada rechazaría ventas sin conexión.
+      if (d.hasta && d.hasta < diaArgentino())
+        throw new ErrorPublico(
+          400,
+          'datos_invalidos',
+          'La fecha de fin ya pasó. Para terminarla hoy, apagala.',
+        );
       await tx
         .updateTable('promos')
         .set({ ...d, updated_at: new Date() })

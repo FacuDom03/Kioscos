@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   altaConInvitacion,
   crearEntorno,
+  activarModulos,
   nuevoKiosco,
   type Entorno,
   type Persona,
@@ -41,6 +42,7 @@ async function producto(datos: Record<string, unknown>) {
 beforeAll(async () => {
   e = await crearEntorno();
   kiosco = await nuevoKiosco(e.admin);
+  await activarModulos(e.admin, kiosco, ['precios_proveedor']);
   dueno = await altaConInvitacion(e.app, e.admin, kiosco);
   proveedor = (
     await dueno.cliente.post('/api/v1/proveedores', { nombre: 'Distribuidora Sur' })
@@ -126,6 +128,37 @@ describe('proveedores', () => {
     });
     // 100.000 − 10 % = 90.000; + 21 % = 108.900; + 40 % = 152.460 → $ 1.500.
     expect(r.json().cambios[0]).toMatchObject({ costo: 108900, precio: 150000 });
+  });
+
+  it('el redondeo nunca deja un precio en $ 0 ni por debajo del costo', async () => {
+    const r = await dueno.cliente.post(`/api/v1/proveedores/${proveedor}/lista/vista-previa`, {
+      renglones: [
+        { codigo: 'BARATO-1', descripcion: 'Arandela', costo: 1000 },
+        { codigo: 'BARATO-2', descripcion: 'Tornillo', costo: 6000 },
+      ],
+      opciones: { ...OPCIONES, calculo: 'ganancia', ganancia: 10 },
+    });
+    const nuevos = Object.fromEntries(
+      r.json().nuevos.map((n: { codigo: string; precio: number }) => [n.codigo, n.precio]),
+    );
+    // $ 10 + 10 % = $ 11 → $ 50 (no $ 0). $ 60 + 10 % = $ 66 → $ 100 (no $ 50, debajo del costo).
+    expect(nuevos).toMatchObject({ 'BARATO-1': 5000, 'BARATO-2': 10000 });
+  });
+
+  it('sin la función activada o con el plan Esencial, no se actualizan precios con listas', async () => {
+    const pedir = () =>
+      dueno.cliente.post(`/api/v1/proveedores/${proveedor}/lista/vista-previa`, {
+        renglones: LISTA,
+        opciones: OPCIONES,
+      });
+    await e.admin.query(`update kioscos set plan = 'esencial' where id = $1`, [kiosco]);
+    expect((await pedir()).statusCode).toBe(403);
+    await e.admin.query(`update kioscos set plan = 'comercio', modulos = '{}' where id = $1`, [
+      kiosco,
+    ]);
+    expect((await pedir()).statusCode).toBe(403);
+    await activarModulos(e.admin, kiosco, ['precios_proveedor']);
+    expect((await pedir()).statusCode).toBe(200);
   });
 
   it('aplica en una transacción, guarda los códigos, crea los nuevos y se puede deshacer', async () => {

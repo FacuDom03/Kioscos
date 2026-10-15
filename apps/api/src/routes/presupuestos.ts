@@ -109,7 +109,9 @@ export async function rutasPresupuestos(app: FastifyInstance): Promise<void> {
     if (d.venceEn < hoy() || d.venceEn > maximo)
       throw new ErrorPublico(400, 'datos_invalidos', 'La fecha de validez no es válida.');
     return req.db(async (tx) => {
-      // Guardarlo dos veces (un reintento) no lo duplica.
+      // Guardarlo dos veces (un reintento) no lo duplica. Se mira después de tomar el número:
+      // dos reintentos a la vez esperan uno al otro y el segundo encuentra el primero.
+      await tx.selectFrom('kioscos').select('id').forUpdate().execute();
       const ya = await tx
         .selectFrom('presupuestos')
         .select(['id', 'numero'])
@@ -123,8 +125,7 @@ export async function rutasPresupuestos(app: FastifyInstance): Promise<void> {
           ids.length
       )
         throw noEncontrado();
-      // El número es correlativo por comercio: se toma de a uno.
-      await tx.selectFrom('kioscos').select('id').forUpdate().execute();
+      // El número es correlativo por comercio: se toma de a uno (con el bloqueo de arriba).
       const ultimo = await tx
         .selectFrom('presupuestos')
         .select((eb) => eb.fn.max('numero').as('n'))

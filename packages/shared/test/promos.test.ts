@@ -3,6 +3,7 @@ import { diaArgentino, sumarDias, diaCorto } from '../src/fechas.ts';
 import {
   calcularPromos,
   importeDevuelto,
+  importeDeDevolucion,
   promoVigente,
   reglaPromo,
   type ItemPromo,
@@ -124,6 +125,16 @@ describe('importeDevuelto', () => {
     expect(importeDevuelto({ cantidad: 4, subtotal: 4000 }, 1, { suma: 4000, descuentos: 0 })).toBe(
       1000,
     );
+  });
+});
+
+describe('importeDeDevolucion', () => {
+  it('devolviendo de a una, la suma no pasa de lo que se pagó', () => {
+    const item = { cantidad: 2, subtotal: 1001 };
+    const venta = { suma: 1001, descuentos: 0 };
+    const primera = importeDeDevolucion(item, 0, 1, venta);
+    const segunda = importeDeDevolucion(item, 1, 1, venta);
+    expect(primera + segunda).toBe(1001);
   });
 });
 

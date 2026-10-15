@@ -122,3 +122,19 @@ export function importeDevuelto(
   const factor = venta.suma > 0 ? (venta.suma - venta.descuentos) / venta.suma : 1;
   return Math.round(bruto * factor);
 }
+
+/**
+ * Lo que vale devolver `cantidad` cuando ya se devolvieron `yaDevuelto` unidades del mismo
+ * renglón: la diferencia entre lo devuelto en total y lo de antes. Así, devolviendo de a una, la
+ * suma nunca pasa de lo que se pagó.
+ */
+export function importeDeDevolucion(
+  item: { cantidad: number; subtotal: number },
+  yaDevuelto: number,
+  cantidad: number,
+  venta: { suma: number; descuentos: number },
+): number {
+  return (
+    importeDevuelto(item, yaDevuelto + cantidad, venta) - importeDevuelto(item, yaDevuelto, venta)
+  );
+}

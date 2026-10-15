@@ -1,13 +1,14 @@
 // Proveedores y actualización de precios con su lista (etapa I3, docs/decisiones/009-rubros.md).
 // La planilla se lee en el equipo; acá llegan los renglones (código, descripción, precio). El
 // servidor cruza, calcula y aplica: nunca usa precios calculados por el equipo.
-import type { TxKiosco } from '@mostrador/db';
-import { uuidv7 } from '@mostrador/shared';
+import { sql, type TxKiosco } from '@mostrador/db';
+import { redondearPrecio, uuidv7 } from '@mostrador/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { validar } from '../validar.ts';
+import { exigirModulo } from '../servicios/negocio.ts';
 
 const EDITAN = ['dueno', 'encargado', 'soporte'] as const;
 // Igual que el aumento masivo: cambiar muchos precios de una vez es cosa del dueño.
@@ -44,7 +45,8 @@ const esquemaLista = z.strictObject({
       z.strictObject({
         codigo: codigoProveedor,
         descripcion: z.string().trim().max(120),
-        costo: centavos,
+        // Un renglón sin precio no sirve para calcular nada (la app ya lo descarta).
+        costo: centavos.refine((n) => n > 0),
       }),
     )
     .min(1)
@@ -88,7 +90,8 @@ interface NuevoLista {
   precio: number;
 }
 
-const redondear = (n: number, r: number) => Math.max(0, Math.round(n / r) * r);
+/** Redondea sin llegar a $ 0 ni quedar por debajo del costo. */
+const redondear = (n: number, r: number, costo: number) => redondearPrecio(n, r, costo);
 const conGanancia = (costo: number, g: number) =>
   Math.round((costo * (10_000 + Math.round(g * 100))) / 10_000);
 const proporcional = (base: number, antes: number | null, ahora: number) =>
@@ -152,7 +155,7 @@ async function cruzar(tx: TxKiosco, proveedorId: string, d: DatosLista) {
         codigo: r.codigo,
         descripcion: r.descripcion,
         costo,
-        precio: redondear(conGanancia(costo, o.ganancia), o.redondeo),
+        precio: redondear(conGanancia(costo, o.ganancia), o.redondeo, costo),
       });
       continue;
     }
@@ -161,18 +164,24 @@ async function cruzar(tx: TxKiosco, proveedorId: string, d: DatosLista) {
       continue;
     }
     usados.add(p.id);
-    const precio = redondear(
-      (o.calculo === 'mantener' ? proporcional(p.precio, p.costo, costo) : null) ??
-        conGanancia(costo, o.ganancia),
-      o.redondeo,
-    );
+    // Manteniendo la ganancia, si el costo no cambió el precio queda como está.
+    const igual = o.calculo === 'mantener' && p.costo === costo;
+    const precio = igual
+      ? p.precio
+      : redondear(
+          (o.calculo === 'mantener' ? proporcional(p.precio, p.costo, costo) : null) ??
+            conGanancia(costo, o.ganancia),
+          o.redondeo,
+          costo,
+        );
     let gremio = p.precio_gremio;
     if (o.gremio === 'ganancia')
-      gremio = redondear(conGanancia(costo, o.gananciaGremio), o.redondeo);
-    else if (o.gremio === 'mantener' && p.precio_gremio !== null)
+      gremio = redondear(conGanancia(costo, o.gananciaGremio), o.redondeo, costo);
+    else if (o.gremio === 'mantener' && p.precio_gremio !== null && p.costo !== costo)
       gremio = redondear(
         proporcional(p.precio_gremio, p.costo, costo) ?? conGanancia(costo, o.gananciaGremio),
         o.redondeo,
+        costo,
       );
     const variacion = p.costo ? Math.round(((costo - p.costo) / p.costo) * 1000) / 10 : null;
     cambios.push({
@@ -297,6 +306,7 @@ export async function rutasProveedores(app: FastifyInstance): Promise<void> {
       const d = validar(esquemaLista, req.body);
       return req.db(async (tx) => {
         await proveedorDelKiosco(tx, id);
+        await exigirModulo(tx, 'precios_proveedor');
         const { cambios, nuevos, resumen } = await cruzar(tx, id, d);
         return { resumen, cambios, nuevos };
       });
@@ -312,6 +322,7 @@ export async function rutasProveedores(app: FastifyInstance): Promise<void> {
       const s = req.completa;
       return req.db(async (tx) => {
         const proveedor = await proveedorDelKiosco(tx, id);
+        await exigirModulo(tx, 'precios_proveedor');
         const { cambios, nuevos, cambia } = await cruzar(tx, id, d);
         const ahora = new Date();
         const detalle: Record<string, unknown>[] = [];
@@ -478,10 +489,13 @@ export async function rutasProveedores(app: FastifyInstance): Promise<void> {
           costo_antes: number | null;
           precio_antes: number;
           precio: number;
+          costo?: number;
           gremio_antes: number | null;
+          gremio?: number | null;
         }[]) {
           if (x.nuevo) continue;
-          const r = await tx
+          // Solo se vuelve atrás lo que nadie tocó después (precio, costo y precio de gremio).
+          let q = tx
             .updateTable('productos')
             .set({
               precio: x.precio_antes,
@@ -490,8 +504,11 @@ export async function rutasProveedores(app: FastifyInstance): Promise<void> {
               updated_at: new Date(),
             })
             .where('id', '=', x.producto_id)
-            .where('precio', '=', x.precio)
-            .executeTakeFirst();
+            .where('precio', '=', x.precio);
+          if (x.costo !== undefined) q = q.where('costo', '=', x.costo);
+          if (x.gremio !== undefined)
+            q = q.where(sql<boolean>`precio_gremio is not distinct from ${x.gremio}`);
+          const r = await q.executeTakeFirst();
           if (r.numUpdatedRows) restaurados++;
           else saltados++;
         }

@@ -72,3 +72,5 @@ export {
   type Descuento,
 } from './promos.ts';
 export { diaArgentino, sumarDias, diaCorto } from './fechas.ts';
+export { escribirXlsx, type Hoja, type Celda } from './xlsx-escribir.ts';
+export { planillaModelo, filasDeXlsxParaImportar, type OpcionesPlanilla } from './importar.ts';

@@ -1,6 +1,6 @@
 import { diaCorto, formatearCantidad, formatearPlata, type Unidad } from '@mostrador/shared';
 import { useState } from 'react';
-import { Aviso, Volver } from '../../componentes/Formulario.tsx';
+import { Aviso } from '../../componentes/Formulario.tsx';
 import { useCatalogo } from '../../nucleo/catalogo.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { puede, useSesionCompleta } from '../../nucleo/sesion.tsx';
@@ -59,7 +59,7 @@ function Barra({ valor, maximo }: { valor: number; maximo: number }) {
 const porcentaje = (n: number) => `${n.toLocaleString('es-AR', { maximumFractionDigits: 1 })} %`;
 
 /** Tablero del comercio (etapa I6). */
-export function Tablero({ alVolver }: { alVolver: () => void }) {
+export function Tablero() {
   const negocio = useNegocio();
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]['id']>('30');
   const { datos: t, error } = useDatos<DatosTablero>(`/api/v1/tablero?periodo=${periodo}`);
@@ -75,7 +75,6 @@ export function Tablero({ alVolver }: { alVolver: () => void }) {
 
   return (
     <div className="pantalla pantalla--ancha tablero">
-      <Volver onClick={alVolver} />
       <div className="encabezado-pantalla">
         <h1 className="m-titulo">Tablero</h1>
         <div className="campo campo--en-linea">

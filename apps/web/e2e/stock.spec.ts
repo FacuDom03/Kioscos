@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { entrar, kioscoConDueno } from './ayuda.ts';
 
@@ -72,4 +73,23 @@ test('importar 200 productos desde un CSV', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Todos (200)' })).toBeVisible();
   await page.getByLabel('Buscar producto').fill('producto 199');
   await expect(page.getByText('Producto 199')).toBeVisible();
+});
+
+test('la planilla modelo se descarga, se sube tal cual y carga los ejemplos', async ({ page }) => {
+  const d = await kioscoConDueno();
+  await entrar(page, d);
+  await page.goto('/stock/importar');
+  const descarga = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Descargar planilla (Excel)' }).click();
+  const archivo = await descarga;
+  expect(archivo.suggestedFilename()).toBe('productos-mostrador.xlsx');
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'mis-productos.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: readFileSync(await archivo.path()),
+  });
+  await expect(page.getByText('Listo: 3 productos nuevos y 0 actualizados.')).toBeVisible();
+  await page.goto('/stock');
+  await page.getByLabel('Buscar producto').fill('alfajor triple');
+  await expect(page.getByText('Alfajor triple chocolate')).toBeVisible();
 });

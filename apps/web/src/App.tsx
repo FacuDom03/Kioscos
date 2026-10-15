@@ -104,6 +104,12 @@ const SECCION_DE_RUTA: [string, Seccion][] = [
   ['/stock', 'stock'],
   ['/caja', 'caja'],
   ['/mas', 'mas'],
+  ['/tablero', 'tablero'],
+  // Pantallas a las que se entra desde Más.
+  ['/clientes', 'mas'],
+  ['/presupuestos', 'mas'],
+  ['/promos', 'mas'],
+  ['/cambios', 'mas'],
 ];
 
 function AppConSesion({ ruta }: { ruta: string }) {
@@ -173,7 +179,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
       pantalla = <Vencimientos />;
       break;
     case '/tablero':
-      pantalla = <Tablero alVolver={volverAMas} />;
+      pantalla = <Tablero />;
       break;
     case '/clientes':
       pantalla = <Clientes alVolver={volverAMas} />;
@@ -266,6 +272,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
         seccion={seccion}
         alCambiar={(s) => navegar(s === 'vender' ? '/' : `/${s}`)}
         estado={estadoConexion}
+        conTablero={estado.tipo === 'completa' && estado.rol !== 'cajero'}
       >
         <BannerConexion />
         <BannerVersion />

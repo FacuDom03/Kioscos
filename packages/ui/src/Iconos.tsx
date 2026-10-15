@@ -32,6 +32,12 @@ export const IconoCaja = () => (
   </svg>
 );
 
+export const IconoTablero = () => (
+  <svg {...comun}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </svg>
+);
+
 export const IconoMas = () => (
   <svg {...comun}>
     <circle cx="5" cy="12" r="1.2" />

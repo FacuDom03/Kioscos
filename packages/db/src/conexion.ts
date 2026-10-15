@@ -10,6 +10,10 @@ pg.types.setTypeParser(pg.types.builtins.INT8, (valor: string) => {
   return n;
 });
 
+// Las fechas sin hora (date) llegan como texto "AAAA-MM-DD": convertirlas a Date las corre de día
+// según la zona horaria del servidor.
+pg.types.setTypeParser(pg.types.builtins.DATE, (valor: string) => valor);
+
 export function crearPool(connectionString: string, opciones: pg.PoolConfig = {}): pg.Pool {
   return new pg.Pool({ connectionString, max: 10, ...opciones });
 }

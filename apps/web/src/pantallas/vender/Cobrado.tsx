@@ -5,6 +5,8 @@ import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { cantidadEnTicket } from '../../nucleo/ticket.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { TicketImpreso } from './TicketImpreso.tsx';
+import { RemitoImpreso, imprimirRemito } from './RemitoImpreso.tsx';
+import { useNegocio } from '../../nucleo/rubro.ts';
 import { configEquipo } from '../../nucleo/equipo.ts';
 
 const hora = (iso: string) =>
@@ -12,6 +14,7 @@ const hora = (iso: string) =>
 
 export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVenta: () => void }) {
   const s = useSesionCompleta();
+  const conRemito = useNegocio().tiene('presupuestos');
   const boton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (configEquipo().imprimirAlCobrar) setTimeout(() => window.print(), 300);
@@ -88,8 +91,14 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
         <button type="button" className="m-boton" onClick={() => window.print()}>
           Imprimir ticket
         </button>
+        {conRemito && (
+          <button type="button" className="m-boton" onClick={imprimirRemito}>
+            Imprimir remito sin precios
+          </button>
+        )}
       </div>
       <TicketImpreso venta={venta} kiosco={s.kiosco.nombre} />
+      {conRemito && <RemitoImpreso venta={venta} kiosco={s.kiosco.nombre} />}
     </div>
   );
 }

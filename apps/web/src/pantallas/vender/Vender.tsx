@@ -28,10 +28,13 @@ import {
   sumarProducto,
   totalTicket,
   unidades,
+  soltarPresupuesto,
   useLista,
+  usePresupuesto,
   useTicket,
   vaciarTicket,
 } from '../../nucleo/ticket.ts';
+import { GuardarPresupuesto } from './GuardarPresupuesto.tsx';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { CantidadProducto } from './CantidadProducto.tsx';
 import { useTurno } from '../../nucleo/turno.ts';
@@ -74,6 +77,9 @@ export function Vender({ estado }: { estado: ReactNode }) {
   const conUbicacion = negocio.tiene('ubicaciones');
   const sobrio = DATOS_RUBROS[negocio.rubro].estilo === 'sobrio';
   const lista = useLista();
+  const conPresupuestos = negocio.tiene('presupuestos');
+  const presupuesto = usePresupuesto();
+  const [guardarPresupuesto, setGuardarPresupuesto] = useState(false);
   const [pedirCantidad, setPedirCantidad] = useState<Producto | null>(null);
   const [q, setQ] = useState('');
   const [activo, setActivo] = useState(0);
@@ -172,6 +178,9 @@ export function Vender({ estado }: { estado: ReactNode }) {
         F2: () => buscador.current?.focus(),
         ...(conListas ? { F3: () => fijarLista(lista === 'gremio' ? 'mostrador' : 'gremio') } : {}),
         F4: () => setPrecioLibre(true),
+        ...(conPresupuestos
+          ? { F6: () => items.length > 0 && enLinea && setGuardarPresupuesto(true) }
+          : {}),
         F7: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'transferencia' }),
         F8: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'efectivo' }),
         F9: () => total > 0 && qrDisponible && setModo({ tipo: 'cobrar', medio: 'qr' }),
@@ -213,7 +222,18 @@ export function Vender({ estado }: { estado: ReactNode }) {
     };
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
-  }, [modo.tipo, total, qrDisponible, q, seleccionado, items, conListas, lista]);
+  }, [
+    modo.tipo,
+    total,
+    qrDisponible,
+    q,
+    seleccionado,
+    items,
+    conListas,
+    lista,
+    conPresupuestos,
+    enLinea,
+  ]);
 
   useEffect(() => {
     const alLeer = (ev: Event) => {
@@ -262,6 +282,11 @@ export function Vender({ estado }: { estado: ReactNode }) {
           <p className="texto-suave">Caja de {s.usuario.nombre || 'vos'}</p>
         </div>
         <div className="vender__acciones">
+          {conPresupuestos && (
+            <button type="button" className="chip" onClick={() => navegar('/presupuestos')}>
+              Presupuestos
+            </button>
+          )}
           {conListas && (
             <div className="chips lista-precios" role="group" aria-label="Lista de precios">
               <button
@@ -285,6 +310,15 @@ export function Vender({ estado }: { estado: ReactNode }) {
           <div className="vender__estado">{estado}</div>
         </div>
       </header>
+
+      {presupuesto && (
+        <div className="banda-presupuesto" role="status">
+          <span>Estás cobrando el presupuesto {presupuesto.numero}.</span>
+          <button type="button" className="enlace-boton" onClick={soltarPresupuesto}>
+            Ya no es ese presupuesto
+          </button>
+        </div>
+      )}
 
       <div className="vender__columnas">
         <section className="vender__productos" aria-label="Productos">
@@ -566,16 +600,38 @@ export function Vender({ estado }: { estado: ReactNode }) {
                   >
                     Cobrar con transferencia{atajo('F7')}
                   </button>
+                  {conPresupuestos && (
+                    <button
+                      type="button"
+                      className="m-boton"
+                      disabled={!total || !enLinea}
+                      onClick={() => setGuardarPresupuesto(true)}
+                    >
+                      Guardar presupuesto{atajo('F6')}
+                    </button>
+                  )}
                 </div>
               ) : (
-                <button
-                  type="button"
-                  className="m-boton m-boton--principal"
-                  disabled={!total}
-                  onClick={() => setModo({ tipo: 'cobrar', medio: null })}
-                >
-                  Cobrar
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="m-boton m-boton--principal"
+                    disabled={!total}
+                    onClick={() => setModo({ tipo: 'cobrar', medio: null })}
+                  >
+                    Cobrar
+                  </button>
+                  {conPresupuestos && (
+                    <button
+                      type="button"
+                      className="m-boton"
+                      disabled={!total || !enLinea}
+                      onClick={() => setGuardarPresupuesto(true)}
+                    >
+                      Guardar presupuesto
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}
@@ -588,6 +644,18 @@ export function Vender({ estado }: { estado: ReactNode }) {
           alCerrar={() => {
             setEscaner(false);
             enfocar();
+          }}
+        />
+      )}
+      {guardarPresupuesto && (
+        <GuardarPresupuesto
+          alCerrar={() => {
+            setGuardarPresupuesto(false);
+            enfocar();
+          }}
+          alGuardar={(r) => {
+            setGuardarPresupuesto(false);
+            navegar(`/presupuestos/${r.id}`);
           }}
         />
       )}

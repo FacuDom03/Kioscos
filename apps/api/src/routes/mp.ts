@@ -250,6 +250,7 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
         creadaEn: z.iso.datetime({ offset: true }),
         total: centavos,
         lista: z.enum(['mostrador', 'gremio']).optional(),
+        presupuestoId: z.uuid().optional(),
         items: z
           .array(
             z.strictObject({
@@ -310,6 +311,14 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
           creada_en_dispositivo: d.creadaEn,
         })
         .execute();
+      // El presupuesto queda vendido cuando se cobra el QR (trigger en la base).
+      if (d.presupuestoId)
+        await tx
+          .updateTable('presupuestos')
+          .set({ venta_id: d.ventaId, updated_at: new Date() })
+          .where('id', '=', d.presupuestoId)
+          .where('estado', '=', 'abierto')
+          .execute();
       for (const i of d.items) {
         await tx
           .insertInto('venta_items')

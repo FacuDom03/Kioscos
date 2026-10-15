@@ -54,7 +54,7 @@ export const DATOS_MODULOS: Record<Modulo, DatosModulo> = {
     id: 'presupuestos',
     nombre: 'Presupuestos y remitos',
     descripcion: 'Se mandan por WhatsApp y pasan a venta con un toque.',
-    disponible: false,
+    disponible: true,
   },
   listas_precios: {
     id: 'listas_precios',

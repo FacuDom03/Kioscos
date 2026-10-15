@@ -122,6 +122,18 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     ],
   );
 
+  const presupuesto = uuidv7();
+  await q(
+    `insert into presupuestos (id, kiosco_id, numero, usuario_id, para, total, vence_en)
+     values ($1, $2, 1, $3, 'Obra de la esquina', 360000, current_date + 15)`,
+    [presupuesto, k.id, dueno],
+  );
+  await q(
+    `insert into presupuesto_items (id, kiosco_id, presupuesto_id, producto_id, descripcion, cantidad, precio_unitario, subtotal)
+     values ($1, $2, $3, $4, 'Coca-Cola 500 ml', 2, 180000, 360000)`,
+    [uuidv7(), k.id, presupuesto, coca],
+  );
+
   const caja = uuidv7();
   await q(`insert into cajas (id, kiosco_id) values ($1, $2)`, [caja, k.id]);
   const turno = uuidv7();

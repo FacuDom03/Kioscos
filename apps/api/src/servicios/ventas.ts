@@ -17,6 +17,8 @@ export const esquemaVenta = z.strictObject({
   total: centavos,
   /** Lista de precios con la que se vendió (etapa I2). */
   lista: z.enum(['mostrador', 'gremio']).optional(),
+  /** Presupuesto que se vende (etapa I4): queda cerrado con esta venta. */
+  presupuestoId: z.uuid().optional(),
   items: z
     .array(
       z.strictObject({
@@ -195,6 +197,15 @@ export async function registrarVenta(
       if (stockNuevo < 0)
         avisos.push({ productoId: i.productoId, nombre: i.descripcion, stock: stockNuevo });
     }
+  }
+  if (v.presupuestoId) {
+    // Si ya se vendió o se anuló, la venta igual se guarda.
+    await tx
+      .updateTable('presupuestos')
+      .set({ estado: 'vendido', venta_id: v.id, updated_at: new Date() })
+      .where('id', '=', v.presupuestoId)
+      .where('estado', '=', 'abierto')
+      .execute();
   }
   for (const p of v.pagos) {
     await tx

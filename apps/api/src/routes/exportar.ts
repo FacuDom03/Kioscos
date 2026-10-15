@@ -169,6 +169,44 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
             'stock_actual',
             'stock_minimo',
             'activo',
+            'unidad',
+            'ubicacion',
+            'precio_gremio',
+          ])
+          .execute(),
+        proveedores: await tx
+          .selectFrom('proveedores')
+          .select(['id', 'nombre', 'activo'])
+          .execute(),
+        productosProveedor: await tx
+          .selectFrom('producto_proveedor')
+          .select(['producto_id', 'proveedor_id', 'codigo', 'costo', 'actualizado_en'])
+          .execute(),
+        presupuestos: await tx
+          .selectFrom('presupuestos')
+          .select([
+            'id',
+            'numero',
+            'lista',
+            'para',
+            'nota',
+            'total',
+            'estado',
+            'vence_en',
+            'venta_id',
+            'created_at',
+          ])
+          .execute(),
+        presupuestoItems: await tx
+          .selectFrom('presupuesto_items')
+          .select([
+            'presupuesto_id',
+            'producto_id',
+            'descripcion',
+            'cantidad',
+            'unidad',
+            'precio_unitario',
+            'subtotal',
           ])
           .execute(),
         codigos: await tx
@@ -182,6 +220,7 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
             'turno_id',
             'total',
             'estado',
+            'lista',
             'creada_en_dispositivo',
             'motivo_anulacion',
           ])

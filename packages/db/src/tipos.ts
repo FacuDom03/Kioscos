@@ -117,6 +117,34 @@ export interface ProductoProveedorTabla {
   actualizado_en: FechaDefault;
 }
 
+export interface PresupuestosTabla {
+  id: string;
+  kiosco_id: string;
+  numero: number;
+  usuario_id: string;
+  lista: Generated<'mostrador' | 'gremio'>;
+  para: string | null;
+  nota: string | null;
+  total: number;
+  estado: Generated<'abierto' | 'vendido' | 'anulado'>;
+  vence_en: ColumnType<string, string, string>;
+  venta_id: string | null;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
+export interface PresupuestoItemsTabla {
+  id: string;
+  kiosco_id: string;
+  presupuesto_id: string;
+  producto_id: string | null;
+  descripcion: string;
+  cantidad: Numerico;
+  unidad: Generated<'unidad' | 'metro' | 'kilo' | 'litro' | 'caja'>;
+  precio_unitario: number;
+  subtotal: number;
+}
+
 export interface ListasProveedorTabla {
   id: string;
   kiosco_id: string;
@@ -357,6 +385,8 @@ export interface Database {
   proveedores: ProveedoresTabla;
   producto_proveedor: ProductoProveedorTabla;
   listas_proveedor: ListasProveedorTabla;
+  presupuestos: PresupuestosTabla;
+  presupuesto_items: PresupuestoItemsTabla;
 }
 
 /** Tablas que pertenecen a un kiosco (todas salvo las globales). */
@@ -386,6 +416,8 @@ export const TABLAS_DE_KIOSCO = [
   'proveedores',
   'producto_proveedor',
   'listas_proveedor',
+  'presupuestos',
+  'presupuesto_items',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

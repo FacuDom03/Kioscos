@@ -27,6 +27,8 @@ interface ProductoVendible {
 
 let items: ItemTicket[] = [];
 let lista: Lista = 'mostrador';
+/** Presupuesto que se está vendiendo (etapa I4), con su número para mostrarlo. */
+let presupuesto: { id: string; numero: number } | null = null;
 let kiosco: string | null = null;
 const oyentes = new Set<() => void>();
 
@@ -44,6 +46,7 @@ export async function cargarTicket(kioscoId: string): Promise<void> {
   kiosco = kioscoId;
   items = (await leerClave<ItemTicket[]>(`ticket:${kioscoId}`)) ?? [];
   lista = (await leerClave<Lista>(`lista:${kioscoId}`)) ?? 'mostrador';
+  presupuesto = (await leerClave<typeof presupuesto>(`presupuesto:${kioscoId}`)) ?? null;
   avisar();
 }
 
@@ -119,12 +122,37 @@ export function quitarItem(id: string): void {
   fijar(items.filter((x) => x.id !== id));
 }
 
-/** Vacía el ticket. La venta que sigue arranca con la lista de mostrador. */
+function fijarPresupuesto(p: typeof presupuesto) {
+  presupuesto = p;
+  if (kiosco) void guardarClave(`presupuesto:${kiosco}`, presupuesto);
+}
+
+/** Vacía el ticket. La venta que sigue arranca con la lista de mostrador y sin presupuesto. */
 export function vaciarTicket(): void {
   lista = 'mostrador';
   if (kiosco) void guardarClave(`lista:${kiosco}`, lista);
+  fijarPresupuesto(null);
   fijar([]);
 }
+
+/** Pone en el ticket lo de un presupuesto, para cobrarlo. */
+export function cargarPresupuesto(
+  p: { id: string; numero: number; lista: Lista },
+  nuevos: Omit<ItemTicket, 'id'>[],
+): void {
+  lista = p.lista;
+  if (kiosco) void guardarClave(`lista:${kiosco}`, lista);
+  fijarPresupuesto({ id: p.id, numero: p.numero });
+  fijar(nuevos.map((x) => ({ ...x, id: uuidv7() })));
+}
+
+/** Deja de vender el presupuesto (el ticket queda como está). */
+export function soltarPresupuesto(): void {
+  fijarPresupuesto(null);
+  avisar();
+}
+
+export const presupuestoActual = () => presupuesto;
 
 export const totalTicket = (xs: ItemTicket[]) =>
   xs.reduce((t, x) => t + subtotal(x.cantidad, x.precioUnitario), 0);
@@ -149,4 +177,5 @@ const suscribir = (o: () => void) => {
 };
 export const useTicket = () => useSyncExternalStore(suscribir, () => items);
 export const useLista = () => useSyncExternalStore(suscribir, () => lista);
+export const usePresupuesto = () => useSyncExternalStore(suscribir, () => presupuesto);
 export const ticketActual = () => items;

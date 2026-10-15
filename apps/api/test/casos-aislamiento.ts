@@ -92,6 +92,18 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   // Kiosco
   caso('GET', '/api/v1/kiosco', 'sin_datos_de_b'),
   caso('PUT', '/api/v1/kiosco/soporte', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
+  // Presupuestos (etapa I4)
+  caso('POST', '/api/v1/presupuestos', 'escribe_solo_lo_propio', {
+    cuerpo: {
+      id: '0192a000-0000-7000-8000-0000000000e1',
+      venceEn: new Date(Date.now() + 5 * 24 * 3600_000).toISOString().slice(0, 10),
+      total: 100000,
+      items: [{ productoId: null, descripcion: 'Algo', cantidad: 1, precioUnitario: 100000 }],
+    },
+  }),
+  caso('GET', '/api/v1/presupuestos', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/presupuestos/:id', 'no_encontrado', { tabla: 'presupuestos' }),
+  caso('POST', '/api/v1/presupuestos/:id/anular', 'no_encontrado', { tabla: 'presupuestos' }),
   // Proveedores y listas de precios (etapa I3)
   caso('GET', '/api/v1/proveedores', 'sin_datos_de_b'),
   caso('POST', '/api/v1/proveedores', 'escribe_solo_lo_propio', {

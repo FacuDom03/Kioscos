@@ -3,7 +3,7 @@ import { TEMAS, leerTema } from '@mostrador/ui';
 import { api } from '../nucleo/api.ts';
 import { hayPendientes, sincronizar, useBandeja } from '../nucleo/bandeja.ts';
 import { borrarDatosDelKiosco } from '../nucleo/local.ts';
-import { rubroDe } from '../nucleo/rubro.ts';
+import { rubroDe, useNegocio } from '../nucleo/rubro.ts';
 import { navegar } from '../nucleo/ruta.ts';
 import { useSesion, useSesionCompleta } from '../nucleo/sesion.tsx';
 
@@ -19,6 +19,7 @@ export function Mas() {
   const tema = TEMAS.find((t) => t.id === leerTema())?.nombre;
   const dueno = s.rol === 'dueno';
   const bandeja = useBandeja();
+  const negocio = useNegocio();
 
   // Al cerrar sesión se borran los datos del kiosco en el equipo, salvo las ventas sin subir:
   // con ventas pendientes no se deja cerrar.
@@ -66,6 +67,15 @@ export function Mas() {
     ...(dueno ? [{ ruta: '/mas/actividad', nombre: 'Actividad' }] : []),
     ...(!s.esSoporte && (s.rol === 'dueno' || s.rol === 'encargado')
       ? [{ ruta: '/mas/seguridad', nombre: 'Seguridad' }]
+      : []),
+    ...(negocio.tiene('presupuestos')
+      ? [
+          {
+            ruta: '/presupuestos',
+            nombre: 'Presupuestos',
+            detalle: 'Abiertos, vendidos y vencidos',
+          },
+        ]
       : []),
     { ruta: '/mas/equipo', nombre: 'Este equipo', detalle: 'Impresora y balanza' },
     { ruta: '/mas/apariencia', nombre: 'Apariencia', ...(tema ? { detalle: tema } : {}) },

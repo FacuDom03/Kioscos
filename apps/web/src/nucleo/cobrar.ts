@@ -2,6 +2,7 @@ import { uuidv7 } from '@mostrador/shared';
 import { encolar } from './bandeja.ts';
 import {
   listaActual,
+  presupuestoActual,
   ticketActual,
   totalTicket,
   vaciarTicket,
@@ -33,6 +34,7 @@ export async function cobrar(
   const total = totalTicket(items);
   if (!items.length || total <= 0) throw new Error('El ticket está vacío.');
   const lista = listaActual();
+  const presupuesto = presupuestoActual();
   const venta: VentaHecha = {
     id: uuidv7(),
     creadaEn: new Date().toISOString(),
@@ -50,6 +52,7 @@ export async function cobrar(
     creadaEn: venta.creadaEn,
     total,
     ...(lista !== 'mostrador' ? { lista } : {}),
+    ...(presupuesto ? { presupuestoId: presupuesto.id } : {}),
     items: items.map((i) => ({
       id: i.id,
       productoId: i.productoId,

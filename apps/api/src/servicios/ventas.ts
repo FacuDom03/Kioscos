@@ -2,6 +2,12 @@
 // Cada operación trae su UUID: reenviarla nunca duplica nada (sección 12 de docs/SPEC.md).
 import type { TxKiosco } from '@mostrador/db';
 import { formatearPlata, subtotal, uuidv7 } from '@mostrador/shared';
+import {
+  devolucionesDeCambio,
+  descuentosDeVenta,
+  esquemaCambio,
+  esquemaDescuentos,
+} from './promos.ts';
 import { z } from 'zod';
 import { ErrorPublico } from '../errores.ts';
 import type { SesionCompleta } from './sesiones.ts';
@@ -22,6 +28,12 @@ export const esquemaVenta = z.strictObject({
   presupuestoId: z.uuid().optional(),
   /** Cliente al que se le anota lo que se paga a cuenta (etapa I5). */
   clienteId: z.uuid().optional(),
+  /** Promos que aplicó el equipo (etapa I7). El servidor las vuelve a calcular. */
+  descuentos: esquemaDescuentos.optional(),
+  /** Para regalo: sale con ticket de cambio. */
+  regalo: z.boolean().optional(),
+  /** Cambio: lo que el cliente devuelve de una venta anterior se descuenta de esta. */
+  cambio: esquemaCambio.optional(),
   items: z
     .array(
       z.strictObject({
@@ -44,7 +56,7 @@ export const esquemaVenta = z.strictObject({
         recibido: centavos.optional(),
       }),
     )
-    .min(1)
+    // Un cambio por algo del mismo precio no tiene pago.
     .max(5),
 });
 export type DatosVenta = z.infer<typeof esquemaVenta>;
@@ -142,7 +154,16 @@ export async function registrarVenta(
   if (!(await existeTurno(tx, v.turnoId))) return rechazo('La caja de esta venta no existe.');
 
   const suma = v.items.reduce((t, i) => t + subtotal(i.cantidad, i.precioUnitario), 0);
-  if (suma !== v.total) return rechazo('El total no coincide con los productos.');
+  const descuentos = await descuentosDeVenta(tx, v.items, v.descuentos ?? [], v.creadaEn);
+  if ('error' in descuentos) return rechazo(descuentos.error);
+  const cambio = v.cambio ? await devolucionesDeCambio(tx, v.cambio) : null;
+  if (cambio && 'error' in cambio) return rechazo(cambio.error);
+  const devuelto = cambio?.total ?? 0;
+  if (devuelto > suma - descuentos.total)
+    return rechazo('Lo que se lleva tiene que valer lo mismo o más que lo que devuelve.');
+  if (suma - descuentos.total - devuelto !== v.total)
+    return rechazo('El total no coincide con los productos.');
+  if (v.total > 0 && !v.pagos.length) return rechazo('Falta el pago.');
   const pagado = v.pagos.reduce((t, p) => t + p.monto, 0);
   if (pagado !== v.total) return rechazo('Los pagos no coinciden con el total.');
   for (const p of v.pagos) {
@@ -186,6 +207,7 @@ export async function registrarVenta(
       estado: 'cobrada',
       lista: v.lista ?? 'mostrador',
       cliente_id: aCuenta > 0 ? (v.clienteId ?? null) : null,
+      regalo: v.regalo ?? false,
       creada_en_dispositivo: v.creadaEn,
     })
     .execute();
@@ -217,6 +239,28 @@ export async function registrarVenta(
       if (stockNuevo < 0)
         avisos.push({ productoId: i.productoId, nombre: i.descripcion, stock: stockNuevo });
     }
+  }
+  for (const d of descuentos.filas) {
+    await tx
+      .insertInto('venta_descuentos')
+      .values({ id: uuidv7(), kiosco_id: s.kioscoId, venta_id: v.id, ...d })
+      .execute();
+  }
+  for (const d of cambio?.filas ?? []) {
+    await tx
+      .insertInto('devoluciones')
+      .values({ id: uuidv7(), kiosco_id: s.kioscoId, venta_id: v.id, ...d })
+      .execute();
+    if (d.producto_id)
+      await moverStock(tx, {
+        kioscoId: s.kioscoId,
+        productoId: d.producto_id,
+        tipo: 'devolucion',
+        cantidad: d.cantidad,
+        usuarioId: s.usuarioId,
+        ventaId: v.id,
+        motivo: 'Cambio',
+      });
   }
   if (v.presupuestoId) {
     // Si ya se vendió o se anuló, la venta igual se guarda.

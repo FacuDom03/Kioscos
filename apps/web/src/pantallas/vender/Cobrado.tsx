@@ -6,6 +6,7 @@ import { cantidadEnTicket } from '../../nucleo/ticket.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { TicketImpreso } from './TicketImpreso.tsx';
 import { RemitoImpreso, imprimirRemito } from './RemitoImpreso.tsx';
+import { TicketCambioImpreso, imprimirTicketCambio } from './TicketCambioImpreso.tsx';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { enPalabras, enlaceWhatsAppCliente, textoCuenta } from '../../nucleo/clientes.ts';
 import { configEquipo } from '../../nucleo/equipo.ts';
@@ -15,7 +16,9 @@ const hora = (iso: string) =>
 
 export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVenta: () => void }) {
   const s = useSesionCompleta();
-  const conRemito = useNegocio().tiene('presupuestos');
+  const negocio = useNegocio();
+  const conRemito = negocio.tiene('presupuestos');
+  const conCambio = negocio.tiene('regalo');
   const boton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (configEquipo().imprimirAlCobrar) setTimeout(() => window.print(), 300);
@@ -32,8 +35,11 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
     return () => window.removeEventListener('keydown', tecla);
   }, [alNuevaVenta]);
 
-  const detalle =
-    venta.medio === 'cuenta_corriente' && venta.cliente
+  const detalle = venta.cambio
+    ? venta.total === 0
+      ? 'Cambio hecho, sin diferencia'
+      : `Cambio hecho · Cobrada la diferencia${venta.medio === 'efectivo' ? ` · Vuelto ${formatearPlata(venta.vuelto ?? 0)}` : ' con transferencia'}`
+    : venta.medio === 'cuenta_corriente' && venta.cliente
       ? `Anotado en la cuenta de ${venta.cliente.nombre} · ${enPalabras(venta.cliente.saldo)}`
       : venta.medio === 'qr_mp'
         ? `Mercado Pago confirmó el pago a las ${hora(venta.confirmadoEn ?? venta.creadaEn)}`
@@ -72,6 +78,20 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
                 </span>
               </li>
             ))}
+            {venta.descuentos?.map((d) => (
+              <li key={d.descripcion} className="ticket__linea ticket__linea--promo">
+                <span className="ticket__cant">Promo</span>
+                <span className="ticket__desc">{d.descripcion}</span>
+                <span className="ticket__sub m-plata">−{formatearPlata(d.monto)}</span>
+              </li>
+            ))}
+            {venta.cambio?.items.map((x) => (
+              <li key={x.descripcion} className="ticket__linea ticket__linea--promo">
+                <span className="ticket__cant m-plata">{x.cantidad}×</span>
+                <span className="ticket__desc">Devuelve {x.descripcion}</span>
+                <span className="ticket__sub m-plata">−{formatearPlata(x.importe)}</span>
+              </li>
+            ))}
           </ul>
           <hr className="m-ticket__separador" />
           <p className="ticket__total">
@@ -91,9 +111,19 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
         >
           Nueva venta
         </button>
+        {conCambio && venta.regalo && (
+          <button type="button" className="m-boton" onClick={imprimirTicketCambio}>
+            Imprimir ticket de cambio (para regalo)
+          </button>
+        )}
         <button type="button" className="m-boton" onClick={() => window.print()}>
           Imprimir ticket
         </button>
+        {conCambio && !venta.regalo && (
+          <button type="button" className="m-boton" onClick={imprimirTicketCambio}>
+            Imprimir ticket de cambio
+          </button>
+        )}
         {venta.cliente?.telefono && (
           <a
             className="m-boton boton-enlace"
@@ -120,6 +150,7 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
       </div>
       <TicketImpreso venta={venta} kiosco={s.kiosco.nombre} />
       {conRemito && <RemitoImpreso venta={venta} kiosco={s.kiosco.nombre} />}
+      {conCambio && <TicketCambioImpreso venta={venta} kiosco={s.kiosco.nombre} />}
     </div>
   );
 }

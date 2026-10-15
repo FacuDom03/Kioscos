@@ -1,4 +1,4 @@
-import { formatearCantidad, formatearPlata, type Unidad } from '@mostrador/shared';
+import { diaCorto, formatearCantidad, formatearPlata, type Unidad } from '@mostrador/shared';
 import { useState } from 'react';
 import { Aviso, Volver } from '../../componentes/Formulario.tsx';
 import { useNegocio } from '../../nucleo/rubro.ts';
@@ -26,6 +26,12 @@ interface DatosTablero {
   categorias: { categoria: string; importe: number; ganancia: number | null }[];
   clientes: { deuda: number; deudores: number; sinPagarHace30: number };
   preciosViejos: number;
+  porVencer: {
+    lotes: number;
+    vencidos: number;
+    lista: { id: string; nombre: string; venceEn: string; cantidad: number }[];
+  };
+  promos: { descontado: number; ventas: number };
 }
 
 const PERIODOS = [
@@ -123,6 +129,21 @@ export function Tablero({ alVolver }: { alVolver: () => void }) {
                 </span>
               )}
             </div>
+            {negocio.tiene('promos') && (
+              <button
+                type="button"
+                className="indicador indicador--boton"
+                onClick={() => navegar('/promos')}
+              >
+                <span className="indicador__nombre">Descontado en promos</span>
+                <span className="indicador__valor m-plata">
+                  {formatearPlata(t.promos.descontado)}
+                </span>
+                <span className="indicador__detalle">
+                  En {t.promos.ventas} {t.promos.ventas === 1 ? 'venta' : 'ventas'}
+                </span>
+              </button>
+            )}
             {negocio.tiene('cuenta_corriente') && (
               <button
                 type="button"
@@ -236,6 +257,45 @@ export function Tablero({ alVolver }: { alVolver: () => void }) {
                 </ul>
               )}
             </section>
+
+            {negocio.tiene('vencimientos') && (
+              <section className="tarjeta-tablero" aria-labelledby="t-vencen">
+                <div className="tarjeta-tablero__cabeza">
+                  <h2 className="subtitulo" id="t-vencen">
+                    Vence en 30 días
+                  </h2>
+                  {t.porVencer.lotes > 0 && (
+                    <button
+                      type="button"
+                      className="enlace-boton"
+                      onClick={() => navegar('/stock/vencimientos')}
+                    >
+                      Ver vencimientos
+                    </button>
+                  )}
+                </div>
+                {t.porVencer.lista.length === 0 ? (
+                  <p className="texto-suave">No vence nada en los próximos 30 días.</p>
+                ) : (
+                  <ul className="lista-tablero">
+                    {t.porVencer.lista.map((l, i) => (
+                      <li key={`${l.id}-${i}`}>
+                        <span>{l.nombre}</span>
+                        <span className="texto-suave">{formatearCantidad(l.cantidad)}</span>
+                        <span>{diaCorto(l.venceEn)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {t.porVencer.vencidos > 0 && (
+                  <p className="texto-alerta">
+                    {t.porVencer.vencidos === 1
+                      ? 'Un lote ya venció.'
+                      : `${t.porVencer.vencidos} lotes ya vencieron.`}
+                  </p>
+                )}
+              </section>
+            )}
 
             <section className="tarjeta-tablero" aria-labelledby="t-categorias">
               <h2 className="subtitulo" id="t-categorias">

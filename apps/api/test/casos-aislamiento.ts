@@ -36,6 +36,8 @@ export interface CasoAislamiento {
   /** Tabla de la que se toma un ID del kiosco B para reemplazar `:id`. */
   tabla?: string;
   cuerpo?: unknown;
+  /** Parámetros de la URL (`?productoId=…`), con el mismo reemplazo que el cuerpo. */
+  consulta?: Record<string, string>;
 }
 
 const caso = (
@@ -92,6 +94,42 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   // Kiosco
   caso('GET', '/api/v1/kiosco', 'sin_datos_de_b'),
   caso('PUT', '/api/v1/kiosco/soporte', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
+  // Perfumería (etapa I7): variantes, promos, cambios y vencimientos
+  caso('GET', '/api/v1/grupos-variantes', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/grupos-variantes/:id', 'no_encontrado', { tabla: 'grupos_variantes' }),
+  caso('POST', '/api/v1/grupos-variantes', 'escribe_solo_lo_propio', {
+    cuerpo: {
+      nombre: 'Labial',
+      tipo: 'tono',
+      precio: 100000,
+      categoriaId: '$B:categorias',
+      variantes: [{ variante: 'Rojo' }],
+    },
+  }),
+  caso('PATCH', '/api/v1/grupos-variantes/:id', 'no_encontrado', {
+    tabla: 'grupos_variantes',
+    cuerpo: { nombre: 'Cambiado' },
+  }),
+  caso('POST', '/api/v1/grupos-variantes/:id/variantes', 'no_encontrado', {
+    tabla: 'grupos_variantes',
+    cuerpo: { variante: 'Coral' },
+  }),
+  caso('GET', '/api/v1/promos', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/promos', 'no_encontrado', {
+    cuerpo: { nombre: '3x2', lleva: 3, paga: 2, descuento: 100, grupoId: '$B:grupos_variantes' },
+  }),
+  caso('PATCH', '/api/v1/promos/:id', 'no_encontrado', {
+    tabla: 'promos',
+    cuerpo: { activa: false },
+  }),
+  caso('GET', '/api/v1/cambios/ventas', 'sin_datos_de_b', {
+    consulta: { productoId: '$B:productos' },
+  }),
+  caso('GET', '/api/v1/vencimientos', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/lotes', 'no_encontrado', {
+    cuerpo: { productoId: '$B:productos', venceEn: '2026-12-31', cantidad: 5 },
+  }),
+  caso('POST', '/api/v1/lotes/:id/retirar', 'no_encontrado', { tabla: 'lotes' }),
   // Tablero (etapa I6)
   caso('GET', '/api/v1/tablero', 'sin_datos_de_b'),
   // Clientes y cuenta corriente (etapa I5)
@@ -230,6 +268,8 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
             pagos: [
               { id: '0192a000-0000-7000-8000-00000000aaa3', medio: 'efectivo', monto: 180000 },
             ],
+            descuentos: [{ promoId: '$B:promos', monto: 1 }],
+            cambio: { ventaId: '$B:ventas', items: [{ itemId: '$B:venta_items', cantidad: 1 }] },
           },
         },
         {

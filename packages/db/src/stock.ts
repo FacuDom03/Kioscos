@@ -2,7 +2,7 @@ import { sql } from 'kysely';
 import type { TxKiosco } from './con-kiosco.ts';
 import { uuidv7 } from '@mostrador/shared';
 
-export type TipoMovimiento = 'venta' | 'compra' | 'ajuste' | 'anulacion';
+export type TipoMovimiento = 'venta' | 'compra' | 'ajuste' | 'anulacion' | 'devolucion';
 
 /**
  * Registra un movimiento de stock y actualiza `stock_actual` en la misma transacción.

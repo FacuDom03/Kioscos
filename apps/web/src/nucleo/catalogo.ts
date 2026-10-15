@@ -1,6 +1,6 @@
 // Catálogo del kiosco en el equipo. Se refresca al abrir la app, al volver el foco, cada
 // 5 minutos y después de cada cambio. (En la Etapa E se guarda también en IndexedDB.)
-import { buscar, indexar, type Indice, type Unidad } from '@mostrador/shared';
+import { buscar, indexar, type Indice, type Promo, type Unidad } from '@mostrador/shared';
 import { useSyncExternalStore } from 'react';
 import { api } from './api.ts';
 import { eventosBandeja } from './bandeja.ts';
@@ -19,6 +19,16 @@ export interface Producto {
   unidad?: Unidad;
   ubicacion?: string | null;
   precioGremio?: number | null;
+  /** Variantes (etapa I7): el producto es un tono o un tamaño de un grupo. */
+  grupoId?: string;
+  variante?: string | null;
+  color?: string | null;
+}
+
+export interface GrupoVariantes {
+  id: string;
+  nombre: string;
+  tipo: 'tono' | 'tamano' | 'aroma' | 'talle' | 'otro';
 }
 
 export interface Catalogo {
@@ -26,6 +36,9 @@ export interface Catalogo {
   productos: Producto[];
   categorias: { id: string; nombre: string }[];
   masVendidos: string[];
+  grupos?: GrupoVariantes[];
+  /** Promos que corren (el equipo mira las fechas al vender). */
+  promos?: Promo[];
 }
 
 interface Estado {
@@ -111,4 +124,17 @@ export function productoPorCodigo(codigo: string): Producto | undefined {
 
 export function productoPorId(id: string): Producto | undefined {
   return estado.porId.get(id);
+}
+
+export const catalogoActual = () => estado.catalogo;
+
+/** Las variantes de un grupo, en orden. */
+export function variantesDe(grupoId: string): Producto[] {
+  return (estado.catalogo?.productos ?? [])
+    .filter((p) => p.grupoId === grupoId)
+    .sort((a, b) => (a.variante ?? '').localeCompare(b.variante ?? '', 'es'));
+}
+
+export function grupoPorId(id: string): GrupoVariantes | undefined {
+  return estado.catalogo?.grupos?.find((g) => g.id === id);
 }

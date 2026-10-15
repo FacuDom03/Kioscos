@@ -10,8 +10,10 @@ import { CartelTotal, Ticket } from '@mostrador/ui';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   buscarProductos,
+  grupoPorId,
   productoPorCodigo,
   useCatalogo,
+  variantesDe,
   type Producto,
 } from '../../nucleo/catalogo.ts';
 import { useEnLinea } from '../../nucleo/conexion.ts';
@@ -21,14 +23,16 @@ import { puede, useSesionCompleta } from '../../nucleo/sesion.tsx';
 import {
   cambiarCantidad,
   cantidadEnTicket,
+  cuentaTicket,
   fijarLista,
   precioEnLista,
   quitarItem,
   sumarPrecioLibre,
   sumarProducto,
-  totalTicket,
   unidades,
+  soltarCambio,
   soltarPresupuesto,
+  useCambio,
   useLista,
   usePresupuesto,
   useTicket,
@@ -46,6 +50,43 @@ import { useEstadoMp } from '../../nucleo/mp.ts';
 import { Cobrado } from './Cobrado.tsx';
 import { Cobrar, type Medio } from './Cobrar.tsx';
 import { PrecioLibre } from './PrecioLibre.tsx';
+import { ElegirVariante } from './ElegirVariante.tsx';
+
+/** Un renglón de los resultados: un producto, o un producto con variantes (todos sus tonos). */
+type Resultado =
+  | { tipo: 'producto'; id: string; p: Producto }
+  | { tipo: 'grupo'; id: string; nombre: string; variantes: Producto[] };
+
+/** Junta en un renglón los tonos de un mismo producto cuando aparece más de uno. */
+function agrupar(lista: Producto[], max: number, siempre = false): Resultado[] {
+  const cuantos = new Map<string, number>();
+  for (const p of lista) if (p.grupoId) cuantos.set(p.grupoId, (cuantos.get(p.grupoId) ?? 0) + 1);
+  const salida: Resultado[] = [];
+  const vistos = new Set<string>();
+  for (const p of lista) {
+    if (salida.length >= max) break;
+    const variantes = p.grupoId ? variantesDe(p.grupoId) : [];
+    if (p.grupoId && variantes.length > 1 && (siempre || (cuantos.get(p.grupoId) ?? 0) > 1)) {
+      if (vistos.has(p.grupoId)) continue;
+      vistos.add(p.grupoId);
+      salida.push({
+        tipo: 'grupo',
+        id: p.grupoId,
+        nombre: grupoPorId(p.grupoId)?.nombre ?? p.nombre,
+        variantes,
+      });
+    } else salida.push({ tipo: 'producto', id: p.id, p });
+  }
+  return salida;
+}
+
+const PREGUNTA_VARIANTE = {
+  tono: 'tonos',
+  tamano: 'tamaños',
+  aroma: 'aromas',
+  talle: 'talles',
+  otro: 'opciones',
+} as const;
 
 type Modo =
   | { tipo: 'ticket' }
@@ -79,7 +120,10 @@ export function Vender({ estado }: { estado: ReactNode }) {
   const lista = useLista();
   const conPresupuestos = negocio.tiene('presupuestos');
   const presupuesto = usePresupuesto();
+  const cambio = useCambio();
+  const conCambios = negocio.tiene('regalo');
   const [guardarPresupuesto, setGuardarPresupuesto] = useState(false);
+  const [elegirVariante, setElegirVariante] = useState<string | null>(null);
   const [pedirCantidad, setPedirCantidad] = useState<Producto | null>(null);
   const [q, setQ] = useState('');
   const [activo, setActivo] = useState(0);
@@ -91,19 +135,27 @@ export function Vender({ estado }: { estado: ReactNode }) {
   const [confirmarVaciar, setConfirmarVaciar] = useState(false);
   const [escaner, setEscaner] = useState(false);
   const buscador = useRef<HTMLInputElement>(null);
-  const total = totalTicket(items);
+  const cuenta = cuentaTicket(items);
+  const total = cuenta.total;
+  // Un cambio por algo del mismo valor se confirma sin cobrar nada.
+  const puedeCobrar = items.length > 0 && (total > 0 || (!!cambio && total === 0));
+  const qrPosible = qrDisponible && !cambio;
 
   const { cantidad, resto } = separarCantidad(q);
-  const resultados = resto ? buscarProductos(resto, 8) : [];
+  const resultados = resto ? agrupar(buscarProductos(resto, 30), 8) : [];
 
   const mosaicos = useMemo(() => {
     if (!catalogo) return [];
     if (categoria)
-      return catalogo.productos.filter((p) => p.categoriaId === categoria).slice(0, 23);
+      return agrupar(
+        catalogo.productos.filter((p) => p.categoriaId === categoria),
+        23,
+        true,
+      );
     const porId = new Map(catalogo.productos.map((p) => [p.id, p]));
     const top = catalogo.masVendidos.map((id) => porId.get(id)).filter((p): p is Producto => !!p);
     const relleno = catalogo.productos.filter((p) => !catalogo.masVendidos.includes(p.id));
-    return [...top, ...relleno].slice(0, esPC ? 17 : 11);
+    return agrupar([...top, ...relleno], esPC ? 17 : 11, true);
   }, [catalogo, categoria, esPC]);
 
   // Vuelve al buscador, salvo que haya un diálogo abierto o el foco ya esté en otro campo
@@ -118,6 +170,13 @@ export function Vender({ estado }: { estado: ReactNode }) {
         /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
       if (!enOtroCampo) buscador.current?.focus();
     }, 0);
+
+  function elegir(r: Resultado, n?: number) {
+    if (r.tipo === 'producto') return sumar(r.p, n);
+    setElegirVariante(r.id);
+    setQ('');
+    setActivo(0);
+  }
 
   function sumar(p: Producto, n?: number) {
     // Lo que se vende por metro, kilo o litro pregunta cuánto (salvo "12,5*cable").
@@ -160,8 +219,8 @@ export function Vender({ estado }: { estado: ReactNode }) {
       setQ('');
       return;
     }
-    const primero = buscarProductos(r, 8)[activo];
-    if (primero) sumar(primero, n);
+    const primero = agrupar(buscarProductos(r, 30), 8)[activo];
+    if (primero) elegir(primero, n);
   }
 
   // Lector USB (y atajos de teclado en PC).
@@ -179,11 +238,11 @@ export function Vender({ estado }: { estado: ReactNode }) {
         ...(conListas ? { F3: () => fijarLista(lista === 'gremio' ? 'mostrador' : 'gremio') } : {}),
         F4: () => setPrecioLibre(true),
         ...(conPresupuestos
-          ? { F6: () => items.length > 0 && enLinea && setGuardarPresupuesto(true) }
+          ? { F6: () => items.length > 0 && enLinea && !cambio && setGuardarPresupuesto(true) }
           : {}),
-        F7: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'transferencia' }),
-        F8: () => total > 0 && setModo({ tipo: 'cobrar', medio: 'efectivo' }),
-        F9: () => total > 0 && qrDisponible && setModo({ tipo: 'cobrar', medio: 'qr' }),
+        F7: () => puedeCobrar && setModo({ tipo: 'cobrar', medio: 'transferencia' }),
+        F8: () => puedeCobrar && setModo({ tipo: 'cobrar', medio: 'efectivo' }),
+        F9: () => total > 0 && qrPosible && setModo({ tipo: 'cobrar', medio: 'qr' }),
       };
       if (f[ev.key]) {
         ev.preventDefault();
@@ -225,7 +284,8 @@ export function Vender({ estado }: { estado: ReactNode }) {
   }, [
     modo.tipo,
     total,
-    qrDisponible,
+    puedeCobrar,
+    qrPosible,
     q,
     seleccionado,
     items,
@@ -233,6 +293,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
     lista,
     conPresupuestos,
     enLinea,
+    cambio,
   ]);
 
   useEffect(() => {
@@ -282,6 +343,11 @@ export function Vender({ estado }: { estado: ReactNode }) {
           <p className="texto-suave">Caja de {s.usuario.nombre || 'vos'}</p>
         </div>
         <div className="vender__acciones">
+          {conCambios && !cambio && (
+            <button type="button" className="chip" onClick={() => navegar('/cambios')}>
+              Cambio
+            </button>
+          )}
           {conPresupuestos && (
             <button type="button" className="chip" onClick={() => navegar('/presupuestos')}>
               Presupuestos
@@ -316,6 +382,18 @@ export function Vender({ estado }: { estado: ReactNode }) {
           <span>Estás cobrando el presupuesto {presupuesto.numero}.</span>
           <button type="button" className="enlace-boton" onClick={soltarPresupuesto}>
             Ya no es ese presupuesto
+          </button>
+        </div>
+      )}
+
+      {cambio && (
+        <div className="banda-presupuesto banda-cambio" role="status">
+          <span>
+            Cambio del ticket {cambio.codigo}: devuelve{' '}
+            {cambio.items.map((x) => x.descripcion).join(', ')}. Sumá lo que se lleva.
+          </span>
+          <button type="button" className="enlace-boton" onClick={soltarCambio}>
+            Cancelar el cambio
           </button>
         </div>
       )}
@@ -370,44 +448,67 @@ export function Vender({ estado }: { estado: ReactNode }) {
                 className="resultados"
                 aria-label="Resultados"
               >
-                {resultados.map((p, i) => (
-                  <li key={p.id} id={`res-${p.id}`} role="option" aria-selected={i === activo}>
-                    <button
-                      type="button"
-                      className="resultado"
-                      tabIndex={-1}
-                      onClick={() => sumar(p, cantidad)}
-                    >
-                      <span className="resultado__texto">
-                        <span>
-                          {cantidad !== undefined && (
-                            <strong>
-                              {seFracciona(p.unidad)
-                                ? formatearCantidad(cantidad, p.unidad)
-                                : `${Math.max(1, Math.round(cantidad))}×`}{' '}
-                            </strong>
-                          )}
-                          {p.nombre}
-                        </span>
-                        {sobrio && (
+                {resultados.map((r, i) =>
+                  r.tipo === 'grupo' ? (
+                    <li key={r.id} id={`res-${r.id}`} role="option" aria-selected={i === activo}>
+                      <button
+                        type="button"
+                        className="resultado"
+                        tabIndex={-1}
+                        onClick={() => elegir(r)}
+                      >
+                        <span className="resultado__texto">
+                          <span>{r.nombre}</span>
                           <span className="resultado__info">
-                            {conUbicacion && p.ubicacion && `${p.ubicacion} · `}
-                            Quedan {formatearCantidad(p.stock, p.unidad)}
+                            <Muestras variantes={r.variantes} />
+                            {r.variantes.length}{' '}
+                            {PREGUNTA_VARIANTE[grupoPorId(r.id)?.tipo ?? 'otro']}
                           </span>
-                        )}
-                      </span>
-                      <span className="m-plata resultado__precio">
-                        {formatearPlata(precioEnLista(p, lista))}
-                        {p.unidad && p.unidad !== 'unidad' && (
-                          <span className="resultado__unidad">
-                            {' '}
-                            /{DATOS_UNIDADES[p.unidad].corta}
+                        </span>
+                        <span className="m-plata resultado__precio">
+                          {precioDeGrupo(r.variantes, (p) => precioEnLista(p, lista))}
+                        </span>
+                      </button>
+                    </li>
+                  ) : (
+                    <li key={r.id} id={`res-${r.id}`} role="option" aria-selected={i === activo}>
+                      <button
+                        type="button"
+                        className="resultado"
+                        tabIndex={-1}
+                        onClick={() => elegir(r, cantidad)}
+                      >
+                        <span className="resultado__texto">
+                          <span>
+                            {cantidad !== undefined && (
+                              <strong>
+                                {seFracciona(r.p.unidad)
+                                  ? formatearCantidad(cantidad, r.p.unidad)
+                                  : `${Math.max(1, Math.round(cantidad))}×`}{' '}
+                              </strong>
+                            )}
+                            {r.p.nombre}
                           </span>
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                          {sobrio && (
+                            <span className="resultado__info">
+                              {conUbicacion && r.p.ubicacion && `${r.p.ubicacion} · `}
+                              Quedan {formatearCantidad(r.p.stock, r.p.unidad)}
+                            </span>
+                          )}
+                        </span>
+                        <span className="m-plata resultado__precio">
+                          {formatearPlata(precioEnLista(r.p, lista))}
+                          {r.p.unidad && r.p.unidad !== 'unidad' && (
+                            <span className="resultado__unidad">
+                              {' '}
+                              /{DATOS_UNIDADES[r.p.unidad].corta}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  ),
+                )}
               </ul>
             )}
           </div>
@@ -474,17 +575,30 @@ export function Vender({ estado }: { estado: ReactNode }) {
             <span className="texto-suave">Tocá para sumar al ticket</span>
           </div>
           <div className="mosaicos">
-            {mosaicos.map((p) => (
-              <button key={p.id} type="button" className="mosaico" onClick={() => sumar(p)}>
-                <span className="mosaico__nombre">{p.nombre}</span>
-                <span className="mosaico__precio m-plata">
-                  {formatearPlata(precioEnLista(p, lista))}
-                  {p.unidad && p.unidad !== 'unidad' && seFracciona(p.unidad) && (
-                    <span className="mosaico__unidad"> /{DATOS_UNIDADES[p.unidad].corta}</span>
-                  )}
-                </span>
-              </button>
-            ))}
+            {mosaicos.map((r) =>
+              r.tipo === 'grupo' ? (
+                <button key={r.id} type="button" className="mosaico" onClick={() => elegir(r)}>
+                  <span className="mosaico__nombre">{r.nombre}</span>
+                  <span className="mosaico__variantes">
+                    <Muestras variantes={r.variantes} />
+                    {r.variantes.length} {PREGUNTA_VARIANTE[grupoPorId(r.id)?.tipo ?? 'otro']}
+                  </span>
+                  <span className="mosaico__precio m-plata">
+                    {precioDeGrupo(r.variantes, (p) => precioEnLista(p, lista))}
+                  </span>
+                </button>
+              ) : (
+                <button key={r.id} type="button" className="mosaico" onClick={() => sumar(r.p)}>
+                  <span className="mosaico__nombre">{r.p.nombre}</span>
+                  <span className="mosaico__precio m-plata">
+                    {formatearPlata(precioEnLista(r.p, lista))}
+                    {r.p.unidad && r.p.unidad !== 'unidad' && seFracciona(r.p.unidad) && (
+                      <span className="mosaico__unidad"> /{DATOS_UNIDADES[r.p.unidad].corta}</span>
+                    )}
+                  </span>
+                </button>
+              ),
+            )}
             <button
               type="button"
               className="mosaico mosaico--libre"
@@ -510,7 +624,8 @@ export function Vender({ estado }: { estado: ReactNode }) {
                 {items.length === 0 ? (
                   <p className="ticket__vacio">El ticket está vacío.</p>
                 ) : (
-                  <ul className="ticket__lineas">
+                  // Se puede enfocar: en pantallas chicas la lista se desplaza.
+                  <ul className="ticket__lineas" tabIndex={0} aria-label="Productos del ticket">
                     {items.map((x) => (
                       <li
                         key={x.id}
@@ -550,6 +665,22 @@ export function Vender({ estado }: { estado: ReactNode }) {
                         </span>
                       </li>
                     ))}
+                    {cuenta.descuentos.map((d) => (
+                      <li key={d.promoId} className="ticket__linea ticket__linea--promo">
+                        <span className="ticket__cant">Promo</span>
+                        <span className="ticket__desc">{d.descripcion}</span>
+                        <span className="ticket__sub m-plata">−{formatearPlata(d.monto)}</span>
+                      </li>
+                    ))}
+                    {cambio?.items.map((x) => (
+                      <li key={x.itemId} className="ticket__linea ticket__linea--promo">
+                        <span className="ticket__cant m-plata">
+                          {formatearCantidad(x.cantidad)}×
+                        </span>
+                        <span className="ticket__desc">Devuelve {x.descripcion}</span>
+                        <span className="ticket__sub m-plata">−{formatearPlata(x.importe)}</span>
+                      </li>
+                    ))}
                   </ul>
                 )}
               </Ticket>
@@ -563,8 +694,14 @@ export function Vender({ estado }: { estado: ReactNode }) {
                 </button>
               )}
               <div className="vender__total">
-                <CartelTotal centavos={total} />
+                <CartelTotal centavos={Math.max(0, total)} />
               </div>
+              {total < 0 && (
+                <p className="aviso aviso--info" role="status">
+                  Faltan {formatearPlata(-total)}: lo que se lleva tiene que valer lo mismo o más
+                  que lo que devuelve.
+                </p>
+              )}
               {!enLinea && (
                 <p className="nota-sin-qr">
                   Sin internet no se puede generar el QR de la venta. Por ahora, cobrá en efectivo.
@@ -575,36 +712,42 @@ export function Vender({ estado }: { estado: ReactNode }) {
                   <button
                     type="button"
                     className="m-boton m-boton--principal"
-                    disabled={!total}
+                    disabled={!puedeCobrar}
                     onClick={() => setModo({ tipo: 'cobrar', medio: 'efectivo' })}
                   >
-                    Cobrar en efectivo{atajo('F8')}
+                    {cambio && total === 0
+                      ? 'Confirmar el cambio'
+                      : `Cobrar en efectivo${atajo('F8')}`}
                   </button>
-                  <button
-                    type="button"
-                    className="m-boton m-boton--cobro"
-                    disabled={!total || !qrDisponible}
-                    onClick={() => setModo({ tipo: 'cobrar', medio: 'qr' })}
-                  >
-                    {!enLinea
-                      ? 'Cobrar con QR (necesita internet)'
-                      : qrDisponible
-                        ? `Cobrar con QR${atajo('F9')}`
-                        : 'Cobrar con QR (conectá Mercado Pago)'}
-                  </button>
-                  <button
-                    type="button"
-                    className="m-boton m-boton--cobro"
-                    disabled={!total}
-                    onClick={() => setModo({ tipo: 'cobrar', medio: 'transferencia' })}
-                  >
-                    Cobrar con transferencia{atajo('F7')}
-                  </button>
-                  {conPresupuestos && (
+                  {!cambio && (
+                    <button
+                      type="button"
+                      className="m-boton m-boton--cobro"
+                      disabled={!puedeCobrar || !qrDisponible}
+                      onClick={() => setModo({ tipo: 'cobrar', medio: 'qr' })}
+                    >
+                      {!enLinea
+                        ? 'Cobrar con QR (necesita internet)'
+                        : qrDisponible
+                          ? `Cobrar con QR${atajo('F9')}`
+                          : 'Cobrar con QR (conectá Mercado Pago)'}
+                    </button>
+                  )}
+                  {!(cambio && total === 0) && (
+                    <button
+                      type="button"
+                      className="m-boton m-boton--cobro"
+                      disabled={!puedeCobrar}
+                      onClick={() => setModo({ tipo: 'cobrar', medio: 'transferencia' })}
+                    >
+                      Cobrar con transferencia{atajo('F7')}
+                    </button>
+                  )}
+                  {conPresupuestos && !cambio && (
                     <button
                       type="button"
                       className="m-boton"
-                      disabled={!total || !enLinea}
+                      disabled={!items.length || !enLinea}
                       onClick={() => setGuardarPresupuesto(true)}
                     >
                       Guardar presupuesto{atajo('F6')}
@@ -616,16 +759,18 @@ export function Vender({ estado }: { estado: ReactNode }) {
                   <button
                     type="button"
                     className="m-boton m-boton--principal"
-                    disabled={!total}
-                    onClick={() => setModo({ tipo: 'cobrar', medio: null })}
+                    disabled={!puedeCobrar}
+                    onClick={() =>
+                      setModo({ tipo: 'cobrar', medio: cambio && total === 0 ? 'efectivo' : null })
+                    }
                   >
-                    Cobrar
+                    {cambio && total === 0 ? 'Confirmar el cambio' : 'Cobrar'}
                   </button>
-                  {conPresupuestos && (
+                  {conPresupuestos && !cambio && (
                     <button
                       type="button"
                       className="m-boton"
-                      disabled={!total || !enLinea}
+                      disabled={!items.length || !enLinea}
                       onClick={() => setGuardarPresupuesto(true)}
                     >
                       Guardar presupuesto
@@ -656,6 +801,16 @@ export function Vender({ estado }: { estado: ReactNode }) {
           alGuardar={(r) => {
             setGuardarPresupuesto(false);
             navegar(`/presupuestos/${r.id}`);
+          }}
+        />
+      )}
+      {elegirVariante && (
+        <ElegirVariante
+          grupoId={elegirVariante}
+          alSumar={() => pitido()}
+          alCerrar={() => {
+            setElegirVariante(null);
+            enfocar();
           }}
         />
       )}
@@ -692,6 +847,26 @@ export function Vender({ estado }: { estado: ReactNode }) {
       )}
     </div>
   );
+}
+
+/** Muestras de color de los tonos (hasta seis). */
+export function Muestras({ variantes }: { variantes: Producto[] }) {
+  const conColor = variantes.filter((v) => v.color).slice(0, 6);
+  if (!conColor.length) return null;
+  return (
+    <span className="muestras" aria-hidden="true">
+      {conColor.map((v) => (
+        <span key={v.id} className="muestra" style={{ background: v.color ?? undefined }} />
+      ))}
+    </span>
+  );
+}
+
+/** "$ 3.200" si todos valen lo mismo; "desde $ 2.900" si no. */
+function precioDeGrupo(variantes: Producto[], precio: (p: Producto) => number): string {
+  const precios = variantes.map(precio);
+  const min = Math.min(...precios);
+  return precios.every((x) => x === min) ? formatearPlata(min) : `desde ${formatearPlata(min)}`;
 }
 
 function ConfirmarVaciar({

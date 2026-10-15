@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { sql } from '@mostrador/db';
 import { uuidv7 } from '@mostrador/shared';
 import { z } from 'zod';
+import { devueltoPorItem } from '../servicios/promos.ts';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { moverStock } from '../servicios/stock.ts';
@@ -156,7 +157,23 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
           .select(['id', 'medio', 'monto', 'recibido', 'vuelto', 'estado', 'confirmado_en'])
           .where('venta_id', '=', id)
           .execute();
-        return { ...v, items: items.map((i) => ({ ...i, cantidad: Number(i.cantidad) })), pagos };
+        const descuentos = await tx
+          .selectFrom('venta_descuentos')
+          .select(['promo_id', 'descripcion', 'monto'])
+          .where('venta_id', '=', id)
+          .execute();
+        const devoluciones = await tx
+          .selectFrom('devoluciones')
+          .select(['venta_item_id', 'producto_id', 'descripcion', 'cantidad', 'importe'])
+          .where('venta_id', '=', id)
+          .execute();
+        return {
+          ...v,
+          items: items.map((i) => ({ ...i, cantidad: Number(i.cantidad) })),
+          pagos,
+          descuentos,
+          devoluciones: devoluciones.map((d) => ({ ...d, cantidad: Number(d.cantidad) })),
+        };
       });
     },
   );
@@ -198,21 +215,43 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
         }
         const items = await tx
           .selectFrom('venta_items')
-          .select(['producto_id', 'cantidad'])
+          .select(['id', 'producto_id', 'cantidad'])
           .where('venta_id', '=', id)
           .execute();
+        // Lo que ya volvió al stock con un cambio no vuelve dos veces.
+        const yaDevuelto = await devueltoPorItem(tx, id);
         for (const i of items) {
-          if (i.producto_id) {
+          const cantidad =
+            Math.round((Number(i.cantidad) - (yaDevuelto.get(i.id) ?? 0)) * 1000) / 1000;
+          if (i.producto_id && cantidad > 0) {
             await moverStock(tx, {
               kioscoId: s.kioscoId,
               productoId: i.producto_id,
               tipo: 'anulacion',
-              cantidad: Number(i.cantidad),
+              cantidad,
               usuarioId: s.usuarioId,
               ventaId: id,
               motivo,
             });
           }
+        }
+        // Si era un cambio, lo que había vuelto al stock sale otra vez.
+        const devueltos = await tx
+          .selectFrom('devoluciones')
+          .select(['producto_id', 'cantidad'])
+          .where('venta_id', '=', id)
+          .execute();
+        for (const d of devueltos) {
+          if (d.producto_id)
+            await moverStock(tx, {
+              kioscoId: s.kioscoId,
+              productoId: d.producto_id,
+              tipo: 'anulacion',
+              cantidad: -Number(d.cantidad),
+              usuarioId: s.usuarioId,
+              ventaId: id,
+              motivo,
+            });
         }
         // Lo que se había anotado a cuenta se descuenta de la deuda del cliente.
         const cargo = await tx

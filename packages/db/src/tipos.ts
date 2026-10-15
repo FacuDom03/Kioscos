@@ -94,6 +94,68 @@ export interface ProductosTabla {
   ubicacion: string | null;
   precio_gremio: number | null;
   precio_actualizado_en: FechaDefault;
+  grupo_id: string | null;
+  variante: string | null;
+  color: string | null;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
+type Dia = ColumnType<string, string, string>;
+
+export interface PromosTabla {
+  id: string;
+  kiosco_id: string;
+  nombre: string;
+  lleva: number;
+  paga: number;
+  descuento: number;
+  categoria_id: string | null;
+  grupo_id: string | null;
+  desde: Dia | null;
+  hasta: Dia | null;
+  activa: Generated<boolean>;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
+export interface VentaDescuentosTabla {
+  id: string;
+  kiosco_id: string;
+  venta_id: string;
+  promo_id: string;
+  descripcion: string;
+  monto: number;
+}
+
+export interface DevolucionesTabla {
+  id: string;
+  kiosco_id: string;
+  venta_id: string;
+  venta_item_id: string;
+  producto_id: string | null;
+  descripcion: string;
+  cantidad: Numerico;
+  importe: number;
+}
+
+export interface LotesTabla {
+  id: string;
+  kiosco_id: string;
+  producto_id: string;
+  vence_en: Dia;
+  cantidad: Numerico;
+  retirado: Generated<boolean>;
+  usuario_id: string;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
+export interface GruposVariantesTabla {
+  id: string;
+  kiosco_id: string;
+  nombre: string;
+  tipo: Generated<'tono' | 'tamano' | 'aroma' | 'talle' | 'otro'>;
   created_at: FechaDefault;
   updated_at: FechaDefault;
 }
@@ -278,6 +340,7 @@ export interface VentasTabla {
   recibida_en: FechaDefault;
   lista: Generated<'mostrador' | 'gremio'>;
   cliente_id: string | null;
+  regalo: Generated<boolean>;
 }
 
 export interface VentaItemsTabla {
@@ -314,7 +377,7 @@ export interface MovimientosStockTabla {
   id: string;
   kiosco_id: string;
   producto_id: string;
-  tipo: 'venta' | 'compra' | 'ajuste' | 'anulacion';
+  tipo: 'venta' | 'compra' | 'ajuste' | 'anulacion' | 'devolucion';
   cantidad: Numerico;
   costo_unitario: number | null;
   motivo: string | null;
@@ -416,6 +479,11 @@ export interface Database {
   presupuesto_items: PresupuestoItemsTabla;
   clientes: ClientesTabla;
   movimientos_cuenta: MovimientosCuentaTabla;
+  grupos_variantes: GruposVariantesTabla;
+  promos: PromosTabla;
+  venta_descuentos: VentaDescuentosTabla;
+  devoluciones: DevolucionesTabla;
+  lotes: LotesTabla;
 }
 
 /** Tablas que pertenecen a un kiosco (todas salvo las globales). */
@@ -449,6 +517,11 @@ export const TABLAS_DE_KIOSCO = [
   'presupuesto_items',
   'clientes',
   'movimientos_cuenta',
+  'grupos_variantes',
+  'promos',
+  'venta_descuentos',
+  'devoluciones',
+  'lotes',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

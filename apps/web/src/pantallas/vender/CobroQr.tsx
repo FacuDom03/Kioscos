@@ -3,8 +3,15 @@ import QRCode from 'qrcode';
 import { useEffect, useRef, useState } from 'react';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
-import type { VentaHecha } from '../../nucleo/cobrar.ts';
-import { listaActual, presupuestoActual, ticketActual, vaciarTicket } from '../../nucleo/ticket.ts';
+import { extrasDeVenta, type VentaHecha } from '../../nucleo/cobrar.ts';
+import {
+  cuentaTicket,
+  listaActual,
+  presupuestoActual,
+  regaloActual,
+  ticketActual,
+  vaciarTicket,
+} from '../../nucleo/ticket.ts';
 import { turnoActual } from '../../nucleo/turno.ts';
 import { useEstadoMp } from '../../nucleo/mp.ts';
 
@@ -31,6 +38,7 @@ export function CobroQr({
     pagoId: string;
     items: ReturnType<typeof ticketActual>;
     creadaEn: string;
+    extras: ReturnType<typeof extrasDeVenta>;
   } | null>(null);
   const creado = useRef(false);
 
@@ -40,11 +48,13 @@ export function CobroQr({
     const turno = turnoActual();
     const items = ticketActual();
     if (!turno || !items.length) return;
+    const cuenta = cuentaTicket(items);
     const datos = {
       ventaId: uuidv7(),
       pagoId: uuidv7(),
       items,
       creadaEn: new Date().toISOString(),
+      extras: extrasDeVenta(cuenta),
     };
     venta.current = datos;
     api<{ pagoId: string; qr: string }>('POST', '/api/v1/cobros/qr', {
@@ -55,6 +65,10 @@ export function CobroQr({
       total,
       ...(listaActual() !== 'mostrador' ? { lista: listaActual() } : {}),
       ...(presupuestoActual() ? { presupuestoId: presupuestoActual()?.id } : {}),
+      ...(cuenta.descuentos.length
+        ? { descuentos: cuenta.descuentos.map((d) => ({ promoId: d.promoId, monto: d.monto })) }
+        : {}),
+      ...(regaloActual() ? { regalo: true } : {}),
       items: items.map((i) => ({
         id: i.id,
         productoId: i.productoId,
@@ -98,6 +112,7 @@ export function CobroQr({
             total,
             medio: 'qr_mp',
             confirmadoEn: r.confirmadoEn ?? new Date().toISOString(),
+            ...venta.current.extras,
           });
         } else if (r.ventaEstado === 'pendiente_cobro') {
           clearInterval(t);

@@ -2,6 +2,7 @@
 // cuánto se gana por categoría, cuánto deben los clientes y qué precios están viejos.
 // El costo de lo vendido se estima con el costo actual del producto (la venta no lo guarda).
 import { sql } from '@mostrador/db';
+import { diaArgentino, sumarDias } from '@mostrador/shared';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { validar } from '../validar.ts';
@@ -171,6 +172,33 @@ export async function rutasTablero(app: FastifyInstance): Promise<void> {
         .where('precio_actualizado_en', '<', new Date(hasta.getTime() - 30 * DIA))
         .executeTakeFirstOrThrow();
 
+      // Lo que vence en los próximos 30 días (perfumería, almacén).
+      const hoy = diaArgentino();
+      const lotes = await tx
+        .selectFrom('lotes as l')
+        .innerJoin('productos as p', (j) =>
+          j.onRef('p.id', '=', 'l.producto_id').onRef('p.kiosco_id', '=', 'l.kiosco_id'),
+        )
+        .select(['p.id', 'p.nombre', 'l.vence_en', 'l.cantidad'])
+        .where('l.retirado', '=', false)
+        .where('p.activo', '=', true)
+        .where('l.vence_en', '<=', sumarDias(hoy, 30))
+        .orderBy('l.vence_en')
+        .limit(200)
+        .execute();
+      const promos = await tx
+        .selectFrom('venta_descuentos as d')
+        .innerJoin('ventas as v', (j) =>
+          j.onRef('v.id', '=', 'd.venta_id').onRef('v.kiosco_id', '=', 'd.kiosco_id'),
+        )
+        .select((eb) => [
+          eb.fn.coalesce(eb.fn.sum<string>('d.monto'), sql<string>`0`).as('monto'),
+          eb.fn.count<string>('d.venta_id').distinct().as('ventas'),
+        ])
+        .where('v.estado', '=', 'cobrada')
+        .where('v.creada_en_dispositivo', '>=', desde)
+        .executeTakeFirstOrThrow();
+
       return {
         periodo,
         desde,
@@ -232,6 +260,17 @@ export async function rutasTablero(app: FastifyInstance): Promise<void> {
           sinPagarHace30: deudores.filter((d) => d.sin_pagar).length,
         },
         preciosViejos: Number(viejos.n),
+        porVencer: {
+          lotes: lotes.length,
+          vencidos: lotes.filter((l) => l.vence_en < hoy).length,
+          lista: lotes.slice(0, 8).map((l) => ({
+            id: l.id,
+            nombre: l.nombre,
+            venceEn: l.vence_en,
+            cantidad: Number(l.cantidad),
+          })),
+        },
+        promos: { descontado: Number(promos.monto), ventas: Number(promos.ventas) },
       };
     });
   });

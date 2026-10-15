@@ -1,7 +1,15 @@
 // Ticket en curso. Se guarda en el equipo: si se cierra la pestaña o se corta la luz, sigue ahí.
-import { formatearCantidad, subtotal, uuidv7, type Unidad } from '@mostrador/shared';
+import {
+  calcularPromos,
+  diaArgentino,
+  formatearCantidad,
+  subtotal,
+  uuidv7,
+  type Descuento,
+  type Unidad,
+} from '@mostrador/shared';
 import { useSyncExternalStore } from 'react';
-import { productoPorId } from './catalogo.ts';
+import { catalogoActual, productoPorId } from './catalogo.ts';
 import { guardarClave, leerClave } from './local.ts';
 
 export interface ItemTicket {
@@ -29,6 +37,16 @@ let items: ItemTicket[] = [];
 let lista: Lista = 'mostrador';
 /** Presupuesto que se está vendiendo (etapa I4), con su número para mostrarlo. */
 let presupuesto: { id: string; numero: number } | null = null;
+
+/** Cambio (etapa I7): lo que el cliente devuelve de una venta anterior, al precio que pagó. */
+export interface CambioEnCurso {
+  ventaId: string;
+  codigo: string;
+  items: { itemId: string; descripcion: string; cantidad: number; importe: number }[];
+}
+let cambio: CambioEnCurso | null = null;
+/** Para regalo: sale con ticket de cambio. */
+let regalo = false;
 let kiosco: string | null = null;
 const oyentes = new Set<() => void>();
 
@@ -47,6 +65,8 @@ export async function cargarTicket(kioscoId: string): Promise<void> {
   items = (await leerClave<ItemTicket[]>(`ticket:${kioscoId}`)) ?? [];
   lista = (await leerClave<Lista>(`lista:${kioscoId}`)) ?? 'mostrador';
   presupuesto = (await leerClave<typeof presupuesto>(`presupuesto:${kioscoId}`)) ?? null;
+  cambio = (await leerClave<CambioEnCurso>(`cambio:${kioscoId}`)) ?? null;
+  regalo = (await leerClave<boolean>(`regalo:${kioscoId}`)) ?? false;
   avisar();
 }
 
@@ -127,13 +147,41 @@ function fijarPresupuesto(p: typeof presupuesto) {
   if (kiosco) void guardarClave(`presupuesto:${kiosco}`, presupuesto);
 }
 
-/** Vacía el ticket. La venta que sigue arranca con la lista de mostrador y sin presupuesto. */
+/** Vacía el ticket. La venta que sigue arranca con la lista de mostrador, sin presupuesto ni cambio. */
 export function vaciarTicket(): void {
   lista = 'mostrador';
   if (kiosco) void guardarClave(`lista:${kiosco}`, lista);
   fijarPresupuesto(null);
+  fijarCambio(null);
+  fijarRegalo(false);
   fijar([]);
 }
+
+function fijarCambio(c: CambioEnCurso | null) {
+  cambio = c;
+  if (kiosco) void guardarClave(`cambio:${kiosco}`, cambio);
+}
+
+/** Arranca un cambio: lo devuelto se descuenta de lo que se lleve. */
+export function iniciarCambio(c: CambioEnCurso): void {
+  fijarCambio(c);
+  avisar();
+}
+
+export function soltarCambio(): void {
+  fijarCambio(null);
+  avisar();
+}
+
+export const cambioActual = () => cambio;
+
+export function fijarRegalo(valor: boolean): void {
+  regalo = valor;
+  if (kiosco) void guardarClave(`regalo:${kiosco}`, regalo);
+  avisar();
+}
+
+export const regaloActual = () => regalo;
 
 /** Pone en el ticket lo de un presupuesto, para cobrarlo. */
 export function cargarPresupuesto(
@@ -156,6 +204,45 @@ export const presupuestoActual = () => presupuesto;
 
 export const totalTicket = (xs: ItemTicket[]) =>
   xs.reduce((t, x) => t + subtotal(x.cantidad, x.precioUnitario), 0);
+
+export interface Cuenta {
+  /** Lo que suman los productos. */
+  suma: number;
+  descuentos: Descuento[];
+  /** Lo que el cliente devuelve en un cambio. */
+  devuelto: number;
+  /** Lo que se cobra. Negativo en un cambio por algo más barato (no se devuelve plata). */
+  total: number;
+}
+
+/** La cuenta del ticket: productos, promos que corren hoy y lo devuelto en un cambio. */
+export function cuentaTicket(xs: ItemTicket[] = items): Cuenta {
+  const suma = totalTicket(xs);
+  const promos = catalogoActual()?.promos ?? [];
+  const descuentos = promos.length
+    ? calcularPromos(
+        xs.map((x) => {
+          const p = x.productoId ? productoPorId(x.productoId) : undefined;
+          return {
+            productoId: x.productoId,
+            cantidad: x.cantidad,
+            precioUnitario: x.precioUnitario,
+            categoriaId: p?.categoriaId ?? null,
+            grupoId: p?.grupoId ?? null,
+          };
+        }),
+        promos,
+        diaArgentino(),
+      )
+    : [];
+  const devuelto = cambio?.items.reduce((t, x) => t + x.importe, 0) ?? 0;
+  return {
+    suma,
+    descuentos,
+    devuelto,
+    total: suma - descuentos.reduce((t, d) => t + d.monto, 0) - devuelto,
+  };
+}
 /** "12,5 m" para lo que se vende fraccionado o por caja; "2×" para lo que va por unidad. */
 export function cantidadEnTicket(x: Pick<ItemTicket, 'cantidad' | 'unidad'>): string {
   return x.unidad && x.unidad !== 'unidad'
@@ -178,4 +265,6 @@ const suscribir = (o: () => void) => {
 export const useTicket = () => useSyncExternalStore(suscribir, () => items);
 export const useLista = () => useSyncExternalStore(suscribir, () => lista);
 export const usePresupuesto = () => useSyncExternalStore(suscribir, () => presupuesto);
+export const useCambio = () => useSyncExternalStore(suscribir, () => cambio);
+export const useRegalo = () => useSyncExternalStore(suscribir, () => regalo);
 export const ticketActual = () => items;

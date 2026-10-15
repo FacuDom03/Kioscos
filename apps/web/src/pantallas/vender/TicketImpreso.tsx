@@ -28,13 +28,28 @@ export function TicketImpreso({ venta, kiosco }: { venta: VentaHecha; kiosco: st
           <span>{formatearPlata(Math.round(x.cantidad * x.precioUnitario))}</span>
         </div>
       ))}
+      {venta.descuentos?.map((d) => (
+        <div key={d.descripcion} className="impreso__item">
+          <span>Promo {d.descripcion}</span>
+          <span>−{formatearPlata(d.monto)}</span>
+        </div>
+      ))}
+      {venta.cambio?.items.map((x) => (
+        <div key={x.descripcion} className="impreso__item">
+          <span>
+            Devuelve {x.cantidad}× {x.descripcion}
+          </span>
+          <span>−{formatearPlata(x.importe)}</span>
+        </div>
+      ))}
       <hr />
       <div className="impreso__item impreso__total">
         <span>TOTAL</span>
         <span>{formatearPlata(venta.total)}</span>
       </div>
       {venta.lista === 'gremio' && <p>Precios de gremio</p>}
-      <p>Pago: {MEDIOS[venta.medio]}</p>
+      {venta.cambio && <p>Cambio del ticket {venta.cambio.codigo}</p>}
+      {(!venta.cambio || venta.total > 0) && <p>Pago: {MEDIOS[venta.medio]}</p>}
       {venta.cliente && <p>Cliente: {venta.cliente.nombre}</p>}
       {venta.medio === 'efectivo' && venta.recibido !== undefined && (
         <p>

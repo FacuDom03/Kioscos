@@ -53,3 +53,13 @@ export {
   type Columnas,
   type Renglon,
 } from './listas.ts';
+export {
+  calcularPromos,
+  promoVigente,
+  reglaPromo,
+  importeDevuelto,
+  type Promo,
+  type ItemPromo,
+  type Descuento,
+} from './promos.ts';
+export { diaArgentino, sumarDias, diaCorto } from './fechas.ts';

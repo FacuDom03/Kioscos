@@ -40,6 +40,27 @@ necesita un diseño más sobrio y funciones que le resuelvan su día a día.
 5. **Cambio compatible**: columnas nuevas con valores por defecto; los comercios que ya existían
    quedan como kiosco y configurados.
 
+## Perfumería (etapa I7)
+
+- **Variantes como productos**: cada tono o tamaño es un producto con su stock, su código y su
+  precio, agrupado en `grupos_variantes`. Así el stock, el lector, las compras, el tablero y la
+  exportación siguen funcionando sin cambios. En Vender el grupo se ve como un solo mosaico y el
+  tono se elige tocándolo (cada toque suma uno).
+- **Promos automáticas** (`promos`): cada `lleva` unidades, las `paga` más caras van a precio
+  lleno y el resto con `descuento` % menos (3x2, 2x1, segunda al 50%…), sobre una categoría o
+  sobre todos los tonos de un producto. La cuenta vive en `@mostrador/shared` y corre igual en el
+  equipo (también sin conexión) y en el servidor, que no acepta más descuento del que da la regla
+  el día de la venta. Por eso la regla no se edita: se apaga o se le pone fecha de fin. Las
+  promos corren solo con la función activada.
+- **Regalo y cambios**: la venta para regalo queda marcada y ofrece el ticket de cambio (sin
+  precios, con la fecha límite y un código de 8 caracteres que sale del ID de la venta). Un cambio
+  es una venta nueva que descuenta lo devuelto al precio que se pagó (con su parte de las promos)
+  y lo vuelve al stock. Lo que se lleva tiene que valer lo mismo o más: no se devuelve plata (la
+  sección 23 no permite devoluciones automáticas). Anular un cambio lo deshace; anular una venta
+  no devuelve dos veces lo que ya volvió con un cambio.
+- **Vencimientos por lote** (`lotes`): fecha y cantidad que entró; se marca cuando ya no queda.
+  No se descuenta por lote en cada venta (sería pedirle al cajero que elija el lote).
+
 ## Datos personales
 
 La cuenta corriente y el fiado necesitan guardar clientes del comercio (nombre, teléfono opcional

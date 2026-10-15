@@ -91,6 +91,8 @@ describe('aislamiento por rutas (A contra B)', () => {
         (caso.tabla && idsB.get(caso.tabla)?.[0]) ?? '0192a000-0000-7000-8000-0000000000ee';
       url = url.replace(':id', id);
     }
+    if (caso.consulta)
+      url += `?${new URLSearchParams(reemplazarB(caso.consulta) as Record<string, string>)}`;
     const cuerpo = caso.metodo === 'GET' ? undefined : (reemplazarB(caso.cuerpo) ?? {});
     const r = await a.cliente.pedir(caso.metodo, url, cuerpo);
 

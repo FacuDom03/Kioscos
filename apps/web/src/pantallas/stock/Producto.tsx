@@ -1,6 +1,8 @@
 import {
   DATOS_UNIDADES,
   UNIDADES,
+  diaArgentino,
+  diaCorto,
   formatearCantidad,
   formatearPlata,
   type Unidad,
@@ -28,6 +30,10 @@ interface Detalle {
   ubicacion?: string | null;
   precioGremio?: number | null;
   proveedores?: { proveedorId: string; nombre: string; codigo: string; costo?: number | null }[];
+  grupo?: { id: string; nombre: string; tipo: string } | null;
+  variante?: string | null;
+  color?: string | null;
+  lotes?: { id: string; venceEn: string; cantidad: number }[];
   movimientos: {
     id: string;
     tipo: string;
@@ -43,6 +49,7 @@ const TIPOS: Record<string, string> = {
   compra: 'Compra',
   ajuste: 'Ajuste',
   anulacion: 'Anulación',
+  devolucion: 'Cambio (volvió)',
 };
 
 export function ProductoPantalla({
@@ -94,6 +101,8 @@ function FormProducto({
   );
   const [codigoNuevo, setCodigoNuevo] = useState('');
   const [categoria, setCategoria] = useState(detalle?.categoriaId ?? '');
+  const grupo = detalle?.grupo ?? null;
+  const [color, setColor] = useState(detalle?.color ?? '#c0182b');
   const [error, setError] = useState<string | null>(null);
   const [ajuste, setAjuste] = useState(false);
   const volver = () => navegar('/stock');
@@ -107,7 +116,13 @@ function FormProducto({
     }
     const extra = codigoNuevo.trim() ? [codigoNuevo.trim()] : [];
     const cuerpo = {
-      nombre: String(f.get('nombre') ?? ''),
+      // El nombre de una variante sale del grupo y del tono.
+      ...(grupo
+        ? {
+            variante: String(f.get('variante') ?? '').trim(),
+            ...(grupo.tipo === 'tono' ? { color } : {}),
+          }
+        : { nombre: String(f.get('nombre') ?? '') }),
       precio,
       costo,
       categoriaId: categoria || null,
@@ -165,13 +180,50 @@ function FormProducto({
       <Volver onClick={volver} />
       <h1 className="m-titulo">{detalle ? 'Editar producto' : 'Nuevo producto'}</h1>
       <form className="formulario" onSubmit={guardar}>
-        <Campo
-          etiqueta="Nombre"
-          name="nombre"
-          defaultValue={detalle?.nombre ?? ''}
-          required
-          maxLength={120}
-        />
+        {grupo ? (
+          <>
+            <p className="texto-suave">
+              Es una variante de{' '}
+              <button
+                type="button"
+                className="enlace-boton"
+                onClick={() => navegar(`/stock/variantes/${grupo.id}`)}
+              >
+                {grupo.nombre}
+              </button>
+              .
+            </p>
+            <div className="renglon-variante">
+              <Campo
+                etiqueta={grupo.tipo === 'tono' ? 'Tono' : 'Variante'}
+                name="variante"
+                defaultValue={detalle?.variante ?? ''}
+                required
+                maxLength={60}
+              />
+              {grupo.tipo === 'tono' && (
+                <div className="campo campo--color">
+                  <label htmlFor="color-producto">Color</label>
+                  <input
+                    id="color-producto"
+                    type="color"
+                    className="campo__color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <Campo
+            etiqueta="Nombre"
+            name="nombre"
+            defaultValue={detalle?.nombre ?? ''}
+            required
+            maxLength={120}
+          />
+        )}
         {conUnidades && (
           <div className="campo">
             <label htmlFor="unidad">Se vende por</label>
@@ -360,6 +412,9 @@ function FormProducto({
               ))}
             </ul>
           </section>
+          {negocio.tiene('vencimientos') && (
+            <Lotes id={detalle.id} lotes={detalle.lotes ?? []} recargar={recargar} />
+          )}
           <p className="texto-suave">Precio actual: {formatearPlata(detalle.precio)}</p>
           <button type="button" className="m-boton m-boton--peligro" onClick={archivar}>
             Sacar del catálogo
@@ -367,6 +422,84 @@ function FormProducto({
         </>
       )}
     </div>
+  );
+}
+
+/** Lotes con fecha de vencimiento del producto (etapa I7). */
+function Lotes({
+  id,
+  lotes,
+  recargar,
+}: {
+  id: string;
+  lotes: { id: string; venceEn: string; cantidad: number }[];
+  recargar: () => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const hoy = diaArgentino();
+
+  async function agregar(ev: FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+    const form = ev.currentTarget;
+    const f = new FormData(form);
+    const venceEn = String(f.get('vence') ?? '');
+    const cantidad = Number(String(f.get('cantidad') ?? '').replace(',', '.'));
+    if (!venceEn || !(cantidad > 0)) {
+      setError('Poné la fecha de vencimiento y cuántas unidades entraron.');
+      return;
+    }
+    setError(null);
+    try {
+      await api('POST', '/api/v1/lotes', { productoId: id, venceEn, cantidad });
+      form.reset();
+      await recargar();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
+  }
+
+  async function retirar(lote: string) {
+    try {
+      await api('POST', `/api/v1/lotes/${lote}/retirar`, {});
+      await recargar();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
+  }
+
+  return (
+    <section className="tarjeta-form" aria-labelledby="titulo-lotes">
+      <h2 id="titulo-lotes" className="subtitulo">
+        Vencimientos
+      </h2>
+      {lotes.length === 0 ? (
+        <p className="texto-suave">Sin lotes cargados.</p>
+      ) : (
+        <ul className="lista-filas">
+          {lotes.map((l) => (
+            <li key={l.id} className="fila">
+              <span className="fila__texto">
+                <span className={l.venceEn < hoy ? 'texto-alerta' : 'fila__titulo'}>
+                  {l.venceEn < hoy ? 'Venció' : 'Vence'} el {diaCorto(l.venceEn)}
+                </span>
+                <span className="texto-suave">Entraron {formatearCantidad(l.cantidad)}</span>
+              </span>
+              <button type="button" className="m-boton" onClick={() => void retirar(l.id)}>
+                Ya no queda
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form className="formulario" onSubmit={agregar}>
+        <div className="dos-columnas">
+          <Campo etiqueta="Vence el" name="vence" type="date" required />
+          <Campo etiqueta="Cuántos entraron" name="cantidad" inputMode="decimal" required />
+        </div>
+        {error && <Aviso>{error}</Aviso>}
+        <button className="m-boton">Agregar lote</button>
+      </form>
+    </section>
   );
 }
 

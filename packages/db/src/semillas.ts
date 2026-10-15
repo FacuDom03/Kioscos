@@ -100,6 +100,23 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     ],
   );
 
+  const esmaltes = uuidv7();
+  await q(
+    `insert into grupos_variantes (id, kiosco_id, nombre, tipo) values ($1, $2, 'Esmalte cremoso', 'tono')`,
+    [esmaltes, k.id],
+  );
+  const promo = uuidv7();
+  await q(
+    `insert into promos (id, kiosco_id, nombre, lleva, paga, descuento, grupo_id)
+     values ($1, $2, '3x2 en esmaltes', 3, 2, 100, $3)`,
+    [promo, k.id, esmaltes],
+  );
+  await q(
+    `insert into lotes (id, kiosco_id, producto_id, vence_en, cantidad, usuario_id)
+     values ($1, $2, $3, current_date + 40, 24, $4)`,
+    [uuidv7(), k.id, coca, dueno],
+  );
+
   const proveedor = uuidv7();
   await q(`insert into proveedores (id, kiosco_id, nombre) values ($1, $2, 'Distribuidora Sur')`, [
     proveedor,
@@ -168,6 +185,34 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     `insert into movimientos_stock (id, kiosco_id, producto_id, tipo, cantidad, venta_id, usuario_id)
      values ($1, $3, $4, 'venta', -1, $6, $7), ($2, $3, $5, 'venta', -1, $6, $7)`,
     [uuidv7(), uuidv7(), k.id, coca, alfajor, venta, cajero],
+  );
+  // Un cambio: devuelve el alfajor de la venta anterior y se lleva otro igual.
+  const itemAlfajor = (
+    await q(
+      `select id from venta_items where kiosco_id = $1 and venta_id = $2 and producto_id = $3`,
+      [k.id, venta, alfajor],
+    )
+  ).rows[0].id as string;
+  const cambio = uuidv7();
+  await q(
+    `insert into ventas (id, kiosco_id, turno_id, usuario_id, dispositivo_id, total, estado, regalo, creada_en_dispositivo)
+     values ($1, $2, $3, $4, $5, 0, 'cobrada', true, now())`,
+    [cambio, k.id, turno, cajero, dispositivo],
+  );
+  await q(
+    `insert into venta_items (id, kiosco_id, venta_id, producto_id, descripcion, cantidad, precio_unitario, subtotal)
+     values ($1, $2, $3, $4, 'Alfajor triple', 1, 120000, 120000)`,
+    [uuidv7(), k.id, cambio, alfajor],
+  );
+  await q(
+    `insert into devoluciones (id, kiosco_id, venta_id, venta_item_id, producto_id, descripcion, cantidad, importe)
+     values ($1, $2, $3, $4, $5, 'Alfajor triple', 1, 120000)`,
+    [uuidv7(), k.id, cambio, itemAlfajor, alfajor],
+  );
+  await q(
+    `insert into venta_descuentos (id, kiosco_id, venta_id, promo_id, descripcion, monto)
+     values ($1, $2, $3, $4, '3x2 en esmaltes', 1)`,
+    [uuidv7(), k.id, venta, promo],
   );
 
   const cliente = uuidv7();

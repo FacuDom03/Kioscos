@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { moverStock } from '../servicios/stock.ts';
+import { descuentosDeVenta, esquemaDescuentos } from '../servicios/promos.ts';
 import { validar } from '../validar.ts';
 
 declare module 'fastify' {
@@ -251,6 +252,8 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
         total: centavos,
         lista: z.enum(['mostrador', 'gremio']).optional(),
         presupuestoId: z.uuid().optional(),
+        descuentos: esquemaDescuentos.optional(),
+        regalo: z.boolean().optional(),
         items: z
           .array(
             z.strictObject({
@@ -267,12 +270,9 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
       req.body,
     );
     const s = req.completa;
-    if (
-      d.items.reduce((t, i) => t + subtotal(i.cantidad, i.precioUnitario), 0) !== d.total ||
-      d.total <= 0
-    ) {
+    const suma = d.items.reduce((t, i) => t + subtotal(i.cantidad, i.precioUnitario), 0);
+    if (d.total <= 0 || d.total > suma)
       throw new ErrorPublico(400, 'datos_invalidos', 'El total no coincide con los productos.');
-    }
 
     // 1) Venta abierta con su pago pendiente (idempotente por el ID de la venta).
     const preparada = await req.db(async (tx) => {
@@ -283,13 +283,17 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
         .select(['id', 'estado', 'mp_qr_data', 'mp_order_id'])
         .where('id', '=', d.pagoId)
         .executeTakeFirst();
-      if (existente) return { integ, existente, kiosco: '' };
+      if (existente) return { integ, existente, kiosco: '', conDescuento: false };
       const turno = await tx
         .selectFrom('turnos_caja')
         .select('id')
         .where('id', '=', d.turnoId)
         .executeTakeFirst();
       if (!turno) throw noEncontrado();
+      const descuentos = await descuentosDeVenta(tx, d.items, d.descuentos ?? [], d.creadaEn);
+      if ('error' in descuentos) throw new ErrorPublico(400, 'datos_invalidos', descuentos.error);
+      if (suma - descuentos.total !== d.total)
+        throw new ErrorPublico(400, 'datos_invalidos', 'El total no coincide con los productos.');
       const ids = [...new Set(d.items.map((i) => i.productoId).filter((x): x is string => !!x))];
       if (
         ids.length &&
@@ -308,9 +312,15 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
           total: d.total,
           estado: 'abierta',
           lista: d.lista ?? 'mostrador',
+          regalo: d.regalo ?? false,
           creada_en_dispositivo: d.creadaEn,
         })
         .execute();
+      for (const x of descuentos.filas)
+        await tx
+          .insertInto('venta_descuentos')
+          .values({ id: uuidv7(), kiosco_id: s.kioscoId, venta_id: d.ventaId, ...x })
+          .execute();
       // El presupuesto queda vendido cuando se cobra el QR (trigger en la base).
       if (d.presupuestoId)
         await tx
@@ -348,7 +358,7 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
         .execute();
       const kiosco = (await tx.selectFrom('kioscos').select('nombre').executeTakeFirstOrThrow())
         .nombre;
-      return { integ, existente: null, kiosco };
+      return { integ, existente: null, kiosco, conDescuento: descuentos.total > 0 };
     });
     if (preparada.existente?.mp_qr_data)
       return {
@@ -366,11 +376,14 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
         externalPosId: preparada.integ.externalPosId ?? '',
         totalCentavos: d.total,
         descripcion: preparada.kiosco || 'Compra',
-        items: d.items.map((i) => ({
-          titulo: i.descripcion,
-          precioCentavos: i.precioUnitario,
-          cantidad: i.cantidad,
-        })),
+        // Con promo, los ítems no suman el total: va un solo renglón por lo que se cobra.
+        items: preparada.conDescuento
+          ? [{ titulo: preparada.kiosco || 'Compra', precioCentavos: d.total, cantidad: 1 }]
+          : d.items.map((i) => ({
+              titulo: i.descripcion,
+              precioCentavos: i.precioUnitario,
+              cantidad: i.cantidad,
+            })),
       });
     } catch (error) {
       req.log.error({ err: error }, 'No se pudo crear la orden QR');

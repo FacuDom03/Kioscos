@@ -89,6 +89,12 @@ export function Mas() {
           },
         ]
       : []),
+    ...(negocio.tiene('promos') && s.rol !== 'cajero'
+      ? [{ ruta: '/promos', nombre: 'Promos', detalle: '3x2, segunda unidad y otras' }]
+      : []),
+    ...(negocio.tiene('regalo')
+      ? [{ ruta: '/cambios', nombre: 'Cambios', detalle: 'Con o sin ticket de cambio' }]
+      : []),
     { ruta: '/mas/equipo', nombre: 'Este equipo', detalle: 'Impresora y balanza' },
     { ruta: '/mas/apariencia', nombre: 'Apariencia', ...(tema ? { detalle: tema } : {}) },
   ];

@@ -44,6 +44,10 @@ import { Presupuestos } from './pantallas/presupuestos/Presupuestos.tsx';
 import { ClientePantalla } from './pantallas/clientes/Cliente.tsx';
 import { Clientes } from './pantallas/clientes/Clientes.tsx';
 import { Tablero } from './pantallas/tablero/Tablero.tsx';
+import { Promos } from './pantallas/promos/Promos.tsx';
+import { Cambios } from './pantallas/cambios/Cambios.tsx';
+import { GrupoVariantesPantalla, NuevoGrupo, Variantes } from './pantallas/stock/Variantes.tsx';
+import { Vencimientos } from './pantallas/stock/Vencimientos.tsx';
 
 export function App() {
   return (
@@ -136,6 +140,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
   const listaProveedor = /^\/stock\/proveedores\/([0-9a-f-]{36})\/lista$/.exec(ruta);
   const presupuesto = /^\/presupuestos\/([0-9a-f-]{36})$/.exec(ruta);
   const cliente = /^\/clientes\/([0-9a-f-]{36})$/.exec(ruta);
+  const grupo = /^\/stock\/variantes\/([0-9a-f-]{36})$/.exec(ruta);
   switch (
     producto
       ? '/stock/producto/:id'
@@ -145,8 +150,28 @@ function AppConSesion({ ruta }: { ruta: string }) {
           ? '/presupuestos/:id'
           : cliente
             ? '/clientes/:id'
-            : ruta
+            : grupo
+              ? '/stock/variantes/:id'
+              : ruta
   ) {
+    case '/promos':
+      pantalla = <Promos alVolver={volverAMas} />;
+      break;
+    case '/cambios':
+      pantalla = <Cambios />;
+      break;
+    case '/stock/variantes':
+      pantalla = <Variantes />;
+      break;
+    case '/stock/variantes/nuevo':
+      pantalla = <NuevoGrupo />;
+      break;
+    case '/stock/variantes/:id':
+      pantalla = <GrupoVariantesPantalla key={grupo?.[1]} id={grupo?.[1] ?? ''} />;
+      break;
+    case '/stock/vencimientos':
+      pantalla = <Vencimientos />;
+      break;
     case '/tablero':
       pantalla = <Tablero alVolver={volverAMas} />;
       break;

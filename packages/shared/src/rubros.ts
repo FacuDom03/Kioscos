@@ -84,25 +84,25 @@ export const DATOS_MODULOS: Record<Modulo, DatosModulo> = {
     id: 'variantes',
     nombre: 'Tonos y tamaños',
     descripcion: 'Un producto con varias opciones, cada una con su stock.',
-    disponible: false,
+    disponible: true,
   },
   promos: {
     id: 'promos',
     nombre: 'Promos automáticas',
     descripcion: '3x2, segunda unidad con descuento y otras.',
-    disponible: false,
+    disponible: true,
   },
   regalo: {
     id: 'regalo',
     nombre: 'Regalos y cambios',
     descripcion: 'Envolver para regalo y ticket de cambio sin precios.',
-    disponible: false,
+    disponible: true,
   },
   vencimientos: {
     id: 'vencimientos',
     nombre: 'Vencimientos',
     descripcion: 'Aviso de lo que vence pronto.',
-    disponible: false,
+    disponible: true,
   },
 };
 

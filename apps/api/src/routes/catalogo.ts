@@ -1,7 +1,7 @@
 // Catálogo y stock (sección 11 de docs/SPEC.md). Editar el catálogo requiere conexión.
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { TxKiosco } from '@mostrador/db';
-import { UNIDADES, leerCsv, parsearPesos, uuidv7 } from '@mostrador/shared';
+import { UNIDADES, diaArgentino, leerCsv, parsearPesos, uuidv7 } from '@mostrador/shared';
 import { z } from 'zod';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
@@ -110,12 +110,90 @@ async function guardarProveedores(
   }
 }
 
+export const datosProducto = z.strictObject({
+  nombre: z.string().trim().min(1).max(120),
+  precio: centavos,
+  costo: centavos.nullable().optional(),
+  categoriaId: z.uuid().nullable().optional(),
+  minimo: z.number().min(0).max(1_000_000).optional(),
+  stockInicial: cantidad.optional(),
+  codigos: z.array(codigo).max(10).optional(),
+  unidad: z.enum(UNIDADES).optional(),
+  ubicacion: z.string().trim().min(1).max(40).nullable().optional(),
+  precioGremio: centavos.nullable().optional(),
+  /** Código con el que lo lista cada proveedor (etapa I3). */
+  proveedores: z
+    .array(z.strictObject({ proveedorId: z.uuid(), codigo: z.string().trim().min(1).max(60) }))
+    .max(10)
+    .optional(),
+  /** Tono o tamaño (etapa I7): cambia el nombre a "<grupo> <variante>". */
+  variante: z.string().trim().min(1).max(60).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/)
+    .nullable()
+    .optional(),
+});
+
+/** Alta de un producto con sus códigos, proveedores y stock inicial. */
+export async function crearProducto(
+  tx: TxKiosco,
+  s: { kioscoId: string; usuarioId: string },
+  id: string,
+  d: z.infer<typeof datosProducto>,
+  variante?: { grupoId: string; variante: string },
+): Promise<void> {
+  await verificarCategoria(tx, d.categoriaId);
+  await tx
+    .insertInto('productos')
+    .values({
+      id,
+      kiosco_id: s.kioscoId,
+      nombre: d.nombre,
+      precio: d.precio,
+      costo: d.costo ?? null,
+      categoria_id: d.categoriaId ?? null,
+      stock_minimo: d.minimo ?? 0,
+      unidad: d.unidad ?? 'unidad',
+      ubicacion: d.ubicacion ?? null,
+      precio_gremio: d.precioGremio ?? null,
+      grupo_id: variante?.grupoId ?? null,
+      variante: variante?.variante ?? null,
+      color: variante ? (d.color ?? null) : null,
+    })
+    .execute();
+  for (const c of new Set(d.codigos ?? [])) {
+    await tx
+      .insertInto('codigos_barra')
+      .values({
+        id: uuidv7(),
+        kiosco_id: s.kioscoId,
+        producto_id: id,
+        codigo: c,
+        tipo: tipoDeCodigo(c),
+      })
+      .execute()
+      .catch(codigoRepetido);
+  }
+  if (d.proveedores?.length) await guardarProveedores(tx, s.kioscoId, id, d.proveedores);
+  if (d.stockInicial) {
+    await moverStock(tx, {
+      kioscoId: s.kioscoId,
+      productoId: id,
+      tipo: 'ajuste',
+      cantidad: d.stockInicial,
+      usuarioId: s.usuarioId,
+      motivo: 'Stock inicial',
+    });
+  }
+}
+
 export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
   // ------------------------------------------------------------- catálogo para el equipo
   // Lo que el equipo guarda para vender (también sin conexión). El cajero no recibe costos.
   app.get('/api/v1/catalogo', { config: { roles: TODOS } }, async (req) =>
     req.db(async (tx) => {
-      const [productos, codigos, categorias, masVendidos] = await Promise.all([
+      const [productos, codigos, categorias, masVendidos, grupos, promos] = await Promise.all([
         tx
           .selectFrom('productos')
           .select([
@@ -129,6 +207,9 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
             'unidad',
             'ubicacion',
             'precio_gremio',
+            'grupo_id',
+            'variante',
+            'color',
           ])
           .where('activo', '=', true)
           .orderBy('nombre')
@@ -154,7 +235,28 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           .orderBy('total', 'desc')
           .limit(23)
           .execute(),
+        tx.selectFrom('grupos_variantes').select(['id', 'nombre', 'tipo']).execute(),
+        // Las promos que corren (el equipo mira las fechas al vender, también sin conexión).
+        tx
+          .selectFrom('promos')
+          .select([
+            'id',
+            'nombre',
+            'lleva',
+            'paga',
+            'descuento',
+            'categoria_id',
+            'grupo_id',
+            'desde',
+            'hasta',
+          ])
+          .where('activa', '=', true)
+          .where((eb) => eb.or([eb('hasta', 'is', null), eb('hasta', '>=', diaArgentino())]))
+          .execute(),
       ]);
+      // Las promos corren solo si el comercio tiene la función activada.
+      const modulos =
+        (await tx.selectFrom('kioscos').select('modulos').executeTakeFirst())?.modulos ?? [];
       const porProducto = new Map<string, string[]>();
       for (const c of codigos)
         porProducto.set(c.producto_id, [...(porProducto.get(c.producto_id) ?? []), c.codigo]);
@@ -173,8 +275,21 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           ubicacion: p.ubicacion,
           precioGremio: p.precio_gremio,
           codigos: porProducto.get(p.id) ?? [],
+          ...(p.grupo_id ? { grupoId: p.grupo_id, variante: p.variante, color: p.color } : {}),
         })),
         categorias: categorias.map((c) => ({ id: c.id, nombre: c.nombre })),
+        grupos,
+        promos: (modulos.includes('promos') ? promos : []).map((p) => ({
+          id: p.id,
+          nombre: p.nombre,
+          lleva: p.lleva,
+          paga: p.paga,
+          descuento: p.descuento,
+          categoriaId: p.categoria_id,
+          grupoId: p.grupo_id,
+          desde: p.desde,
+          hasta: p.hasta,
+        })),
         masVendidos: masVendidos.map((m) => m.producto_id).filter((x): x is string => !!x),
       };
     }),
@@ -336,6 +451,20 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
         .where('pp.producto_id', '=', id)
         .orderBy('pr.nombre')
         .execute();
+      const grupo = p.grupo_id
+        ? await tx
+            .selectFrom('grupos_variantes')
+            .select(['id', 'nombre', 'tipo'])
+            .where('id', '=', p.grupo_id)
+            .executeTakeFirst()
+        : undefined;
+      const lotes = await tx
+        .selectFrom('lotes')
+        .select(['id', 'vence_en', 'cantidad'])
+        .where('producto_id', '=', id)
+        .where('retirado', '=', false)
+        .orderBy('vence_en')
+        .execute();
       const movimientos = await tx
         .selectFrom('movimientos_stock as m')
         .leftJoin('usuarios as u', 'u.id', 'm.usuario_id')
@@ -357,6 +486,10 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
         ubicacion: p.ubicacion,
         precioGremio: p.precio_gremio,
         codigos: codigos.map((c) => c.codigo),
+        grupo: grupo ?? null,
+        variante: p.variante,
+        color: p.color,
+        lotes: lotes.map((l) => ({ id: l.id, venceEn: l.vence_en, cantidad: Number(l.cantidad) })),
         proveedores: proveedores.map((x) => ({
           proveedorId: x.proveedor_id,
           nombre: x.nombre,
@@ -368,70 +501,11 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
     });
   });
 
-  const datosProducto = z.strictObject({
-    nombre: z.string().trim().min(1).max(120),
-    precio: centavos,
-    costo: centavos.nullable().optional(),
-    categoriaId: z.uuid().nullable().optional(),
-    minimo: z.number().min(0).max(1_000_000).optional(),
-    stockInicial: cantidad.optional(),
-    codigos: z.array(codigo).max(10).optional(),
-    unidad: z.enum(UNIDADES).optional(),
-    ubicacion: z.string().trim().min(1).max(40).nullable().optional(),
-    precioGremio: centavos.nullable().optional(),
-    /** Código con el que lo lista cada proveedor (etapa I3). */
-    proveedores: z
-      .array(z.strictObject({ proveedorId: z.uuid(), codigo: z.string().trim().min(1).max(60) }))
-      .max(10)
-      .optional(),
-  });
-
   app.post('/api/v1/productos', { config: { roles: EDITAN } }, async (req) => {
-    const d = validar(datosProducto, req.body);
+    // Las variantes se crean desde su grupo.
+    const d = validar(datosProducto.omit({ variante: true, color: true }), req.body);
     const id = uuidv7();
-    await req.db(async (tx) => {
-      await verificarCategoria(tx, d.categoriaId);
-      await tx
-        .insertInto('productos')
-        .values({
-          id,
-          kiosco_id: req.completa.kioscoId,
-          nombre: d.nombre,
-          precio: d.precio,
-          costo: d.costo ?? null,
-          categoria_id: d.categoriaId ?? null,
-          stock_minimo: d.minimo ?? 0,
-          unidad: d.unidad ?? 'unidad',
-          ubicacion: d.ubicacion ?? null,
-          precio_gremio: d.precioGremio ?? null,
-        })
-        .execute();
-      for (const c of new Set(d.codigos ?? [])) {
-        await tx
-          .insertInto('codigos_barra')
-          .values({
-            id: uuidv7(),
-            kiosco_id: req.completa.kioscoId,
-            producto_id: id,
-            codigo: c,
-            tipo: tipoDeCodigo(c),
-          })
-          .execute()
-          .catch(codigoRepetido);
-      }
-      if (d.proveedores?.length)
-        await guardarProveedores(tx, req.completa.kioscoId, id, d.proveedores);
-      if (d.stockInicial) {
-        await moverStock(tx, {
-          kioscoId: req.completa.kioscoId,
-          productoId: id,
-          tipo: 'ajuste',
-          cantidad: d.stockInicial,
-          usuarioId: req.completa.usuarioId,
-          motivo: 'Stock inicial',
-        });
-      }
-    });
+    await req.db((tx) => crearProducto(tx, req.completa, id, d));
     return { id };
   });
 
@@ -447,16 +521,26 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
     );
     await req.db(async (tx) => {
       const p = await tx
-        .selectFrom('productos')
-        .select('id')
-        .where('id', '=', id)
+        .selectFrom('productos as p')
+        .leftJoin('grupos_variantes as g', (j) =>
+          j.onRef('g.id', '=', 'p.grupo_id').onRef('g.kiosco_id', '=', 'p.kiosco_id'),
+        )
+        .select(['p.id', 'p.grupo_id', 'g.nombre as grupo'])
+        .where('p.id', '=', id)
         .executeTakeFirst();
       if (!p) throw noEncontrado();
+      if ((d.variante !== undefined || d.color !== undefined) && !p.grupo_id)
+        throw new ErrorPublico(400, 'datos_invalidos', 'Este producto no tiene variantes.');
       await verificarCategoria(tx, d.categoriaId);
       await tx
         .updateTable('productos')
         .set({
           ...(d.nombre !== undefined ? { nombre: d.nombre } : {}),
+          // El nombre de una variante es "<grupo> <variante>".
+          ...(d.variante !== undefined && p.grupo
+            ? { variante: d.variante, nombre: `${p.grupo} ${d.variante}`.slice(0, 120) }
+            : {}),
+          ...(d.color !== undefined ? { color: d.color } : {}),
           ...(d.precio !== undefined ? { precio: d.precio } : {}),
           ...(d.costo !== undefined ? { costo: d.costo } : {}),
           ...(d.categoriaId !== undefined ? { categoria_id: d.categoriaId } : {}),

@@ -9,6 +9,7 @@ import { CobroQr } from './CobroQr.tsx';
 import { useEstadoMp } from '../../nucleo/mp.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { ACuenta } from './ACuenta.tsx';
+import { fijarRegalo, useCambio, useRegalo } from '../../nucleo/ticket.ts';
 
 export type Medio = 'efectivo' | 'qr' | 'transferencia' | 'cuenta';
 
@@ -25,9 +26,15 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
   const mp = useEstadoMp();
   const qrDisponible = enLinea && !!mp?.puedeCobrar;
   const negocio = useNegocio();
-  const medios = negocio.tiene('cuenta_corriente')
-    ? (['efectivo', 'qr', 'transferencia', 'cuenta'] as const)
-    : (['efectivo', 'qr', 'transferencia'] as const);
+  const cambio = useCambio();
+  const regalo = useRegalo();
+  // En un cambio se cobra la diferencia en efectivo o transferencia.
+  const medios: readonly Medio[] = cambio
+    ? ['efectivo', 'transferencia']
+    : negocio.tiene('cuenta_corriente')
+      ? ['efectivo', 'qr', 'transferencia', 'cuenta']
+      : ['efectivo', 'qr', 'transferencia'];
+  const sinDiferencia = !!cambio && total === 0;
   const [medio, setMedio] = useState<Medio | null>(medioInicial ?? (enLinea ? null : 'efectivo'));
   const [recibido, setRecibido] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +66,29 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
     }
   }
 
+  if (sinDiferencia)
+    return (
+      <div className={enPanel ? 'cobrar cobrar--panel' : 'cobrar pantalla'}>
+        <Volver onClick={alVolver} />
+        <h1 className="m-titulo">Cambio</h1>
+        <p>Lo que se lleva vale lo mismo que lo que devuelve: no hay nada que cobrar.</p>
+        {error && <Aviso>{error}</Aviso>}
+        <button
+          type="button"
+          className="m-boton m-boton--principal"
+          disabled={enviando}
+          autoFocus
+          onClick={() => void confirmar('efectivo')}
+        >
+          Confirmar el cambio
+        </button>
+      </div>
+    );
+
   return (
     <div className={enPanel ? 'cobrar cobrar--panel' : 'cobrar pantalla'}>
       <Volver onClick={alVolver} />
-      <h1 className="m-titulo">Cobrar</h1>
+      <h1 className="m-titulo">{cambio ? 'Cobrar la diferencia' : 'Cobrar'}</h1>
       <div className="cobrar__total">
         <CartelTotal
           centavos={total}
@@ -100,10 +126,16 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
           ))}
         </div>
       </fieldset>
-      {!enLinea && (
+      {!enLinea && !cambio && (
         <p className="texto-suave">
           Sin internet no se puede generar el QR. Por ahora, cobrá en efectivo.
         </p>
+      )}
+      {negocio.tiene('regalo') && !cambio && (
+        <label className="opcion opcion--check">
+          <input type="checkbox" checked={regalo} onChange={(e) => fijarRegalo(e.target.checked)} />
+          Es para regalo (sale con ticket de cambio, sin precios)
+        </label>
       )}
 
       {medio === 'efectivo' && (

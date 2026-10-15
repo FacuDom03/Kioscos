@@ -172,7 +172,33 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
             'unidad',
             'ubicacion',
             'precio_gremio',
+            'grupo_id',
+            'variante',
+            'color',
           ])
+          .execute(),
+        gruposVariantes: await tx
+          .selectFrom('grupos_variantes')
+          .select(['id', 'nombre', 'tipo'])
+          .execute(),
+        promos: await tx
+          .selectFrom('promos')
+          .select([
+            'id',
+            'nombre',
+            'lleva',
+            'paga',
+            'descuento',
+            'categoria_id',
+            'grupo_id',
+            'desde',
+            'hasta',
+            'activa',
+          ])
+          .execute(),
+        lotes: await tx
+          .selectFrom('lotes')
+          .select(['producto_id', 'vence_en', 'cantidad', 'retirado', 'created_at'])
           .execute(),
         proveedores: await tx
           .selectFrom('proveedores')
@@ -229,8 +255,24 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
             'total',
             'estado',
             'lista',
+            'regalo',
             'creada_en_dispositivo',
             'motivo_anulacion',
+          ])
+          .execute(),
+        ventaDescuentos: await tx
+          .selectFrom('venta_descuentos')
+          .select(['venta_id', 'promo_id', 'descripcion', 'monto'])
+          .execute(),
+        devoluciones: await tx
+          .selectFrom('devoluciones')
+          .select([
+            'venta_id',
+            'venta_item_id',
+            'producto_id',
+            'descripcion',
+            'cantidad',
+            'importe',
           ])
           .execute(),
         ventaItems: await tx

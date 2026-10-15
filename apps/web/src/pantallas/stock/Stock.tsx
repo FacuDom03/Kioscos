@@ -145,6 +145,32 @@ export function Stock() {
         </section>
       )}
 
+      {negocio.tiene('variantes') && (
+        <section className="tarjeta-aumento">
+          <div>
+            <h2 className="subtitulo">Productos con tonos y tamaños</h2>
+            <p className="texto-suave">
+              Un esmalte en doce tonos: cada tono con su stock y su código.
+            </p>
+          </div>
+          <button type="button" className="m-boton" onClick={() => navegar('/stock/variantes')}>
+            Tonos y tamaños
+          </button>
+        </section>
+      )}
+
+      {negocio.tiene('vencimientos') && (
+        <section className="tarjeta-aumento">
+          <div>
+            <h2 className="subtitulo">Vencimientos</h2>
+            <p className="texto-suave">Lo que vence pronto, para venderlo antes o sacarlo.</p>
+          </div>
+          <button type="button" className="m-boton" onClick={() => navegar('/stock/vencimientos')}>
+            Ver vencimientos
+          </button>
+        </section>
+      )}
+
       {s.rol === 'dueno' && (
         <section className="tarjeta-aumento">
           <div>

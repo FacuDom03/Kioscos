@@ -1,4 +1,3 @@
-import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { ErrorPlanilla, leerXlsx } from '../src/xlsx.ts';
 
@@ -32,7 +31,10 @@ describe('leerXlsx', () => {
   });
 
   it('no se cuelga con un archivo que se infla al descomprimir ni con columnas imposibles', async () => {
-    const bomba = zip({ 'xl/worksheets/sheet1.xml': new Uint8Array(5_000_000) }, true);
+    const bomba = zip(
+      { 'xl/worksheets/sheet1.xml': await comprimir(new Uint8Array(5_000_000)) },
+      5_000_000,
+    );
     await expect(leerXlsx(bomba, 50_000, 1_000_000)).rejects.toThrow(/demasiado grande/);
     const columnas = zip({
       'xl/worksheets/sheet1.xml': new TextEncoder().encode(
@@ -43,26 +45,41 @@ describe('leerXlsx', () => {
   });
 });
 
-/** Zip mínimo para las pruebas (sin CRC: el lector no lo usa). */
-function zip(archivos: Record<string, Uint8Array>, comprimir = false): Uint8Array {
+/** Deflate sin encabezado, como adentro de un zip. */
+async function comprimir(datos: Uint8Array): Promise<Uint8Array> {
+  const flujo = new ReadableStream({
+    start(c) {
+      c.enqueue(datos);
+      c.close();
+    },
+  }).pipeThrough(new CompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(flujo).arrayBuffer());
+}
+
+/**
+ * Zip mínimo para las pruebas (sin CRC: el lector no lo usa). Con `original`, los archivos ya
+ * vienen comprimidos y ese es su tamaño sin comprimir.
+ */
+function zip(archivos: Record<string, Uint8Array>, original?: number): Uint8Array {
+  const comprimido = original !== undefined;
   const partes: Uint8Array[] = [];
   const central: Uint8Array[] = [];
   let desplazamiento = 0;
   for (const [nombre, contenido] of Object.entries(archivos)) {
     const n = new TextEncoder().encode(nombre);
-    const datos = comprimir ? new Uint8Array(deflateRawSync(contenido)) : contenido;
+    const datos = contenido;
     const local = new DataView(new ArrayBuffer(30));
     local.setUint32(0, 0x04034b50, true);
-    local.setUint16(8, comprimir ? 8 : 0, true);
+    local.setUint16(8, comprimido ? 8 : 0, true);
     local.setUint32(18, datos.length, true);
-    local.setUint32(22, contenido.length, true);
+    local.setUint32(22, original ?? contenido.length, true);
     local.setUint16(26, n.length, true);
     partes.push(new Uint8Array(local.buffer), n, datos);
     const c = new DataView(new ArrayBuffer(46));
     c.setUint32(0, 0x02014b50, true);
-    c.setUint16(10, comprimir ? 8 : 0, true);
+    c.setUint16(10, comprimido ? 8 : 0, true);
     c.setUint32(20, datos.length, true);
-    c.setUint32(24, contenido.length, true);
+    c.setUint32(24, original ?? contenido.length, true);
     c.setUint16(28, n.length, true);
     c.setUint32(42, desplazamiento, true);
     central.push(new Uint8Array(c.buffer), n);

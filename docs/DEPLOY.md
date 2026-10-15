@@ -225,6 +225,31 @@ desde **Más → Usuarios** crea a los cajeros con PIN.
 
 ---
 
+## Variante: servidor que ya tiene Traefik (Hostinger con otras apps)
+
+Si el VPS ya corre apps con el administrador de Docker de Hostinger, los puertos 80 y 443 son de
+Traefik. Mostrador se pone detrás: Traefik saca el certificado de Let's Encrypt y le pasa lo que
+llega para su dominio. Las otras apps no se tocan. Cambia esto respecto de los pasos de arriba:
+
+- **No hace falta Tailscale ni el certificado de Cloudflare.** El dominio de Mostrador tiene que
+  apuntar directo al VPS (registro A; si está en Cloudflare, con la nube gris), porque Let's
+  Encrypt valida por el puerto 80.
+- **No corras `infra/firewall.sh`**: cerraría las otras apps. Usá el firewall del hPanel (VPS →
+  Firewall): aceptar 22, 80 y 443, y descartar el resto (revisá antes qué puertos usan tus apps).
+- En `/opt/mostrador/config.env` poné `TAILSCALE_IP=127.0.0.1`: el panel admin queda solo dentro
+  del servidor. Para entrar, desde tu compu: `ssh -L 8081:127.0.0.1:8081 root@IP-DEL-VPS` y abrí
+  `http://127.0.0.1:8081`.
+- Con 4 GB de memoria y otras apps, sumá 2 GB de swap (una vez):
+  `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab`
+- Siempre con los dos archivos:
+
+  ```sh
+  cd /opt/mostrador/app/infra
+  docker compose -f compose.prod.yml -f compose.traefik.yml --env-file /opt/mostrador/config.env up -d --build
+  ```
+
+---
+
 ## Actualizar a una versión nueva
 
 ```sh

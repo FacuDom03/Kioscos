@@ -1,0 +1,50 @@
+# Caddy detrás de un Traefik que ya existe en el servidor (por ejemplo, el del administrador de
+# Docker de Hostinger). Traefik recibe el HTTPS, saca el certificado de Let's Encrypt y le pasa a
+# este contenedor lo que llega para el dominio de Mostrador, por HTTP y por la red interna de
+# Docker. Este contenedor no publica ningún puerto: solo Traefik llega hasta acá.
+{
+	admin off
+	auto_https off
+	servers {
+		# Traefik corre en la red del servidor: llega desde la puerta de enlace de Docker.
+		trusted_proxies static private_ranges
+		# De derecha a izquierda: vale la IP que agregó Traefik, no la que mande el cliente.
+		trusted_proxies_strict
+		client_ip_headers X-Forwarded-For
+	}
+}
+
+http://{$DOMINIO}:80 {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+	}
+
+	# El chequeo de salud es interno: no se publica.
+	handle /health* {
+		respond 404
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000 {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	handle {
+		root * /srv
+		@inmutables path /assets/*
+		header @inmutables Cache-Control "public, max-age=31536000, immutable"
+		@sinCache path /sw.js /registerSW.js /index.html /manifest.webmanifest /tema.js
+		header @sinCache Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

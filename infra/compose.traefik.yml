@@ -1,0 +1,18 @@
+# Para un servidor que ya tiene Traefik en los puertos 80 y 443 (como el del administrador de
+# Docker de Hostinger). Se suma a compose.prod.yml:
+#   docker compose -f compose.prod.yml -f compose.traefik.yml --env-file /opt/mostrador/config.env up -d --build
+# Traefik saca el certificado HTTPS de Let's Encrypt; Mostrador no publica puertos a internet.
+# El panel admin escucha en TAILSCALE_IP (con 127.0.0.1 se entra con un túnel SSH).
+services:
+  web:
+    ports: !reset []
+    volumes: !override
+      - ./Caddyfile.traefik:/etc/caddy/Caddyfile:ro
+      - caddy_datos:/data
+      - caddy_config:/config
+    labels:
+      traefik.enable: 'true'
+      traefik.http.routers.mostrador.entrypoints: websecure
+      traefik.http.routers.mostrador.rule: Host(`${DOMINIO}`)
+      traefik.http.routers.mostrador.tls.certresolver: letsencrypt
+      traefik.http.services.mostrador.loadbalancer.server.port: '80'

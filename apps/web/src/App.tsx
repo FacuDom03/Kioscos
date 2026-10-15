@@ -37,6 +37,8 @@ import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
 import { ImportarProductos } from './pantallas/stock/Importar.tsx';
 import { ProductoPantalla } from './pantallas/stock/Producto.tsx';
 import { Stock } from './pantallas/stock/Stock.tsx';
+import { ListaProveedor } from './pantallas/stock/ListaProveedor.tsx';
+import { Proveedores } from './pantallas/stock/Proveedores.tsx';
 
 export function App() {
   return (
@@ -126,7 +128,16 @@ function AppConSesion({ ruta }: { ruta: string }) {
 
   let pantalla;
   const producto = /^\/stock\/producto\/([0-9a-f-]{36})$/.exec(ruta);
-  switch (producto ? '/stock/producto/:id' : ruta) {
+  const listaProveedor = /^\/stock\/proveedores\/([0-9a-f-]{36})\/lista$/.exec(ruta);
+  switch (
+    producto ? '/stock/producto/:id' : listaProveedor ? '/stock/proveedores/:id/lista' : ruta
+  ) {
+    case '/stock/proveedores':
+      pantalla = <Proveedores />;
+      break;
+    case '/stock/proveedores/:id/lista':
+      pantalla = <ListaProveedor key={listaProveedor?.[1]} id={listaProveedor?.[1] ?? ''} />;
+      break;
     case '/stock':
       pantalla = <Stock />;
       break;

@@ -1955,3 +1955,188 @@ details summary {
   color: var(--paper-soft);
   font-size: 13px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Proveedores y lista de precios (etapa I3)
+ * ------------------------------------------------------------------------- */
+
+.fila--proveedor {
+  min-height: 72px;
+  padding: 10px 16px;
+  font-weight: 400;
+  flex-wrap: wrap;
+}
+
+.fila__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fila__titulo {
+  font-weight: 700;
+}
+
+.columnas-lista,
+.opciones-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px 16px;
+  align-items: end;
+}
+
+.opciones-lista__grupo {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  grid-column: 1 / -1;
+}
+
+.opcion--check {
+  min-height: 44px;
+}
+
+.opcion--check input,
+.opcion input[type='radio'] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--action);
+  flex: none;
+}
+
+.resumen-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.resumen-lista p {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radio);
+  background: var(--surface);
+  border: var(--line-w) solid var(--line);
+}
+
+.resumen-lista__aviso,
+.revisar {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.tabla-contenedor {
+  overflow-x: auto;
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+  background: var(--surface);
+}
+
+.tabla--lista {
+  min-width: 720px;
+}
+
+.tabla--lista .codigo,
+.nuevo-lista .codigo {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-soft);
+}
+
+.tabla--lista s {
+  text-decoration-thickness: 1px;
+}
+
+.lista-nuevos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nuevo-lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+  background: var(--surface);
+}
+
+.vincular {
+  flex: 1 1 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resultados-vincular {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etiquetas-impresion {
+  display: none;
+}
+
+@page etiquetas {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  html.imprimiendo-etiquetas .impreso {
+    display: none;
+  }
+  html.imprimiendo-etiquetas .etiquetas-impresion,
+  html.imprimiendo-etiquetas .etiquetas-impresion * {
+    visibility: visible;
+  }
+  html.imprimiendo-etiquetas .etiquetas-impresion {
+    page: etiquetas;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3mm;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    color: #000;
+  }
+  .etiqueta {
+    height: 34mm;
+    padding: 3mm;
+    border: 0.3mm solid #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    break-inside: avoid;
+  }
+  .etiqueta p {
+    margin: 0;
+  }
+  .etiqueta__nombre {
+    font-size: 11pt;
+    font-weight: 600;
+    line-height: 1.15;
+  }
+  .etiqueta__precio {
+    font-size: 22pt;
+    font-weight: 700;
+  }
+  .etiqueta__unidad {
+    font-size: 10pt;
+    font-weight: 500;
+  }
+  .etiqueta__pie {
+    display: flex;
+    justify-content: space-between;
+    font-size: 8pt;
+  }
+}

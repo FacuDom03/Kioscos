@@ -72,7 +72,7 @@ export const DATOS_MODULOS: Record<Modulo, DatosModulo> = {
     id: 'precios_proveedor',
     nombre: 'Actualizar precios con la lista del proveedor',
     descripcion: 'Subís su lista y se recalculan los precios.',
-    disponible: false,
+    disponible: true,
   },
   cuenta_corriente: {
     id: 'cuenta_corriente',

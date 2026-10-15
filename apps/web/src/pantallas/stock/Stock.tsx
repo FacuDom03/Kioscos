@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { useEsPC } from '../../nucleo/medios.ts';
 import { navegar } from '../../nucleo/ruta.ts';
+import { useNegocio } from '../../nucleo/rubro.ts';
 import { puede, useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 import { normalizar } from '@mostrador/shared';
@@ -46,6 +47,7 @@ function Nivel({ p }: { p: Fila }) {
 
 export function Stock() {
   const s = useSesionCompleta();
+  const negocio = useNegocio();
   const esPC = useEsPC();
   const [filtro, setFiltro] = useState<'todos' | 'por_reponer'>('todos');
   const [q, setQ] = useState('');
@@ -128,6 +130,20 @@ export function Stock() {
         </button>
       </div>
       {error && <Aviso>{error}</Aviso>}
+
+      {editar && negocio.tiene('precios_proveedor') && (
+        <section className="tarjeta-aumento">
+          <div>
+            <h2 className="subtitulo">Listas de proveedores</h2>
+            <p className="texto-suave">
+              Subí la lista que te mandó un proveedor y los precios se recalculan solos.
+            </p>
+          </div>
+          <button type="button" className="m-boton" onClick={() => navegar('/stock/proveedores')}>
+            Proveedores
+          </button>
+        </section>
+      )}
 
       {s.rol === 'dueno' && (
         <section className="tarjeta-aumento">

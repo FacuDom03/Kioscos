@@ -100,6 +100,28 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     ],
   );
 
+  const proveedor = uuidv7();
+  await q(`insert into proveedores (id, kiosco_id, nombre) values ($1, $2, 'Distribuidora Sur')`, [
+    proveedor,
+    k.id,
+  ]);
+  await q(
+    `insert into producto_proveedor (id, kiosco_id, producto_id, proveedor_id, codigo, costo)
+     values ($1, $2, $3, $4, 'SUR-0001', 120000)`,
+    [uuidv7(), k.id, coca, proveedor],
+  );
+  await q(
+    `insert into listas_proveedor (id, kiosco_id, proveedor_id, usuario_id, archivo, renglones, opciones, detalle)
+     values ($1, $2, $3, $4, 'lista.xlsx', 1, '{}', $5)`,
+    [
+      uuidv7(),
+      k.id,
+      proveedor,
+      dueno,
+      JSON.stringify([{ producto_id: coca, costo_antes: 110000, costo: 120000 }]),
+    ],
+  );
+
   const caja = uuidv7();
   await q(`insert into cajas (id, kiosco_id) values ($1, $2)`, [caja, k.id]);
   const turno = uuidv7();

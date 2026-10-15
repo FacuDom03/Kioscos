@@ -45,3 +45,11 @@ export {
   type Unidad,
   type DatosUnidad,
 } from './unidades.ts';
+export { leerXlsx, ErrorPlanilla } from './xlsx.ts';
+export {
+  detectarColumnas,
+  precioDeCelda,
+  renglonesDeLista,
+  type Columnas,
+  type Renglon,
+} from './listas.ts';

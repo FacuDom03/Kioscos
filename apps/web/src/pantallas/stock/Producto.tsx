@@ -27,6 +27,7 @@ interface Detalle {
   unidad?: Unidad;
   ubicacion?: string | null;
   precioGremio?: number | null;
+  proveedores?: { proveedorId: string; nombre: string; codigo: string; costo?: number | null }[];
   movimientos: {
     id: string;
     tipo: string;
@@ -77,6 +78,13 @@ function FormProducto({
   const conUnidades = negocio.tiene('venta_fraccionada');
   const conGremio = negocio.tiene('listas_precios');
   const conUbicacion = negocio.tiene('ubicaciones');
+  const conProveedores = negocio.tiene('precios_proveedor');
+  const { datos: proveedores } = useDatos<{ id: string; nombre: string }[]>(
+    conProveedores ? '/api/v1/proveedores' : null,
+  );
+  const [codigosProveedor, setCodigosProveedor] = useState<Record<string, string>>(() =>
+    Object.fromEntries((detalle?.proveedores ?? []).map((p) => [p.proveedorId, p.codigo])),
+  );
   const [precio, setPrecio] = useState<number | null>(detalle?.precio ?? null);
   const [precioGremio, setPrecioGremio] = useState<number | null>(detalle?.precioGremio ?? null);
   const [unidad, setUnidad] = useState<Unidad>(detalle?.unidad ?? 'unidad');
@@ -108,6 +116,13 @@ function FormProducto({
       ...(conUnidades ? { unidad } : {}),
       ...(conGremio ? { precioGremio } : {}),
       ...(conUbicacion ? { ubicacion: String(f.get('ubicacion') ?? '').trim() || null } : {}),
+      ...(conProveedores && proveedores
+        ? {
+            proveedores: Object.entries(codigosProveedor)
+              .map(([proveedorId, codigo]) => ({ proveedorId, codigo: codigo.trim() }))
+              .filter((p) => p.codigo),
+          }
+        : {}),
       ...(detalle
         ? {}
         : { stockInicial: Number(String(f.get('stock') ?? '0').replace(',', '.')) || 0 }),
@@ -242,6 +257,24 @@ function FormProducto({
             <Campo etiqueta="Stock actual" name="stock" inputMode="decimal" defaultValue="0" />
           )}
         </div>
+        {conProveedores && proveedores && proveedores.length > 0 && (
+          <fieldset className="campo">
+            <legend>Código en la lista de cada proveedor (opcional)</legend>
+            <div className="dos-columnas">
+              {proveedores.map((p) => (
+                <Campo
+                  key={p.id}
+                  etiqueta={p.nombre}
+                  maxLength={60}
+                  value={codigosProveedor[p.id] ?? ''}
+                  onChange={(e) =>
+                    setCodigosProveedor({ ...codigosProveedor, [p.id]: e.target.value })
+                  }
+                />
+              ))}
+            </div>
+          </fieldset>
+        )}
         <fieldset className="campo">
           <legend>Códigos de barras</legend>
           <ul className="codigos-producto">

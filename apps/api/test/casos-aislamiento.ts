@@ -92,6 +92,50 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   // Kiosco
   caso('GET', '/api/v1/kiosco', 'sin_datos_de_b'),
   caso('PUT', '/api/v1/kiosco/soporte', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
+  // Proveedores y listas de precios (etapa I3)
+  caso('GET', '/api/v1/proveedores', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/proveedores', 'escribe_solo_lo_propio', {
+    cuerpo: { nombre: 'Proveedor nuevo' },
+  }),
+  caso('PATCH', '/api/v1/proveedores/:id', 'no_encontrado', {
+    tabla: 'proveedores',
+    cuerpo: { nombre: 'Cambiado' },
+  }),
+  caso('POST', '/api/v1/proveedores/:id/lista/vista-previa', 'no_encontrado', {
+    tabla: 'proveedores',
+    cuerpo: {
+      renglones: [{ codigo: 'SUR-0001', descripcion: 'Coca', costo: 100000 }],
+      opciones: {
+        descuento: 0,
+        iva: false,
+        calculo: 'mantener',
+        ganancia: 40,
+        redondeo: 1000,
+        gremio: 'no',
+        gananciaGremio: 20,
+      },
+    },
+  }),
+  caso('POST', '/api/v1/proveedores/:id/lista/aplicar', 'no_encontrado', {
+    tabla: 'proveedores',
+    cuerpo: {
+      renglones: [{ codigo: 'SUR-0001', descripcion: 'Coca', costo: 100000 }],
+      opciones: {
+        descuento: 0,
+        iva: false,
+        calculo: 'mantener',
+        ganancia: 40,
+        redondeo: 1000,
+        gremio: 'no',
+        gananciaGremio: 20,
+      },
+      crear: ['SUR-0001'],
+    },
+  }),
+  caso('GET', '/api/v1/proveedores/:id/listas', 'no_encontrado', { tabla: 'proveedores' }),
+  caso('POST', '/api/v1/listas-proveedor/:id/deshacer', 'no_encontrado', {
+    tabla: 'listas_proveedor',
+  }),
   caso('PUT', '/api/v1/kiosco/negocio', 'escribe_solo_lo_propio', {
     cuerpo: { rubro: 'ferreteria', modulos: ['presupuestos'], categorias: ['Electricidad'] },
   }),

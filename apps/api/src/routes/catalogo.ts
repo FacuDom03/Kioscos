@@ -68,6 +68,48 @@ function unidadDeTexto(texto: string): (typeof UNIDADES)[number] | null {
   return UNIDADES_CSV[texto.trim().toLowerCase().replace(/\.$/, '')] ?? null;
 }
 
+/** Reemplaza los códigos de proveedor de un producto. */
+async function guardarProveedores(
+  tx: TxKiosco,
+  kioscoId: string,
+  productoId: string,
+  lista: { proveedorId: string; codigo: string }[],
+) {
+  const ids = [...new Set(lista.map((x) => x.proveedorId))];
+  if (ids.length !== lista.length)
+    throw new ErrorPublico(400, 'datos_invalidos', 'Un proveedor está dos veces.');
+  if (ids.length) {
+    const existen = await tx
+      .selectFrom('proveedores')
+      .select('id')
+      .where('id', 'in', ids)
+      .execute();
+    if (existen.length !== ids.length) throw noEncontrado();
+  }
+  await tx.deleteFrom('producto_proveedor').where('producto_id', '=', productoId).execute();
+  for (const x of lista) {
+    await tx
+      .insertInto('producto_proveedor')
+      .values({
+        id: uuidv7(),
+        kiosco_id: kioscoId,
+        producto_id: productoId,
+        proveedor_id: x.proveedorId,
+        codigo: x.codigo,
+      })
+      .execute()
+      .catch((error: unknown) => {
+        if ((error as { code?: string }).code === '23505')
+          throw new ErrorPublico(
+            409,
+            'codigo_repetido',
+            `El código ${x.codigo} de ese proveedor ya está en otro producto.`,
+          );
+        throw error;
+      });
+  }
+}
+
 export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
   // ------------------------------------------------------------- catálogo para el equipo
   // Lo que el equipo guarda para vender (también sin conexión). El cajero no recibe costos.
@@ -285,6 +327,15 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
         .select(['codigo', 'tipo'])
         .where('producto_id', '=', id)
         .execute();
+      const proveedores = await tx
+        .selectFrom('producto_proveedor as pp')
+        .innerJoin('proveedores as pr', (j) =>
+          j.onRef('pr.id', '=', 'pp.proveedor_id').onRef('pr.kiosco_id', '=', 'pp.kiosco_id'),
+        )
+        .select(['pp.proveedor_id', 'pr.nombre', 'pp.codigo', 'pp.costo', 'pp.actualizado_en'])
+        .where('pp.producto_id', '=', id)
+        .orderBy('pr.nombre')
+        .execute();
       const movimientos = await tx
         .selectFrom('movimientos_stock as m')
         .leftJoin('usuarios as u', 'u.id', 'm.usuario_id')
@@ -306,6 +357,12 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
         ubicacion: p.ubicacion,
         precioGremio: p.precio_gremio,
         codigos: codigos.map((c) => c.codigo),
+        proveedores: proveedores.map((x) => ({
+          proveedorId: x.proveedor_id,
+          nombre: x.nombre,
+          codigo: x.codigo,
+          ...(verCostos(req) ? { costo: x.costo, actualizadoEn: x.actualizado_en } : {}),
+        })),
         movimientos: movimientos.map((m) => ({ ...m, cantidad: Number(m.cantidad) })),
       };
     });
@@ -322,6 +379,11 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
     unidad: z.enum(UNIDADES).optional(),
     ubicacion: z.string().trim().min(1).max(40).nullable().optional(),
     precioGremio: centavos.nullable().optional(),
+    /** Código con el que lo lista cada proveedor (etapa I3). */
+    proveedores: z
+      .array(z.strictObject({ proveedorId: z.uuid(), codigo: z.string().trim().min(1).max(60) }))
+      .max(10)
+      .optional(),
   });
 
   app.post('/api/v1/productos', { config: { roles: EDITAN } }, async (req) => {
@@ -357,6 +419,8 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
           .execute()
           .catch(codigoRepetido);
       }
+      if (d.proveedores?.length)
+        await guardarProveedores(tx, req.completa.kioscoId, id, d.proveedores);
       if (d.stockInicial) {
         await moverStock(tx, {
           kioscoId: req.completa.kioscoId,
@@ -405,6 +469,7 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
         })
         .where('id', '=', id)
         .execute();
+      if (d.proveedores) await guardarProveedores(tx, req.completa.kioscoId, id, d.proveedores);
       if (d.codigos) {
         const nuevos = new Set(d.codigos);
         const actuales = await tx

@@ -93,8 +93,42 @@ export interface ProductosTabla {
   unidad: Generated<'unidad' | 'metro' | 'kilo' | 'litro' | 'caja'>;
   ubicacion: string | null;
   precio_gremio: number | null;
+  precio_actualizado_en: FechaDefault;
   created_at: FechaDefault;
   updated_at: FechaDefault;
+}
+
+export interface ProveedoresTabla {
+  id: string;
+  kiosco_id: string;
+  nombre: string;
+  activo: Generated<boolean>;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
+export interface ProductoProveedorTabla {
+  id: string;
+  kiosco_id: string;
+  producto_id: string;
+  proveedor_id: string;
+  codigo: string;
+  costo: number | null;
+  actualizado_en: FechaDefault;
+}
+
+export interface ListasProveedorTabla {
+  id: string;
+  kiosco_id: string;
+  proveedor_id: string;
+  usuario_id: string;
+  archivo: string | null;
+  renglones: number;
+  opciones: Json;
+  detalle: Json;
+  deshecha_en: Fecha | null;
+  deshecha_por: string | null;
+  created_at: FechaDefault;
 }
 
 export interface CodigosBarraTabla {
@@ -320,6 +354,9 @@ export interface Database {
   invitaciones: InvitacionesTabla;
   oauth_estados: OauthEstadosTabla;
   eventos_webhook: EventosWebhookTabla;
+  proveedores: ProveedoresTabla;
+  producto_proveedor: ProductoProveedorTabla;
+  listas_proveedor: ListasProveedorTabla;
 }
 
 /** Tablas que pertenecen a un kiosco (todas salvo las globales). */
@@ -346,6 +383,9 @@ export const TABLAS_DE_KIOSCO = [
   'auditoria',
   'invitaciones',
   'oauth_estados',
+  'proveedores',
+  'producto_proveedor',
+  'listas_proveedor',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

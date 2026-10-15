@@ -117,6 +117,32 @@ export interface ProductoProveedorTabla {
   actualizado_en: FechaDefault;
 }
 
+export interface ClientesTabla {
+  id: string;
+  kiosco_id: string;
+  nombre: string;
+  telefono: string | null;
+  nota: string | null;
+  limite: number | null;
+  activo: Generated<boolean>;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
+export interface MovimientosCuentaTabla {
+  id: string;
+  kiosco_id: string;
+  cliente_id: string;
+  tipo: 'venta' | 'pago' | 'anulacion' | 'ajuste';
+  monto: number;
+  medio: 'efectivo' | 'transferencia' | null;
+  venta_id: string | null;
+  turno_id: string | null;
+  usuario_id: string;
+  nota: string | null;
+  created_at: FechaDefault;
+}
+
 export interface PresupuestosTabla {
   id: string;
   kiosco_id: string;
@@ -251,6 +277,7 @@ export interface VentasTabla {
   creada_en_dispositivo: Fecha;
   recibida_en: FechaDefault;
   lista: Generated<'mostrador' | 'gremio'>;
+  cliente_id: string | null;
 }
 
 export interface VentaItemsTabla {
@@ -268,7 +295,7 @@ export interface PagosTabla {
   id: string;
   kiosco_id: string;
   venta_id: string;
-  medio: 'efectivo' | 'qr_mp' | 'transferencia';
+  medio: 'efectivo' | 'qr_mp' | 'transferencia' | 'cuenta_corriente';
   monto: number;
   recibido: number | null;
   vuelto: number | null;
@@ -387,6 +414,8 @@ export interface Database {
   listas_proveedor: ListasProveedorTabla;
   presupuestos: PresupuestosTabla;
   presupuesto_items: PresupuestoItemsTabla;
+  clientes: ClientesTabla;
+  movimientos_cuenta: MovimientosCuentaTabla;
 }
 
 /** Tablas que pertenecen a un kiosco (todas salvo las globales). */
@@ -418,6 +447,8 @@ export const TABLAS_DE_KIOSCO = [
   'listas_proveedor',
   'presupuestos',
   'presupuesto_items',
+  'clientes',
+  'movimientos_cuenta',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

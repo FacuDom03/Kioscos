@@ -78,7 +78,7 @@ export const DATOS_MODULOS: Record<Modulo, DatosModulo> = {
     id: 'cuenta_corriente',
     nombre: 'Cuenta corriente',
     descripcion: 'Clientes que pagan después, con límite.',
-    disponible: false,
+    disponible: true,
   },
   variantes: {
     id: 'variantes',

@@ -92,6 +92,20 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   // Kiosco
   caso('GET', '/api/v1/kiosco', 'sin_datos_de_b'),
   caso('PUT', '/api/v1/kiosco/soporte', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
+  // Clientes y cuenta corriente (etapa I5)
+  caso('GET', '/api/v1/clientes', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/clientes', 'escribe_solo_lo_propio', {
+    cuerpo: { nombre: 'Cliente nuevo' },
+  }),
+  caso('PATCH', '/api/v1/clientes/:id', 'no_encontrado', {
+    tabla: 'clientes',
+    cuerpo: { limite: 0 },
+  }),
+  caso('GET', '/api/v1/clientes/:id', 'no_encontrado', { tabla: 'clientes' }),
+  caso('POST', '/api/v1/clientes/:id/pagos', 'no_encontrado', {
+    tabla: 'clientes',
+    cuerpo: { id: '0192a000-0000-7000-8000-0000000000e2', monto: 100, medio: 'transferencia' },
+  }),
   // Presupuestos (etapa I4)
   caso('POST', '/api/v1/presupuestos', 'escribe_solo_lo_propio', {
     cuerpo: {

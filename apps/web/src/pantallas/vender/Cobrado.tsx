@@ -7,6 +7,7 @@ import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { TicketImpreso } from './TicketImpreso.tsx';
 import { RemitoImpreso, imprimirRemito } from './RemitoImpreso.tsx';
 import { useNegocio } from '../../nucleo/rubro.ts';
+import { enPalabras, enlaceWhatsAppCliente, textoCuenta } from '../../nucleo/clientes.ts';
 import { configEquipo } from '../../nucleo/equipo.ts';
 
 const hora = (iso: string) =>
@@ -32,11 +33,13 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
   }, [alNuevaVenta]);
 
   const detalle =
-    venta.medio === 'qr_mp'
-      ? `Mercado Pago confirmó el pago a las ${hora(venta.confirmadoEn ?? venta.creadaEn)}`
-      : venta.medio === 'efectivo'
-        ? `Cobrado en efectivo · Vuelto ${formatearPlata(venta.vuelto ?? 0)}`
-        : 'Cobrado con transferencia';
+    venta.medio === 'cuenta_corriente' && venta.cliente
+      ? `Anotado en la cuenta de ${venta.cliente.nombre} · ${enPalabras(venta.cliente.saldo)}`
+      : venta.medio === 'qr_mp'
+        ? `Mercado Pago confirmó el pago a las ${hora(venta.confirmadoEn ?? venta.creadaEn)}`
+        : venta.medio === 'efectivo'
+          ? `Cobrado en efectivo · Vuelto ${formatearPlata(venta.vuelto ?? 0)}`
+          : 'Cobrado con transferencia';
 
   return (
     <div className="pantalla cobrado">
@@ -91,6 +94,24 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
         <button type="button" className="m-boton" onClick={() => window.print()}>
           Imprimir ticket
         </button>
+        {venta.cliente?.telefono && (
+          <a
+            className="m-boton boton-enlace"
+            href={enlaceWhatsAppCliente(
+              venta.cliente.telefono,
+              textoCuenta(
+                s.kiosco.nombre,
+                venta.cliente.nombre,
+                venta.cliente.saldo,
+                `Te anotamos una compra de ${formatearPlata(venta.total)}.`,
+              ),
+            )}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Mandarle el detalle por WhatsApp
+          </a>
+        )}
         {conRemito && (
           <button type="button" className="m-boton" onClick={imprimirRemito}>
             Imprimir remito sin precios

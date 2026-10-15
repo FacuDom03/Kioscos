@@ -2262,3 +2262,77 @@ details summary {
     text-align: right;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Clientes y cuenta corriente / fiado (etapa I5)
+ * ------------------------------------------------------------------------- */
+
+.fila--cliente {
+  min-height: 60px;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+
+.saldo {
+  flex: none;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.saldo--debe {
+  color: var(--text);
+}
+
+.saldo--grande {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.total-deuda {
+  margin: 0;
+  font-size: 17px;
+}
+
+.lista-clientes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tarjeta-cliente {
+  padding: 14px;
+  border-radius: var(--radio-grande);
+  border: 2px solid var(--action);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tarjeta-cliente__cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
+
+.tarjeta-cliente__datos {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.tarjeta-cliente__datos dt {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.tarjeta-cliente__datos dd {
+  margin: 0;
+  font-size: 17px;
+}

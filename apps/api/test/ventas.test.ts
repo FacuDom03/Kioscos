@@ -218,7 +218,8 @@ describe('caja', () => {
     expect(caja.resumen).toEqual({
       vendido: 1080000,
       ventas: 2,
-      porMedio: { efectivo: 900000, qr_mp: 0, transferencia: 180000 },
+      porMedio: { efectivo: 900000, qr_mp: 0, transferencia: 180000, cuenta_corriente: 0 },
+      cobrosCuenta: { efectivo: 0, transferencia: 0 },
       gastos: 250000,
       retiros: 500000,
       deberiaHaber: 1150000,

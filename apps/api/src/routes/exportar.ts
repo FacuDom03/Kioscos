@@ -182,6 +182,14 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
           .selectFrom('producto_proveedor')
           .select(['producto_id', 'proveedor_id', 'codigo', 'costo', 'actualizado_en'])
           .execute(),
+        clientes: await tx
+          .selectFrom('clientes')
+          .select(['id', 'nombre', 'telefono', 'nota', 'limite', 'activo', 'created_at'])
+          .execute(),
+        movimientosCuenta: await tx
+          .selectFrom('movimientos_cuenta')
+          .select(['cliente_id', 'tipo', 'monto', 'medio', 'venta_id', 'nota', 'created_at'])
+          .execute(),
         presupuestos: await tx
           .selectFrom('presupuestos')
           .select([

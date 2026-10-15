@@ -6,6 +6,7 @@ const MEDIOS = {
   efectivo: 'Efectivo',
   transferencia: 'Transferencia',
   qr_mp: 'QR Mercado Pago',
+  cuenta_corriente: 'A cuenta',
 } as const;
 
 /** Ticket para impresora térmica de 58 u 80 mm. Solo se ve al imprimir (sección 14.3). */
@@ -34,6 +35,7 @@ export function TicketImpreso({ venta, kiosco }: { venta: VentaHecha; kiosco: st
       </div>
       {venta.lista === 'gremio' && <p>Precios de gremio</p>}
       <p>Pago: {MEDIOS[venta.medio]}</p>
+      {venta.cliente && <p>Cliente: {venta.cliente.nombre}</p>}
       {venta.medio === 'efectivo' && venta.recibido !== undefined && (
         <p>
           Recibido {formatearPlata(venta.recibido)} · Vuelto {formatearPlata(venta.vuelto ?? 0)}

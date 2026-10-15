@@ -42,6 +42,7 @@ const REDACTAR = [
   '*.refresh_token',
   '*.email',
   '*.cuit',
+  '*.telefono',
 ];
 
 export interface OpcionesApp {

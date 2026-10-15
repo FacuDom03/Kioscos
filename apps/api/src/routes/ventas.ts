@@ -1,6 +1,7 @@
 // Ventas: sincronización idempotente desde el equipo, historial y anulación (secciones 10 y 12).
 import type { FastifyInstance } from 'fastify';
 import { sql } from '@mostrador/db';
+import { uuidv7 } from '@mostrador/shared';
 import { z } from 'zod';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
@@ -212,6 +213,28 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
               motivo,
             });
           }
+        }
+        // Lo que se había anotado a cuenta se descuenta de la deuda del cliente.
+        const cargo = await tx
+          .selectFrom('movimientos_cuenta')
+          .select(['cliente_id', 'monto'])
+          .where('venta_id', '=', id)
+          .where('tipo', '=', 'venta')
+          .executeTakeFirst();
+        if (cargo) {
+          await tx
+            .insertInto('movimientos_cuenta')
+            .values({
+              id: uuidv7(),
+              kiosco_id: s.kioscoId,
+              cliente_id: cargo.cliente_id,
+              tipo: 'anulacion',
+              monto: -cargo.monto,
+              venta_id: id,
+              usuario_id: s.usuarioId,
+              nota: motivo.slice(0, 200),
+            })
+            .execute();
         }
         const qr = await tx
           .selectFrom('pagos')

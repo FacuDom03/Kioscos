@@ -170,6 +170,17 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     [uuidv7(), uuidv7(), k.id, coca, alfajor, venta, cajero],
   );
 
+  const cliente = uuidv7();
+  await q(
+    `insert into clientes (id, kiosco_id, nombre, telefono, limite) values ($1, $2, 'Rosa', '11 5555-0000', 4000000)`,
+    [cliente, k.id],
+  );
+  await q(
+    `insert into movimientos_cuenta (id, kiosco_id, cliente_id, tipo, monto, usuario_id)
+     values ($1, $2, $3, 'ajuste', 1820000, $4)`,
+    [uuidv7(), k.id, cliente, dueno],
+  );
+
   await q(
     `insert into integraciones (id, kiosco_id, proveedor, estado) values ($1, $2, 'mercadopago', 'desconectado')`,
     [uuidv7(), k.id],

@@ -1,11 +1,12 @@
 // Registro de ventas, gastos y aperturas de caja que llegan del equipo (con o sin conexión).
 // Cada operación trae su UUID: reenviarla nunca duplica nada (sección 12 de docs/SPEC.md).
 import type { TxKiosco } from '@mostrador/db';
-import { subtotal } from '@mostrador/shared';
+import { formatearPlata, subtotal, uuidv7 } from '@mostrador/shared';
 import { z } from 'zod';
 import { ErrorPublico } from '../errores.ts';
 import type { SesionCompleta } from './sesiones.ts';
 import { moverStock } from './stock.ts';
+import { clienteParaCuenta, saldoDe } from './clientes.ts';
 
 const centavos = z.number().int().min(0).max(100_000_000_000);
 const fecha = z.iso.datetime({ offset: true });
@@ -19,6 +20,8 @@ export const esquemaVenta = z.strictObject({
   lista: z.enum(['mostrador', 'gremio']).optional(),
   /** Presupuesto que se vende (etapa I4): queda cerrado con esta venta. */
   presupuestoId: z.uuid().optional(),
+  /** Cliente al que se le anota lo que se paga a cuenta (etapa I5). */
+  clienteId: z.uuid().optional(),
   items: z
     .array(
       z.strictObject({
@@ -35,7 +38,8 @@ export const esquemaVenta = z.strictObject({
     .array(
       z.strictObject({
         id: z.uuid(),
-        medio: z.enum(['efectivo', 'transferencia']),
+        // A cuenta (etapa I5): necesita clienteId; no es plata que entra a la caja.
+        medio: z.enum(['efectivo', 'transferencia', 'cuenta_corriente']),
         monto: centavos.refine((n) => n > 0),
         recibido: centavos.optional(),
       }),
@@ -155,6 +159,21 @@ export async function registrarVenta(
     if (encontrados.length !== ids.length) return rechazo('Un producto de la venta no existe.');
   }
 
+  // A cuenta: el cliente tiene que existir y no pasarse del límite (se toma de a una operación).
+  const aCuenta = v.pagos
+    .filter((p) => p.medio === 'cuenta_corriente')
+    .reduce((t, p) => t + p.monto, 0);
+  if (aCuenta > 0) {
+    if (!v.clienteId) return rechazo('Falta elegir a quién se le anota la venta.');
+    const cliente = await clienteParaCuenta(tx, v.clienteId);
+    if (!cliente?.activo) return rechazo('El cliente de la cuenta no existe.');
+    const saldo = await saldoDe(tx, cliente.id);
+    if (cliente.limite !== null && saldo + aCuenta > cliente.limite)
+      return rechazo(
+        `Con esta venta ${cliente.nombre} pasa su límite de ${formatearPlata(cliente.limite)} (debe ${formatearPlata(saldo)}).`,
+      );
+  }
+
   await tx
     .insertInto('ventas')
     .values({
@@ -166,6 +185,7 @@ export async function registrarVenta(
       total: v.total,
       estado: 'cobrada',
       lista: v.lista ?? 'mostrador',
+      cliente_id: aCuenta > 0 ? (v.clienteId ?? null) : null,
       creada_en_dispositivo: v.creadaEn,
     })
     .execute();
@@ -223,6 +243,20 @@ export async function registrarVenta(
       })
       .execute();
   }
+  if (aCuenta > 0 && v.clienteId) {
+    await tx
+      .insertInto('movimientos_cuenta')
+      .values({
+        id: uuidv7(),
+        kiosco_id: s.kioscoId,
+        cliente_id: v.clienteId,
+        tipo: 'venta',
+        monto: aCuenta,
+        venta_id: v.id,
+        usuario_id: s.usuarioId,
+      })
+      .execute();
+  }
   return avisos.length ? { estado: 'ok', avisos } : { estado: 'ok' };
 }
 
@@ -253,7 +287,9 @@ export async function registrarGasto(
 export interface Resumen {
   vendido: number;
   ventas: number;
-  porMedio: { efectivo: number; qr_mp: number; transferencia: number };
+  porMedio: { efectivo: number; qr_mp: number; transferencia: number; cuenta_corriente: number };
+  /** Pagos de cuentas corrientes que entraron en el turno (el efectivo va a la caja). */
+  cobrosCuenta: { efectivo: number; transferencia: number };
   gastos: number;
   retiros: number;
   deberiaHaber: number;
@@ -290,16 +326,28 @@ export async function resumenTurno(
     .where('turno_id', '=', turnoId)
     .groupBy('tipo')
     .execute();
-  const porMedio = { efectivo: 0, qr_mp: 0, transferencia: 0 };
+  const cobros = await tx
+    .selectFrom('movimientos_cuenta')
+    .select(['medio'])
+    .select((eb) => eb.fn.sum<string>('monto').as('total'))
+    .where('turno_id', '=', turnoId)
+    .where('tipo', '=', 'pago')
+    .groupBy('medio')
+    .execute();
+  const cobrosCuenta = { efectivo: 0, transferencia: 0 };
+  for (const c of cobros) if (c.medio) cobrosCuenta[c.medio] = -Number(c.total);
+  const porMedio = { efectivo: 0, qr_mp: 0, transferencia: 0, cuenta_corriente: 0 };
   for (const p of pagos) porMedio[p.medio] = Number(p.total);
   const g = Number(gastos.find((x) => x.tipo === 'gasto')?.total ?? 0);
   const r = Number(gastos.find((x) => x.tipo === 'retiro')?.total ?? 0);
   return {
-    vendido: porMedio.efectivo + porMedio.qr_mp + porMedio.transferencia,
+    vendido:
+      porMedio.efectivo + porMedio.qr_mp + porMedio.transferencia + porMedio.cuenta_corriente,
     ventas: Number(ventas.n),
     porMedio,
+    cobrosCuenta,
     gastos: g,
     retiros: r,
-    deberiaHaber: cambioInicial + porMedio.efectivo - g - r,
+    deberiaHaber: cambioInicial + porMedio.efectivo + cobrosCuenta.efectivo - g - r,
   };
 }

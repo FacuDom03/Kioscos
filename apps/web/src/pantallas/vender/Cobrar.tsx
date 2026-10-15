@@ -1,4 +1,4 @@
-import { formatearPlata, montosRapidos, vuelto } from '@mostrador/shared';
+import { formatearPlata, montosRapidos, nombreModulo, vuelto } from '@mostrador/shared';
 import { CartelTotal } from '@mostrador/ui';
 import { useEffect, useState } from 'react';
 import { CampoPlata } from '../../componentes/CampoPlata.tsx';
@@ -7,8 +7,10 @@ import { cobrar, type VentaHecha } from '../../nucleo/cobrar.ts';
 import { useEnLinea } from '../../nucleo/conexion.ts';
 import { CobroQr } from './CobroQr.tsx';
 import { useEstadoMp } from '../../nucleo/mp.ts';
+import { useNegocio } from '../../nucleo/rubro.ts';
+import { ACuenta } from './ACuenta.tsx';
 
-export type Medio = 'efectivo' | 'qr' | 'transferencia';
+export type Medio = 'efectivo' | 'qr' | 'transferencia' | 'cuenta';
 
 interface Props {
   total: number;
@@ -22,6 +24,10 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
   const enLinea = useEnLinea();
   const mp = useEstadoMp();
   const qrDisponible = enLinea && !!mp?.puedeCobrar;
+  const negocio = useNegocio();
+  const medios = negocio.tiene('cuenta_corriente')
+    ? (['efectivo', 'qr', 'transferencia', 'cuenta'] as const)
+    : (['efectivo', 'qr', 'transferencia'] as const);
   const [medio, setMedio] = useState<Medio | null>(medioInicial ?? (enLinea ? null : 'efectivo'));
   const [recibido, setRecibido] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +73,7 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
       <fieldset className="campo">
         <legend>¿Cómo paga?</legend>
         <div className="medios">
-          {(['efectivo', 'qr', 'transferencia'] as const).map((m) => (
+          {medios.map((m) => (
             <button
               key={m}
               type="button"
@@ -87,7 +93,9 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
                     : qrDisponible
                       ? 'QR'
                       : 'QR (sin conectar)'
-                  : 'Transferencia'}
+                  : m === 'cuenta'
+                    ? nombreModulo(negocio.rubro, 'cuenta_corriente')
+                    : 'Transferencia'}
             </button>
           ))}
         </div>
@@ -153,6 +161,8 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
           </button>
         </div>
       )}
+
+      {medio === 'cuenta' && <ACuenta total={total} alCobrado={alCobrado} />}
 
       {medio === 'qr' && (
         <CobroQr total={total} alCobrado={alCobrado} alCancelar={() => setMedio(null)} />

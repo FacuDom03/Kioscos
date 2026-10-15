@@ -18,7 +18,8 @@ interface DatosCaja {
   resumen?: {
     vendido: number;
     ventas: number;
-    porMedio: { efectivo: number; qr_mp: number; transferencia: number };
+    porMedio: { efectivo: number; qr_mp: number; transferencia: number; cuenta_corriente?: number };
+    cobrosCuenta?: { efectivo: number; transferencia: number };
     gastos: number;
     retiros: number;
     deberiaHaber: number;
@@ -182,6 +183,14 @@ export function Caja() {
                   <strong className="m-plata">{formatearPlata(r.porMedio[m.clave])}</strong>
                 </li>
               ))}
+              {(r.porMedio.cuenta_corriente ?? 0) > 0 && (
+                <li>
+                  A cuenta (no entra en la caja):{' '}
+                  <strong className="m-plata">
+                    {formatearPlata(r.porMedio.cuenta_corriente ?? 0)}
+                  </strong>
+                </li>
+              )}
             </ul>
           </figcaption>
         </figure>
@@ -198,6 +207,12 @@ export function Caja() {
               <dt>+ Ventas en efectivo</dt>
               <dd className="m-plata">{formatearPlata(r.porMedio.efectivo)}</dd>
             </div>
+            {(r.cobrosCuenta?.efectivo ?? 0) > 0 && (
+              <div>
+                <dt>+ Pagos de cuentas en efectivo</dt>
+                <dd className="m-plata">{formatearPlata(r.cobrosCuenta?.efectivo ?? 0)}</dd>
+              </div>
+            )}
             <div>
               <dt>− Gastos y retiros</dt>
               <dd className="m-plata">{formatearPlata(r.gastos + r.retiros)}</dd>

@@ -1,4 +1,4 @@
-import { DATOS_RUBROS } from '@mostrador/shared';
+import { DATOS_RUBROS, nombreModulo } from '@mostrador/shared';
 import { TEMAS, leerTema } from '@mostrador/ui';
 import { api } from '../nucleo/api.ts';
 import { hayPendientes, sincronizar, useBandeja } from '../nucleo/bandeja.ts';
@@ -67,6 +67,15 @@ export function Mas() {
     ...(dueno ? [{ ruta: '/mas/actividad', nombre: 'Actividad' }] : []),
     ...(!s.esSoporte && (s.rol === 'dueno' || s.rol === 'encargado')
       ? [{ ruta: '/mas/seguridad', nombre: 'Seguridad' }]
+      : []),
+    ...(negocio.tiene('cuenta_corriente')
+      ? [
+          {
+            ruta: '/clientes',
+            nombre: nombreModulo(negocio.rubro, 'cuenta_corriente'),
+            detalle: 'Clientes, deudas y pagos',
+          },
+        ]
       : []),
     ...(negocio.tiene('presupuestos')
       ? [

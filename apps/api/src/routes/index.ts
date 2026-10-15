@@ -9,6 +9,7 @@ import { rutasCompras } from './compras.ts';
 import { rutasPrecios } from './precios.ts';
 import { rutasProveedores } from './proveedores.ts';
 import { rutasPresupuestos } from './presupuestos.ts';
+import { rutasClientes } from './clientes.ts';
 import { rutasCuenta } from './cuenta.ts';
 import { rutasDispositivos } from './dispositivos.ts';
 import { rutasKiosco } from './kiosco.ts';
@@ -27,6 +28,7 @@ export async function registrarRutas(app: FastifyInstance): Promise<void> {
   await app.register(rutasPrecios);
   await app.register(rutasProveedores);
   await app.register(rutasPresupuestos);
+  await app.register(rutasClientes);
   await app.register(rutasVentas);
   await app.register(rutasCaja);
   await app.register(rutasMp);

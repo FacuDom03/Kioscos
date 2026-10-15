@@ -41,6 +41,8 @@ import { ListaProveedor } from './pantallas/stock/ListaProveedor.tsx';
 import { Proveedores } from './pantallas/stock/Proveedores.tsx';
 import { PresupuestoPantalla } from './pantallas/presupuestos/Presupuesto.tsx';
 import { Presupuestos } from './pantallas/presupuestos/Presupuestos.tsx';
+import { ClientePantalla } from './pantallas/clientes/Cliente.tsx';
+import { Clientes } from './pantallas/clientes/Clientes.tsx';
 
 export function App() {
   return (
@@ -132,6 +134,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
   const producto = /^\/stock\/producto\/([0-9a-f-]{36})$/.exec(ruta);
   const listaProveedor = /^\/stock\/proveedores\/([0-9a-f-]{36})\/lista$/.exec(ruta);
   const presupuesto = /^\/presupuestos\/([0-9a-f-]{36})$/.exec(ruta);
+  const cliente = /^\/clientes\/([0-9a-f-]{36})$/.exec(ruta);
   switch (
     producto
       ? '/stock/producto/:id'
@@ -139,8 +142,16 @@ function AppConSesion({ ruta }: { ruta: string }) {
         ? '/stock/proveedores/:id/lista'
         : presupuesto
           ? '/presupuestos/:id'
-          : ruta
+          : cliente
+            ? '/clientes/:id'
+            : ruta
   ) {
+    case '/clientes':
+      pantalla = <Clientes alVolver={volverAMas} />;
+      break;
+    case '/clientes/:id':
+      pantalla = <ClientePantalla key={cliente?.[1]} id={cliente?.[1] ?? ''} />;
+      break;
     case '/presupuestos':
       pantalla = <Presupuestos alVolver={() => navegar('/')} />;
       break;

@@ -59,3 +59,25 @@ test('el tablero muestra qué se vende, qué no se mueve y qué falta', async ({
   await page.getByLabel('Período').selectOption('hoy');
   await expect(page.locator('.indicador').filter({ hasText: 'Ventas' })).toContainText('3');
 });
+
+test('recién empezado, el tablero muestra los primeros pasos en vez de cuadros vacíos', async ({
+  page,
+}, info) => {
+  const d = await kioscoConDueno('comercio', { cajaAbierta: false, rubro: 'ferreteria' });
+  await activarModulos(d.kioscoId, ['venta_fraccionada', 'precios_proveedor']);
+  await entrar(page, d);
+  await page.goto('/tablero');
+  const pasos = page.getByRole('region', { name: 'Primeros pasos' });
+  await expect(pasos).toBeVisible();
+  await expect(pasos.getByRole('button', { name: 'Lista de proveedor' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Lo que más se vende' })).toHaveCount(0);
+  expect(
+    (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations,
+  ).toEqual([]);
+  await page.screenshot({
+    path: `/tmp/claude-0/-home-user-Kioscos/a0caa3b8-ef77-578e-a76d-9de903651bbb/scratchpad/capturas/vacio-${info.project.name}.png`,
+    fullPage: true,
+  });
+  await pasos.getByRole('button', { name: 'Cargar un producto' }).click();
+  await expect(page.getByRole('heading', { name: 'Nuevo producto' })).toBeVisible();
+});

@@ -2741,3 +2741,74 @@ details summary {
 .fila--variante .texto-suave {
   font-weight: 400;
 }
+
+/* Tablero: en la PC usa el ancho de la pantalla (como el mockup), no la columna de lectura. */
+.pantalla.tablero {
+  max-width: 1600px;
+}
+
+.primeros-pasos {
+  gap: 12px;
+}
+
+.pasos {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paso {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 14px;
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+  background: var(--bg);
+}
+
+.paso__marca {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--line-control);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+
+.paso--hecho .paso__marca {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--bg);
+}
+
+.paso--hecho .paso__texto strong {
+  color: var(--text-soft);
+}
+
+.paso__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.paso__acciones {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .paso {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .paso__acciones {
+    grid-column: 3;
+    justify-content: flex-end;
+  }
+}

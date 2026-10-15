@@ -1,7 +1,10 @@
 import { diaCorto, formatearCantidad, formatearPlata, type Unidad } from '@mostrador/shared';
 import { useState } from 'react';
 import { Aviso, Volver } from '../../componentes/Formulario.tsx';
+import { useCatalogo } from '../../nucleo/catalogo.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
+import { puede, useSesionCompleta } from '../../nucleo/sesion.tsx';
+import { useTurno } from '../../nucleo/turno.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 
@@ -10,6 +13,8 @@ interface DatosTablero {
     vendido: number;
     ventas: number;
     ticketPromedio: number;
+    /** Lo vendido en el período anterior del mismo largo. */
+    anterior: number;
     variacion: number | null;
     gremio: { vendido: number; ticketPromedio: number };
   };
@@ -60,6 +65,13 @@ export function Tablero({ alVolver }: { alVolver: () => void }) {
   const { datos: t, error } = useDatos<DatosTablero>(`/api/v1/tablero?periodo=${periodo}`);
   const maxVendido = Math.max(0, ...(t?.masVendidos.map((m) => m.importe) ?? []));
   const maxCategoria = Math.max(0, ...(t?.categorias.map((c) => c.importe) ?? []));
+  const { catalogo } = useCatalogo();
+  // Recién empezado (sin productos o sin ninguna venta todavía): en vez de cuadros vacíos, qué
+  // hacer para arrancar.
+  const sinNada =
+    !!t &&
+    !!catalogo &&
+    (catalogo.productos.length === 0 || (t.resumen.ventas === 0 && t.resumen.anterior === 0));
 
   return (
     <div className="pantalla pantalla--ancha tablero">
@@ -84,7 +96,8 @@ export function Tablero({ alVolver }: { alVolver: () => void }) {
       </div>
       {error && <Aviso>{error}</Aviso>}
       {!t && !error && <div aria-busy="true" className="cargando-chico" />}
-      {t && (
+      {t && sinNada && <PrimerosPasos huboVentas={t.resumen.ventas > 0} />}
+      {t && !sinNada && (
         <>
           {t.preciosViejos > 0 && negocio.tiene('precios_proveedor') && (
             <div className="aviso aviso--info tablero__aviso" role="status">
@@ -332,5 +345,102 @@ export function Tablero({ alVolver }: { alVolver: () => void }) {
         </>
       )}
     </div>
+  );
+}
+
+/** Primeros pasos para un comercio que recién arranca. Cada paso se tilda solo cuando se hizo. */
+function PrimerosPasos({ huboVentas }: { huboVentas: boolean }) {
+  const s = useSesionCompleta();
+  const negocio = useNegocio();
+  const turno = useTurno();
+  const { catalogo } = useCatalogo();
+  const productos = catalogo?.productos.length ?? 0;
+  const editar = puede.editarCatalogo(s.rol);
+  const pasos = [
+    {
+      hecho: productos > 0,
+      titulo: 'Cargá tus productos',
+      detalle:
+        productos > 0
+          ? `Ya tenés ${productos} ${productos === 1 ? 'producto' : 'productos'}.`
+          : negocio.tiene('precios_proveedor')
+            ? 'Uno por uno, desde una planilla o con la lista de un proveedor.'
+            : 'Uno por uno o todos juntos desde una planilla.',
+      acciones: editar
+        ? [
+            { texto: 'Cargar un producto', ruta: '/stock/producto/nuevo' },
+            { texto: 'Importar planilla', ruta: '/stock/importar' },
+            ...(negocio.tiene('precios_proveedor')
+              ? [{ texto: 'Lista de proveedor', ruta: '/stock/proveedores' }]
+              : []),
+          ]
+        : [],
+    },
+    {
+      hecho: turno.tipo === 'abierto',
+      titulo: 'Abrí la caja',
+      detalle: 'Con el cambio con el que arrancás el día. Al cerrar, la caja te dice si cierra.',
+      acciones: [{ texto: turno.tipo === 'abierto' ? 'Ver la caja' : 'Abrir la caja', ruta: '/' }],
+    },
+    {
+      hecho: huboVentas,
+      titulo: 'Hacé la primera venta',
+      detalle: 'Escaneá el código, buscá por nombre o tocá el producto, y cobrá.',
+      acciones: [{ texto: 'Ir a vender', ruta: '/' }],
+    },
+    ...(s.rol === 'dueno'
+      ? [
+          {
+            hecho: false,
+            titulo: 'Sumá a quien atiende',
+            detalle: 'Cada cajero entra con su PIN, y vos ves quién vendió qué.',
+            acciones: [
+              { texto: 'Usuarios', ruta: '/mas/usuarios' },
+              { texto: 'Autorizar esta PC', ruta: '/mas/dispositivos' },
+            ],
+          },
+        ]
+      : []),
+  ];
+  return (
+    <section className="tarjeta-tablero primeros-pasos" aria-labelledby="t-pasos">
+      <h2 className="subtitulo" id="t-pasos">
+        Primeros pasos
+      </h2>
+      <p className="texto-suave">
+        Cuando empieces a vender, acá vas a ver qué se vende más, qué no se mueve, qué falta y
+        cuánto ganás por categoría.
+      </p>
+      <ol className="pasos">
+        {pasos.map((p) => (
+          <li key={p.titulo} className={`paso${p.hecho ? ' paso--hecho' : ''}`}>
+            <span className="paso__marca" aria-hidden="true">
+              {p.hecho ? '✓' : ''}
+            </span>
+            <span className="paso__texto">
+              <strong>
+                {p.titulo}
+                {p.hecho && <span className="m-solo-lectores"> (hecho)</span>}
+              </strong>
+              <span className="texto-suave">{p.detalle}</span>
+            </span>
+            {!p.hecho && p.acciones.length > 0 && (
+              <span className="paso__acciones">
+                {p.acciones.map((a) => (
+                  <button
+                    key={a.texto}
+                    type="button"
+                    className="m-boton"
+                    onClick={() => navegar(a.ruta)}
+                  >
+                    {a.texto}
+                  </button>
+                ))}
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

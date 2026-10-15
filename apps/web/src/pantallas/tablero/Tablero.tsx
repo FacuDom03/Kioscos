@@ -1,0 +1,276 @@
+import { formatearCantidad, formatearPlata, type Unidad } from '@mostrador/shared';
+import { useState } from 'react';
+import { Aviso, Volver } from '../../componentes/Formulario.tsx';
+import { useNegocio } from '../../nucleo/rubro.ts';
+import { navegar } from '../../nucleo/ruta.ts';
+import { useDatos } from '../../nucleo/usar-datos.ts';
+
+interface DatosTablero {
+  resumen: {
+    vendido: number;
+    ventas: number;
+    ticketPromedio: number;
+    variacion: number | null;
+    gremio: { vendido: number; ticketPromedio: number };
+  };
+  masVendidos: { id: string; nombre: string; unidad: Unidad; importe: number; cantidad: number }[];
+  sinMovimiento: {
+    productos: number;
+    plataParada: number;
+    lista: { id: string; nombre: string; unidad: Unidad; stock: number; capital: number }[];
+  };
+  porReponer: {
+    productos: number;
+    lista: { id: string; nombre: string; unidad: Unidad; stock: number; minimo: number }[];
+  };
+  categorias: { categoria: string; importe: number; ganancia: number | null }[];
+  clientes: { deuda: number; deudores: number; sinPagarHace30: number };
+  preciosViejos: number;
+}
+
+const PERIODOS = [
+  { id: 'hoy', nombre: 'Hoy' },
+  { id: '7', nombre: 'Últimos 7 días' },
+  { id: '30', nombre: 'Últimos 30 días' },
+  { id: '90', nombre: 'Últimos 90 días' },
+] as const;
+
+/** Barra horizontal de una sola serie: el valor siempre va escrito al lado. Decorativa. */
+function Barra({ valor, maximo }: { valor: number; maximo: number }) {
+  const pct = maximo > 0 ? Math.max(2, Math.round((valor / maximo) * 100)) : 0;
+  return (
+    <span className="barra" aria-hidden="true">
+      <span className="barra__relleno" style={{ width: `${pct}%` }} />
+    </span>
+  );
+}
+
+const porcentaje = (n: number) => `${n.toLocaleString('es-AR', { maximumFractionDigits: 1 })} %`;
+
+/** Tablero del comercio (etapa I6). */
+export function Tablero({ alVolver }: { alVolver: () => void }) {
+  const negocio = useNegocio();
+  const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]['id']>('30');
+  const { datos: t, error } = useDatos<DatosTablero>(`/api/v1/tablero?periodo=${periodo}`);
+  const maxVendido = Math.max(0, ...(t?.masVendidos.map((m) => m.importe) ?? []));
+  const maxCategoria = Math.max(0, ...(t?.categorias.map((c) => c.importe) ?? []));
+
+  return (
+    <div className="pantalla pantalla--ancha tablero">
+      <Volver onClick={alVolver} />
+      <div className="encabezado-pantalla">
+        <h1 className="m-titulo">Tablero</h1>
+        <div className="campo campo--en-linea">
+          <label htmlFor="periodo">Período</label>
+          <select
+            id="periodo"
+            className="campo__entrada"
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value as typeof periodo)}
+          >
+            {PERIODOS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {error && <Aviso>{error}</Aviso>}
+      {!t && !error && <div aria-busy="true" className="cargando-chico" />}
+      {t && (
+        <>
+          {t.preciosViejos > 0 && negocio.tiene('precios_proveedor') && (
+            <div className="aviso aviso--info tablero__aviso" role="status">
+              <span>
+                <strong>{t.preciosViejos} productos</strong> tienen el precio de hace más de 30
+                días.
+              </span>
+              <button
+                type="button"
+                className="m-boton"
+                onClick={() => navegar('/stock/proveedores')}
+              >
+                Actualizar precios
+              </button>
+            </div>
+          )}
+
+          <div className="indicadores">
+            <div className="indicador">
+              <span className="indicador__nombre">Vendido</span>
+              <span className="indicador__valor m-plata">{formatearPlata(t.resumen.vendido)}</span>
+              {t.resumen.variacion !== null && (
+                <span className="indicador__detalle">
+                  {t.resumen.variacion === 0
+                    ? 'Igual que el período anterior'
+                    : `${porcentaje(Math.abs(t.resumen.variacion))} ${t.resumen.variacion > 0 ? 'más' : 'menos'} que el período anterior`}
+                </span>
+              )}
+            </div>
+            <div className="indicador">
+              <span className="indicador__nombre">Ventas</span>
+              <span className="indicador__valor">{t.resumen.ventas.toLocaleString('es-AR')}</span>
+            </div>
+            <div className="indicador">
+              <span className="indicador__nombre">Ticket promedio</span>
+              <span className="indicador__valor m-plata">
+                {formatearPlata(t.resumen.ticketPromedio)}
+              </span>
+              {negocio.tiene('listas_precios') && t.resumen.gremio.ticketPromedio > 0 && (
+                <span className="indicador__detalle">
+                  Gremio: {formatearPlata(t.resumen.gremio.ticketPromedio)}
+                </span>
+              )}
+            </div>
+            {negocio.tiene('cuenta_corriente') && (
+              <button
+                type="button"
+                className="indicador indicador--boton"
+                onClick={() => navegar('/clientes')}
+              >
+                <span className="indicador__nombre">Te deben</span>
+                <span className="indicador__valor m-plata">{formatearPlata(t.clientes.deuda)}</span>
+                <span className="indicador__detalle">
+                  {t.clientes.deudores} {t.clientes.deudores === 1 ? 'cliente' : 'clientes'}
+                  {t.clientes.sinPagarHace30 > 0 &&
+                    ` · ${t.clientes.sinPagarHace30} sin pagar hace un mes`}
+                </span>
+              </button>
+            )}
+          </div>
+
+          <div className="tablero__secciones">
+            <section className="tarjeta-tablero" aria-labelledby="t-mas">
+              <h2 className="subtitulo" id="t-mas">
+                Lo que más se vende
+              </h2>
+              {t.masVendidos.length === 0 ? (
+                <p className="texto-suave">Todavía no hay ventas en este período.</p>
+              ) : (
+                <ul className="lista-barras">
+                  {t.masVendidos.map((m) => (
+                    <li key={m.id}>
+                      <span className="lista-barras__texto">
+                        <span>
+                          {m.nombre}{' '}
+                          <span className="texto-suave">
+                            · {formatearCantidad(m.cantidad, m.unidad)}
+                          </span>
+                        </span>
+                        <strong className="m-plata">{formatearPlata(m.importe)}</strong>
+                      </span>
+                      <Barra valor={m.importe} maximo={maxVendido} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="tarjeta-tablero" aria-labelledby="t-quietos">
+              <div className="tarjeta-tablero__cabeza">
+                <h2 className="subtitulo" id="t-quietos">
+                  Sin ventas en 60 días
+                </h2>
+                {t.sinMovimiento.plataParada > 0 && (
+                  <span className="texto-suave">
+                    Plata parada:{' '}
+                    <strong className="m-plata">
+                      {formatearPlata(t.sinMovimiento.plataParada)}
+                    </strong>
+                  </span>
+                )}
+              </div>
+              {t.sinMovimiento.lista.length === 0 ? (
+                <p className="texto-suave">
+                  Todo lo que tiene stock se vendió en los últimos 60 días.
+                </p>
+              ) : (
+                <ul className="lista-tablero">
+                  {t.sinMovimiento.lista.map((q) => (
+                    <li key={q.id}>
+                      <span>{q.nombre}</span>
+                      <span className="texto-suave">{formatearCantidad(q.stock, q.unidad)}</span>
+                      <span className="m-plata">
+                        {q.capital > 0 ? formatearPlata(q.capital) : '—'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {t.sinMovimiento.productos > t.sinMovimiento.lista.length && (
+                <p className="texto-suave">
+                  Y {t.sinMovimiento.productos - t.sinMovimiento.lista.length} más.
+                </p>
+              )}
+            </section>
+
+            <section className="tarjeta-tablero" aria-labelledby="t-reponer">
+              <div className="tarjeta-tablero__cabeza">
+                <h2 className="subtitulo" id="t-reponer">
+                  Por reponer
+                </h2>
+                {t.porReponer.productos > 0 && (
+                  <button type="button" className="enlace-boton" onClick={() => navegar('/stock')}>
+                    {t.porReponer.productos === 1
+                      ? 'Verlo en Stock'
+                      : `Ver los ${t.porReponer.productos} en Stock`}
+                  </button>
+                )}
+              </div>
+              {t.porReponer.lista.length === 0 ? (
+                <p className="texto-suave">No falta nada.</p>
+              ) : (
+                <ul className="lista-tablero">
+                  {t.porReponer.lista.map((p) => (
+                    <li key={p.id}>
+                      <span>{p.nombre}</span>
+                      <span className="texto-suave">
+                        {p.stock <= 0
+                          ? 'Sin stock'
+                          : `Quedan ${formatearCantidad(p.stock, p.unidad)}`}{' '}
+                        de {formatearCantidad(p.minimo, p.unidad)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="tarjeta-tablero" aria-labelledby="t-categorias">
+              <h2 className="subtitulo" id="t-categorias">
+                Por categoría
+              </h2>
+              {t.categorias.length === 0 ? (
+                <p className="texto-suave">Todavía no hay ventas en este período.</p>
+              ) : (
+                <ul className="lista-barras">
+                  {t.categorias.map((c) => (
+                    <li key={c.categoria}>
+                      <span className="lista-barras__texto">
+                        <span>
+                          {c.categoria}{' '}
+                          <span className="texto-suave">
+                            ·{' '}
+                            {c.ganancia === null
+                              ? 'sin costos cargados'
+                              : `ganancia ${porcentaje(c.ganancia)}`}
+                          </span>
+                        </span>
+                        <strong className="m-plata">{formatearPlata(c.importe)}</strong>
+                      </span>
+                      <Barra valor={c.importe} maximo={maxCategoria} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="nota">
+                La ganancia se calcula con el costo que tiene cargado hoy cada producto.
+              </p>
+            </section>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

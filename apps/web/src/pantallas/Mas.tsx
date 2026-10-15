@@ -68,6 +68,9 @@ export function Mas() {
     ...(!s.esSoporte && (s.rol === 'dueno' || s.rol === 'encargado')
       ? [{ ruta: '/mas/seguridad', nombre: 'Seguridad' }]
       : []),
+    ...(s.rol !== 'cajero'
+      ? [{ ruta: '/tablero', nombre: 'Tablero', detalle: 'Qué se vende, qué no y qué falta' }]
+      : []),
     ...(negocio.tiene('cuenta_corriente')
       ? [
           {

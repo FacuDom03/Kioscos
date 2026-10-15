@@ -2336,3 +2336,140 @@ details summary {
   margin: 0;
   font-size: 17px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Tablero (etapa I6). Barras de una sola serie, con el valor escrito al lado.
+ * ------------------------------------------------------------------------- */
+
+.campo--en-linea {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.tablero__aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.indicador {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--radio);
+  border: var(--line-w) solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.indicador--boton {
+  border-color: var(--line-control);
+}
+
+.indicador__nombre {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.indicador__valor {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.indicador__detalle {
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.tablero__secciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 12px;
+}
+
+.tarjeta-tablero {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radio);
+  border: var(--line-w) solid var(--line);
+  background: var(--surface);
+}
+
+.tarjeta-tablero__cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.lista-barras,
+.lista-tablero {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lista-barras li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lista-barras__texto {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 15px;
+}
+
+.barra {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.barra__relleno {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--chart-1);
+}
+
+.lista-tablero li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-bottom: 8px;
+  border-bottom: var(--line-w) solid var(--line);
+  font-size: 15px;
+}
+
+.lista-tablero li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.lista-tablero li > span:first-child {
+  flex: 1 1 200px;
+}

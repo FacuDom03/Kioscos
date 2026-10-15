@@ -43,6 +43,7 @@ import { PresupuestoPantalla } from './pantallas/presupuestos/Presupuesto.tsx';
 import { Presupuestos } from './pantallas/presupuestos/Presupuestos.tsx';
 import { ClientePantalla } from './pantallas/clientes/Cliente.tsx';
 import { Clientes } from './pantallas/clientes/Clientes.tsx';
+import { Tablero } from './pantallas/tablero/Tablero.tsx';
 
 export function App() {
   return (
@@ -146,6 +147,9 @@ function AppConSesion({ ruta }: { ruta: string }) {
             ? '/clientes/:id'
             : ruta
   ) {
+    case '/tablero':
+      pantalla = <Tablero alVolver={volverAMas} />;
+      break;
     case '/clientes':
       pantalla = <Clientes alVolver={volverAMas} />;
       break;

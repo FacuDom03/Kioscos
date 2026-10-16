@@ -105,8 +105,12 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 - Se ofreció que la dirección vieja redirija a la nueva; sin respuesta.
 - El escáner con guía y Vender en el celular ya están en la rama principal. Falta que la persona
   actualice el servidor y lo pruebe (iPhone para el escáner).
-- Hay un PostgreSQL de otra app expuesto a todo internet (puerto 32769) y el SSH acepta
-  contraseña. Conviene cerrar el puerto, usar firewall (22, 80, 443) y pasar a clave SSH.
+- Firewall de hPanel activo: acepta TCP 22, 80, 443, 8000 (Control Domínguez), 32768 (Hermes) y
+  32770 (n8n) y descarta todo lo demás. El PostgreSQL de otra app (32769) ya quedó cerrado.
+  Pendiente: n8n se usa por `http://2.25.133.5:32770` sin cifrar; se le pasaron los pasos para
+  `https://n8n.mimostrador.tech` (DNS A/AAAA `n8n` + labels de Traefik con certresolver
+  `letsencrypt`) y después borrar la regla del 32770. Lo mismo con 8000 y 32768. El SSH todavía
+  acepta contraseña: falta pasar a clave SSH.
 - Mercado Pago: aún sin configurar. Falta crear la aplicación en Mercado Pago, dos vendedores y un
   comprador de prueba, cargar Client ID, secreto y clave de webhooks (con `read -rs`), usar
   `MP_PRUEBAS=1` y probar. Pasos en `docs/DEPLOY.md`, sección 6.

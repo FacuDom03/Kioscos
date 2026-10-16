@@ -62,9 +62,13 @@ test('un presupuesto se guarda, se manda, vence y se cobra sin cargar nada de nu
 
   // Pasa el tiempo: vence y el cable aumenta. Se cobra con los precios de hoy.
   const c = admin();
-  await c.query(`update presupuestos set vence_en = current_date - 1 where kiosco_id = $1`, [
-    d.kioscoId,
-  ]);
+  // Ayer en la Argentina, como lo cuenta la API (current_date de la base va en UTC).
+  await c.query(
+    `update presupuestos
+        set vence_en = (now() at time zone 'America/Argentina/Buenos_Aires')::date - 1
+      where kiosco_id = $1`,
+    [d.kioscoId],
+  );
   await c.query(
     `update productos set precio_gremio = 130000 where kiosco_id = $1 and unidad = 'metro'`,
     [d.kioscoId],

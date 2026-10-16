@@ -54,8 +54,8 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
   Prueba e2e `apps/web/e2e/camara.spec.ts` con cámara falsa de Chromium (video y4m con un
   EAN-13). **Falta probarlo con un iPhone real**; si sigue costando, el paso siguiente es pedir
   zoom por hardware (`zoom` en `applyConstraints`) donde exista.
-- Prueba de presupuestos vencidos: fallaba entre las 0 y las 3 (UTC) porque usaba la fecha de la
-  base en vez de la de Argentina. Corregida.
+- Pruebas de presupuestos vencidos (API y e2e): fallaban entre las 0 y las 3 (UTC) porque usaban la fecha de la
+  base en vez de la de Argentina. Corregidas.
 
 - **Tablero**: cuando no hay datos muestra "Primeros pasos" en vez de cuadros vacíos. Ahora tiene
   sección propia en la barra de navegación (dueño y encargado; el cajero no la ve).

@@ -13,9 +13,10 @@ contraseñas ni claves: esas no se pasan por chat.
 - Reglas de `CLAUDE.md` del repo: preguntar antes de agregar una dependencia grande, cambiar el
   modelo de datos de forma incompatible, tocar políticas RLS o roles de base, o guardar un dato
   personal nuevo.
-- No crear Pull Request salvo que se pida. Trabajar y subir solo a la rama que indique la sesión
-  (la última fue `claude/blissful-gates-hx4qur`; antes `claude/mostrador-etapa-a-7jft9w`) del
-  repo `facudom03/kioscos`.
+- No crear Pull Request salvo que se pida. La persona pidió que **todo vaya a la rama principal
+  `claude/mostrador-etapa-a-7jft9w`** del repo `facudom03/kioscos` (es la rama por defecto y la
+  que usa el servidor). Si la sesión indica otra rama de trabajo, subir ahí y además a la
+  principal.
 - Los commits terminan con las líneas de atribución que indique el sistema. No poner nombres de
   modelo en el repo.
 - Verificar siempre el código de salida de lint, format, typecheck y tests (no esconderlo con
@@ -102,8 +103,8 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 - Cloudflare: no se usa. La variante Traefik de `docs/DEPLOY.md` no lo necesita y el DNS de
   `mimostrador.tech` está en Hostinger.
 - Se ofreció que la dirección vieja redirija a la nueva; sin respuesta.
-- El escáner con guía ya está también en `claude/mostrador-etapa-a-7jft9w` (la que usa el
-  servidor). Falta que la persona lo pruebe con un iPhone.
+- El escáner con guía y Vender en el celular ya están en la rama principal. Falta que la persona
+  actualice el servidor y lo pruebe (iPhone para el escáner).
 - Hay un PostgreSQL de otra app expuesto a todo internet (puerto 32769) y el SSH acepta
   contraseña. Conviene cerrar el puerto, usar firewall (22, 80, 443) y pasar a clave SSH.
 - Mercado Pago: aún sin configurar. Falta crear la aplicación en Mercado Pago, dos vendedores y un

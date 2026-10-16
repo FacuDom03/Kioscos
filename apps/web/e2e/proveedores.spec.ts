@@ -96,3 +96,51 @@ test('se sube la lista en Excel, se revisa, se aplica, se imprimen etiquetas y s
     { nombre: 'Llave de luz armada', precio: 390000 },
   ]);
 });
+
+test('la lista nueva recuerda el formato y los números de la anterior del proveedor', async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== 'pc', 'Se hace en la PC del mostrador');
+  const d = await kioscoConDueno('comercio', { cajaAbierta: true, rubro: 'ferreteria' });
+  await activarModulos(d.kioscoId, ['precios_proveedor']);
+  const c = admin();
+  const proveedor = uuidv7();
+  await c.query(
+    `insert into proveedores (id, kiosco_id, nombre) values ($1, $2, 'Distribuidora Sur')`,
+    [proveedor, d.kioscoId],
+  );
+  // La vez pasada: 12 % de bonificación, sin IVA, y el precio estaba en la columna B.
+  await c.query(
+    `insert into listas_proveedor (id, kiosco_id, proveedor_id, usuario_id, archivo, renglones, opciones, detalle)
+     select $1, $2, $3, usuario_id, 'lista-septiembre.xlsx', 3, $4, '[]'
+       from membresias where kiosco_id = $2`,
+    [
+      uuidv7(),
+      d.kioscoId,
+      proveedor,
+      JSON.stringify({
+        descuento: 12,
+        iva: true,
+        calculo: 'ganancia',
+        ganancia: 55,
+        redondeo: 1000,
+        gremio: 'no',
+        gananciaGremio: 25,
+        columnas: { encabezado: 2, codigo: 0, descripcion: -1, precio: 1 },
+      }),
+    ],
+  );
+
+  await entrar(page, d);
+  await page.goto(`/stock/proveedores/${proveedor}/lista`);
+  await expect(page.getByRole('heading', { name: /Lista nueva/ })).toBeVisible();
+  await page.getByLabel(/Elegir la lista/).setInputFiles({
+    name: 'lista-sur-octubre.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: Buffer.from(LISTA_XLSX, 'base64'),
+  });
+  await expect(page.getByLabel('Precio', { exact: true })).toHaveValue('1');
+  await expect(page.getByLabel('Bonificación del proveedor (%)')).toHaveValue('12');
+  await expect(page.getByLabel('La lista viene sin IVA: sumar 21 %')).toBeChecked();
+  await expect(page.getByLabel('Ganancia (%)')).toHaveValue('55');
+});

@@ -54,6 +54,20 @@ interface Vista {
   nuevos: Nuevo[];
 }
 
+interface ListaAnterior {
+  deshecha_en: string | null;
+  opciones: {
+    descuento: number;
+    iva: boolean;
+    calculo: 'mantener' | 'ganancia';
+    ganancia: number;
+    redondeo: 100 | 1000 | 5000 | 10000;
+    gremio: 'no' | 'mantener' | 'ganancia';
+    gananciaGremio: number;
+    columnas?: Columnas;
+  };
+}
+
 interface Archivo {
   nombre: string;
   filas: string[][];
@@ -93,6 +107,14 @@ export function ListaProveedor({ id }: { id: string }) {
   const conGremio = negocio.tiene('listas_precios');
   const { datos: proveedores } = useDatos<Proveedor[]>('/api/v1/proveedores');
   const proveedor = proveedores?.find((p) => p.id === id);
+  // La última lista de este proveedor: se reusan su formato y sus números.
+  const { datos: anteriores } = useDatos<ListaAnterior[]>(`/api/v1/proveedores/${id}/listas`);
+  const anterior = anteriores?.find((l) => !l.deshecha_en)?.opciones ?? null;
+  /** Las columnas de la lista anterior, si la planilla nueva tiene esa forma. */
+  const columnasGuardadas = (filas: string[][]) => {
+    const g = anterior?.columnas;
+    return g && (filas[g.encabezado]?.length ?? 0) > Math.max(g.codigo, g.precio) ? g : null;
+  };
 
   const [archivo, setArchivo] = useState<Archivo | null>(null);
   const [columnas, setColumnas] = useState<Columnas | null>(null);
@@ -117,6 +139,24 @@ export function ListaProveedor({ id }: { id: string }) {
   );
   const [deshecho, setDeshecho] = useState<string | null>(null);
   const [etiquetas, setEtiquetas] = useState<Etiqueta[]>([]);
+  const [recordado, setRecordado] = useState(false);
+
+  // Una vez, cuando llega la última lista: mismos números que la vez pasada.
+  if (anterior && !recordado) {
+    setRecordado(true);
+    setDescuento(String(anterior.descuento).replace('.', ','));
+    setIva(anterior.iva);
+    setCalculo(anterior.calculo);
+    setGanancia(String(anterior.ganancia).replace('.', ','));
+    setRedondeo(anterior.redondeo);
+    if (conGremio) {
+      setGremio(anterior.gremio);
+      setGananciaGremio(String(anterior.gananciaGremio).replace('.', ','));
+    }
+    // Si el archivo se eligió antes de que llegara la lista anterior.
+    const g = archivo ? columnasGuardadas(archivo.filas) : null;
+    if (g) setColumnas(g);
+  }
 
   const lectura = useMemo(
     () => (archivo && columnas ? renglonesDeLista(archivo.filas, columnas, archivo.origen) : null),
@@ -132,6 +172,7 @@ export function ListaProveedor({ id }: { id: string }) {
       redondeo,
       gremio,
       gananciaGremio: numero(gananciaGremio),
+      ...(columnas ? { columnas } : {}),
     };
     if ([o.descuento, o.ganancia, o.gananciaGremio].some((n) => Number.isNaN(n)))
       throw new Error('Revisá los porcentajes: tienen que ser números.');
@@ -158,7 +199,9 @@ export function ListaProveedor({ id }: { id: string }) {
         ? await leerXlsx(new Uint8Array(await f.arrayBuffer()))
         : leerCsv(await f.text());
       setArchivo({ nombre: f.name.slice(0, 120), filas, origen: esXlsx ? 'xlsx' : 'csv' });
-      const detectadas = detectarColumnas(filas);
+      // Primero, las columnas de la lista anterior de este proveedor, si la planilla tiene esa
+      // forma; si no, se buscan por los títulos.
+      const detectadas = columnasGuardadas(filas) ?? detectarColumnas(filas);
       setColumnas(detectadas ?? { encabezado: 0, codigo: 0, descripcion: 1, precio: 2 });
       if (!detectadas)
         setError('No encontramos solas las columnas de código y precio. Elegilas abajo.');

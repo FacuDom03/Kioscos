@@ -72,6 +72,12 @@ test('código desconocido: ofrece cargar el producto o vender con precio libre',
   await page.getByRole('button', { name: 'Cargar producto' }).click();
   await expect(page.getByRole('heading', { name: 'Nuevo producto' })).toBeVisible();
   await expect(page.getByText('7791234567890')).toBeVisible();
+  // Al guardarlo se vuelve a la venta con el producto ya sumado.
+  await page.getByLabel('Nombre').fill('Pastillas de menta');
+  await page.getByLabel('Precio de venta').fill('700');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByText('Ticket · 1 producto')).toBeVisible();
+  await expect(page.locator('.ticket__linea', { hasText: 'Pastillas de menta' })).toHaveCount(1);
 });
 
 test('cierre de caja con diferencia', async ({ page }) => {

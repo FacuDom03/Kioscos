@@ -47,6 +47,14 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Atajos de gestión:** la lista nueva de un proveedor recuerda las columnas y los números
+  (bonificación, IVA, ganancia, redondeo, gremio) de su última lista (van en `opciones.columnas`
+  de `listas_proveedor`, sin migración); la ficha de producto tiene Escanear para el código; al
+  cargar un producto desde un código desconocido en Vender se vuelve a la venta con el producto
+  sumado (`?volver=vender`); Por reponer tiene "Mandar la lista por WhatsApp". Ideas no hechas:
+  listas en PDF y Excel viejo (.xls), recibir listas por mail, ver precio de costo y margen al
+  escanear en Stock.
+
 - **Escanear en Stock y en Cargar compra** (idea de la persona): en Stock, el botón Escanear (o
   un código tipeado o del lector USB en el buscador) muestra solo ese producto con precio y
   stock; si el código no existe ofrece "Cargar producto". En Cargar compra, el escáner suma a

@@ -9,9 +9,12 @@ import {
 } from '@mostrador/shared';
 import { useState, type FormEvent } from 'react';
 import { CampoPlata } from '../../componentes/CampoPlata.tsx';
+import { Escaner } from '../../componentes/Escaner.tsx';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
-import { refrescarCatalogo, useCatalogo } from '../../nucleo/catalogo.ts';
+import { productoPorId, refrescarCatalogo, useCatalogo } from '../../nucleo/catalogo.ts';
+import { useEsPC } from '../../nucleo/medios.ts';
+import { sumarProducto } from '../../nucleo/ticket.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
@@ -105,7 +108,11 @@ function FormProducto({
   const [color, setColor] = useState(detalle?.color ?? '#c0182b');
   const [error, setError] = useState<string | null>(null);
   const [ajuste, setAjuste] = useState(false);
-  const volver = () => navegar('/stock');
+  const [escaner, setEscaner] = useState(false);
+  const esPC = useEsPC();
+  // Desde Vender (código desconocido): al guardar se vuelve a la venta con el producto sumado.
+  const desdeVender = new URLSearchParams(location.search).get('volver') === 'vender';
+  const volver = () => navegar(desdeVender ? '/' : '/stock');
 
   async function guardar(ev: FormEvent<HTMLFormElement>) {
     ev.preventDefault();
@@ -143,9 +150,13 @@ function FormProducto({
         : { stockInicial: Number(String(f.get('stock') ?? '0').replace(',', '.')) || 0 }),
     };
     try {
+      let creado: string | null = null;
       if (detalle) await api('PATCH', `/api/v1/productos/${detalle.id}`, cuerpo);
-      else await api('POST', '/api/v1/productos', cuerpo);
+      else creado = (await api<{ id: string }>('POST', '/api/v1/productos', cuerpo)).id;
       await refrescarCatalogo();
+      const nuevo = creado ? productoPorId(creado) : undefined;
+      if (desdeVender && nuevo && (!nuevo.unidad || nuevo.unidad === 'unidad'))
+        sumarProducto(nuevo);
       volver();
     } catch (e) {
       setError(mensajeDeError(e));
@@ -372,7 +383,22 @@ function FormProducto({
             >
               Agregar
             </button>
+            {!esPC && (
+              <button type="button" className="m-boton" onClick={() => setEscaner(true)}>
+                Escanear
+              </button>
+            )}
           </div>
+          {escaner && (
+            <Escaner
+              ayuda="Apuntá al código de barras del producto."
+              alLeer={(codigo) => {
+                setCodigos((cs) => [...new Set([...cs, codigo])]);
+                setEscaner(false);
+              }}
+              alCerrar={() => setEscaner(false)}
+            />
+          )}
         </fieldset>
         {error && <Aviso>{error}</Aviso>}
         <button className="m-boton m-boton--principal">Guardar</button>

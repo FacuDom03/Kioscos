@@ -23,6 +23,10 @@ test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ pa
   await expect(page.getByText('Quedan 3')).toBeVisible();
   await page.getByRole('button', { name: /Por reponer \(1\)/ }).click();
   await expect(page.getByText('Alfajor triple')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Mandar la lista por WhatsApp' })).toHaveAttribute(
+    'href',
+    /Alfajor%20triple%20\(quedan%203%2C%20m%C3%ADnimo%2010\)/,
+  );
 
   // Cargar compra: llegan 24 a $ 800 con 50 % de margen.
   await page.getByRole('button', { name: 'Cargar compra' }).click();

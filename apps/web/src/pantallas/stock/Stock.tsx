@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Escaner } from '../../componentes/Escaner.tsx';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { productoPorCodigo } from '../../nucleo/catalogo.ts';
+import { enlaceWhatsApp } from '../../nucleo/presupuestos.ts';
 import { useEsPC } from '../../nucleo/medios.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
@@ -174,6 +175,24 @@ export function Stock() {
         </button>
       </div>
       {error && <Aviso>{error}</Aviso>}
+      {filtro === 'por_reponer' && filas.length > 0 && (
+        <a
+          className="m-boton boton-enlace"
+          href={enlaceWhatsApp(
+            [
+              `Pedido de ${s.kiosco.nombre}:`,
+              ...filas.map(
+                (p) =>
+                  `- ${p.nombre} (quedan ${formatearCantidad(p.stock, p.unidad)}, mínimo ${formatearCantidad(p.minimo, p.unidad)})`,
+              ),
+            ].join('\n'),
+          )}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Mandar la lista por WhatsApp
+        </a>
+      )}
 
       {(editar && negocio.tiene('precios_proveedor')) ||
       negocio.tiene('variantes') ||

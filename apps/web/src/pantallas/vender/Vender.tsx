@@ -549,7 +549,9 @@ export function Vender({ estado }: { estado: ReactNode }) {
                     type="button"
                     className="m-boton"
                     onClick={() =>
-                      navegar(`/stock/producto/nuevo?codigo=${encodeURIComponent(desconocido)}`)
+                      navegar(
+                        `/stock/producto/nuevo?codigo=${encodeURIComponent(desconocido)}&volver=vender`,
+                      )
                     }
                   >
                     Cargar producto

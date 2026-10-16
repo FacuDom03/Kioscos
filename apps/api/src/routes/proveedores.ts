@@ -36,6 +36,16 @@ export const esquemaOpciones = z.strictObject({
   redondeo: z.union([z.literal(100), z.literal(1000), z.literal(5000), z.literal(10000)]),
   gremio: z.enum(['no', 'mantener', 'ganancia']),
   gananciaGremio: porcentaje(0, 1000),
+  /** Dónde están el código, la descripción y el precio en la planilla de este proveedor. Se
+   * guarda con la lista para leer igual la próxima, aunque los títulos no se entiendan solos. */
+  columnas: z
+    .strictObject({
+      encabezado: z.int().min(0).max(29),
+      codigo: z.int().min(0).max(199),
+      descripcion: z.int().min(-1).max(199),
+      precio: z.int().min(0).max(199),
+    })
+    .optional(),
 });
 type Opciones = z.infer<typeof esquemaOpciones>;
 
@@ -446,6 +456,7 @@ export async function rutasProveedores(app: FastifyInstance): Promise<void> {
           'l.id',
           'l.archivo',
           'l.renglones',
+          'l.opciones',
           'l.detalle',
           'l.deshecha_en',
           'l.created_at',

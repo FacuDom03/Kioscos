@@ -26,6 +26,7 @@ export {
   type LecturaBalanza,
 } from './balanza.ts';
 export { DetectorRafagas, type OpcionesLector } from './lector.ts';
+export { recorteDelMarco, puntoEnVideo, type Tamano, type Rectangulo } from './camara.ts';
 export {
   RUBROS,
   MODULOS,

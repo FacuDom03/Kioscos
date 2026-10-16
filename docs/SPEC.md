@@ -412,6 +412,10 @@ create policy aislamiento_kiosco on ventas
 - Botón "Escanear". Usa la API `BarcodeDetector` donde exista y, si no, una librería de respaldo (por ejemplo ZXing).
 - Escaneo continuo, con vibración y sonido al leer, e ignora el mismo código durante 1,5 segundos para no duplicar.
 - Pedir permiso de cámara solo al tocar "Escanear", con una explicación previa.
+- Marco con línea roja: se lee solo lo que cae adentro. Aviso de distancia (unos 15 cm), porque
+  algunos celulares (el iPhone) no enfocan de muy cerca; con una cámara de buena resolución la
+  imagen se muestra al doble para que el código llene el marco a esa distancia. Enfoque
+  continuo, tocar para enfocar y linterna donde el navegador lo permite.
 
 ### 14.3 Impresión de ticket
 

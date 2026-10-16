@@ -13,8 +13,9 @@ contraseñas ni claves: esas no se pasan por chat.
 - Reglas de `CLAUDE.md` del repo: preguntar antes de agregar una dependencia grande, cambiar el
   modelo de datos de forma incompatible, tocar políticas RLS o roles de base, o guardar un dato
   personal nuevo.
-- No crear Pull Request salvo que se pida. Trabajar y subir solo a la rama
-  `claude/mostrador-etapa-a-7jft9w` del repo `facudom03/kioscos`.
+- No crear Pull Request salvo que se pida. Trabajar y subir solo a la rama que indique la sesión
+  (la última fue `claude/blissful-gates-hx4qur`; antes `claude/mostrador-etapa-a-7jft9w`) del
+  repo `facudom03/kioscos`.
 - Los commits terminan con las líneas de atribución que indique el sistema. No poner nombres de
   modelo en el repo.
 - Verificar siempre el código de salida de lint, format, typecheck y tests (no esconderlo con
@@ -40,10 +41,21 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
   I3 proveedores y listas de precios, I4 presupuestos y remitos, I5 clientes y cuenta
   corriente, I6 tablero, I7 perfumería (variantes, promos, regalo, vencimientos).
 - Revisión de seguridad y correctitud de la etapa I hecha y corregida.
-- Último commit subido: `47c6daa` ("Más ordenado en grupos, Tablero en la barra y planilla
-  modelo para importar"). Todo está subido y las pruebas pasan (unidad, integración y e2e).
+- Escáner con guía hecho (ver abajo). Todo está subido y las pruebas pasan (unidad, integración
+  y e2e).
 
 ### Lo último que se hizo
+
+- **Escáner con guía** (`apps/web/src/componentes/Escaner.tsx`): marco con línea roja, aviso
+  "Mantené unos 15 cm de distancia", lee solo dentro del marco (cuentas en
+  `packages/shared/src/camara.ts`), pide 1920×1080 y enfoque continuo, muestra la imagen al
+  doble si la cámara da 900 px o más de lado corto (para que a 15 cm el código llene el marco),
+  tocar para enfocar y linterna donde el navegador lo permite, pitido y "Último código leído".
+  Prueba e2e `apps/web/e2e/camara.spec.ts` con cámara falsa de Chromium (video y4m con un
+  EAN-13). **Falta probarlo con un iPhone real**; si sigue costando, el paso siguiente es pedir
+  zoom por hardware (`zoom` en `applyConstraints`) donde exista.
+- Prueba de presupuestos vencidos: fallaba entre las 0 y las 3 (UTC) porque usaba la fecha de la
+  base en vez de la de Argentina. Corregida.
 
 - **Tablero**: cuando no hay datos muestra "Primeros pasos" en vez de cuadros vacíos. Ahora tiene
   sección propia en la barra de navegación (dueño y encargado; el cajero no la ve).
@@ -80,6 +92,9 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 - No hay "olvidé mi contraseña". Se ofreció armar un enlace de contraseña nueva desde el panel
   admin; sin respuesta todavía.
 - Respaldos sin configurar (paso 7 de `docs/DEPLOY.md`).
+- Cloudflare: la persona no hizo nada todavía. Con la dirección actual (`*.hstgr.cloud`, detrás de
+  Traefik) no hace falta: la variante Traefik de `docs/DEPLOY.md` no lo usa. Solo sirve si compra
+  un dominio propio.
 - Hay un PostgreSQL de otra app expuesto a todo internet (puerto 32769) y el SSH acepta
   contraseña. Conviene cerrar el puerto, usar firewall (22, 80, 443) y pasar a clave SSH.
 - Mercado Pago: aún sin configurar. Falta crear la aplicación en Mercado Pago, dos vendedores y un
@@ -88,10 +103,6 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ## Ideas y pendientes de producto
 
-- **Cámara para escanear**: en iPhone se desenfoca cuando el código está muy cerca. Agregar una
-  guía en pantalla (marco con línea roja y texto "alejá unos 15 cm"), pedir enfoque continuo y más
-  resolución, leer solo dentro del marco y, si se puede, linterna y tocar para enfocar. Archivo:
-  `apps/web/src/componentes/Escaner.tsx`. La cámara nunca se probó con una real.
 - **Nombre**: se evaluó renombrar el producto (hoy "Mostrador"). Opciones: Caja Abierta, Despacho.
   Sin decisión. Antes verificar INPI, dominio e Instagram.
 - **"Gremio"**: es el precio especial para clientes que compran por oficio (plomero, electricista).
@@ -111,7 +122,7 @@ cobro por pagado se reconsulta a la API y se verifica venta, monto y cuenta. Det
 ## Cómo seguir
 
 1. Leer `CLAUDE.md`, `docs/SPEC.md` y este archivo.
-2. Confirmar con la persona qué sigue: hay que elegir entre el escáner con guía, el enlace de
-   contraseña nueva, los respaldos, el endurecimiento del servidor, probar Mercado Pago o el
-   nombre de la app.
-3. Trabajar siempre en la rama `claude/mostrador-etapa-a-7jft9w`.
+2. Confirmar con la persona qué sigue: hay que elegir entre el enlace de contraseña nueva, los
+   respaldos, el endurecimiento del servidor, probar Mercado Pago, el nombre de la app, o ajustar
+   el escáner después de probarlo con un iPhone.
+3. Trabajar en la rama que indique la sesión.

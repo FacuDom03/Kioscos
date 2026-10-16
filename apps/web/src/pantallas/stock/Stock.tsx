@@ -228,6 +228,15 @@ export function Stock() {
             <button
               type="button"
               className="m-boton"
+              onClick={() => navegar('/historial?ver=stock')}
+            >
+              Movimientos
+            </button>
+          )}
+          {editar && (
+            <button
+              type="button"
+              className="m-boton"
               onClick={() => {
                 setErrorDescarga(null);
                 descargar('/api/v1/exportar/productos.xlsx', `stock-${hoyArgentina()}.xlsx`).catch(

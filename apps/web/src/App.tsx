@@ -36,6 +36,7 @@ import { AumentoPrecios } from './pantallas/stock/Aumento.tsx';
 import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
 import { ImportarProductos } from './pantallas/stock/Importar.tsx';
 import { ProductoPantalla } from './pantallas/stock/Producto.tsx';
+import { Historial } from './pantallas/historial/Historial.tsx';
 import { Stock } from './pantallas/stock/Stock.tsx';
 import { ListaProveedor } from './pantallas/stock/ListaProveedor.tsx';
 import { Proveedores } from './pantallas/stock/Proveedores.tsx';
@@ -110,6 +111,7 @@ const SECCION_DE_RUTA: [string, Seccion][] = [
   ['/presupuestos', 'mas'],
   ['/promos', 'mas'],
   ['/cambios', 'mas'],
+  ['/historial', 'mas'],
 ];
 
 function AppConSesion({ ruta }: { ruta: string }) {
@@ -245,6 +247,11 @@ function AppConSesion({ ruta }: { ruta: string }) {
       break;
     case '/mas/actividad':
       pantalla = <Auditoria alVolver={volverAMas} />;
+      break;
+    case '/historial':
+      pantalla = (
+        <Historial alVolver={() => (history.length > 1 ? history.back() : navegar('/mas'))} />
+      );
       break;
     case '/mas/exportar':
       pantalla = <Exportar alVolver={volverAMas} />;

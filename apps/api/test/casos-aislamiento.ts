@@ -288,6 +288,12 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   }),
   caso('GET', '/api/v1/ventas', 'sin_datos_de_b'),
   caso('GET', '/api/v1/ventas/:id', 'no_encontrado', { tabla: 'ventas' }),
+  caso('GET', '/api/v1/caja/cierres/:id', 'no_encontrado', { tabla: 'turnos_caja' }),
+  caso('GET', '/api/v1/compras/:id', 'no_encontrado', { tabla: 'compras' }),
+  caso('GET', '/api/v1/movimientos-stock', 'sin_datos_de_b'),
+  caso('GET', '/api/v1/movimientos-stock', 'sin_datos_de_b', {
+    consulta: { productoId: '$B:productos' },
+  }),
   caso('POST', '/api/v1/ventas/:id/anular', 'no_encontrado', {
     tabla: 'ventas',
     cuerpo: { motivo: 'Intrusión' },

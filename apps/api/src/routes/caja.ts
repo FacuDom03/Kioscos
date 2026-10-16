@@ -108,4 +108,45 @@ export async function rutasCaja(app: FastifyInstance): Promise<void> {
           .execute(),
       ),
   );
+
+  // Detalle de un turno (para tocar un cierre anterior): totales, gastos y retiros.
+  app.get(
+    '/api/v1/caja/cierres/:id',
+    { config: { roles: ['dueno', 'encargado', 'soporte'] } },
+    async (req) => {
+      const { id } = validar(z.strictObject({ id: z.uuid() }), req.params);
+      return req.db(async (tx) => {
+        const t = await tx
+          .selectFrom('turnos_caja as t')
+          .leftJoin('usuarios as a', 'a.id', 't.abierto_por')
+          .leftJoin('usuarios as c', 'c.id', 't.cerrado_por')
+          .select([
+            't.id',
+            't.abierto_en',
+            't.cerrado_en',
+            't.cambio_inicial',
+            't.esperado',
+            't.contado',
+            't.diferencia',
+            't.nota',
+            'a.nombre as abrio',
+            'c.nombre as cerro',
+          ])
+          .where('t.id', '=', id)
+          .executeTakeFirst();
+        if (!t) throw noEncontrado();
+        const [resumen, gastos] = await Promise.all([
+          resumenTurno(tx, t.id, t.cambio_inicial),
+          tx
+            .selectFrom('gastos as g')
+            .leftJoin('usuarios as u', 'u.id', 'g.usuario_id')
+            .select(['g.id', 'g.tipo', 'g.monto', 'g.motivo', 'g.created_at', 'u.nombre'])
+            .where('g.turno_id', '=', t.id)
+            .orderBy('g.created_at')
+            .execute(),
+        ]);
+        return { turno: t, resumen, gastos };
+      });
+    },
+  );
 }

@@ -84,16 +84,64 @@ export async function rutasCompras(app: FastifyInstance): Promise<void> {
     return { id };
   });
 
-  app.get('/api/v1/compras', { config: { roles: ROLES } }, async (req) =>
-    req.db(async (tx) => {
-      const compras = await tx
+  app.get('/api/v1/compras', { config: { roles: ROLES } }, async (req) => {
+    const { desde, hasta } = validar(
+      z.strictObject({ desde: z.iso.date().optional(), hasta: z.iso.date().optional() }),
+      req.query,
+    );
+    return req.db(async (tx) => {
+      let q = tx
         .selectFrom('compras as c')
         .leftJoin('usuarios as u', 'u.id', 'c.usuario_id')
         .select(['c.id', 'c.total', 'c.nota', 'c.created_at', 'u.nombre'])
+        .select((eb) =>
+          eb
+            .selectFrom('compra_items as i')
+            .select((e) => e.fn.countAll<string>().as('n'))
+            .whereRef('i.compra_id', '=', 'c.id')
+            .as('productos'),
+        )
         .orderBy('c.created_at', 'desc')
-        .limit(50)
+        .limit(200);
+      if (desde) q = q.where('c.created_at', '>=', new Date(`${desde}T00:00:00-03:00`));
+      if (hasta)
+        q = q.where(
+          'c.created_at',
+          '<',
+          new Date(new Date(`${hasta}T00:00:00-03:00`).getTime() + 86_400_000),
+        );
+      const compras = await q.execute();
+      return compras.map((c) => ({ ...c, productos: Number(c.productos ?? 0) }));
+    });
+  });
+
+  // Detalle de una compra: qué llegó, cuánto y a qué costo.
+  app.get('/api/v1/compras/:id', { config: { roles: ROLES } }, async (req) => {
+    const { id } = validar(z.strictObject({ id: z.uuid() }), req.params);
+    return req.db(async (tx) => {
+      const c = await tx
+        .selectFrom('compras as c')
+        .leftJoin('usuarios as u', 'u.id', 'c.usuario_id')
+        .select(['c.id', 'c.total', 'c.nota', 'c.created_at', 'u.nombre'])
+        .where('c.id', '=', id)
+        .executeTakeFirst();
+      if (!c) throw noEncontrado();
+      const items = await tx
+        .selectFrom('compra_items as i')
+        .leftJoin('productos as p', 'p.id', 'i.producto_id')
+        .select([
+          'i.id',
+          'i.producto_id',
+          'p.nombre',
+          'p.unidad',
+          'i.cantidad',
+          'i.costo_unitario',
+          'i.subtotal',
+        ])
+        .where('i.compra_id', '=', id)
+        .orderBy('i.id')
         .execute();
-      return compras;
-    }),
-  );
+      return { ...c, items: items.map((i) => ({ ...i, cantidad: Number(i.cantidad) })) };
+    });
+  });
 }

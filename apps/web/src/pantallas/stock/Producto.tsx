@@ -437,6 +437,13 @@ function FormProducto({
                 </li>
               ))}
             </ul>
+            <button
+              type="button"
+              className="enlace-boton"
+              onClick={() => navegar(`/historial?ver=stock&producto=${detalle.id}`)}
+            >
+              Ver todos los movimientos
+            </button>
           </section>
           {negocio.tiene('vencimientos') && (
             <Lotes id={detalle.id} lotes={detalle.lotes ?? []} recargar={recargar} />

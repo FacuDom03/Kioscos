@@ -66,7 +66,14 @@ export function CargarCompra() {
       <Volver onClick={() => navegar('/stock')} />
       <h1 className="m-titulo">Cargar compra</h1>
       <p className="texto-suave">
-        Escaneá o buscá cada producto que llegó, con la cantidad y el costo por unidad.
+        Escaneá o buscá cada producto que llegó, con la cantidad y el costo por unidad.{' '}
+        <button
+          type="button"
+          className="enlace-boton"
+          onClick={() => navegar('/historial?ver=compras')}
+        >
+          Ver compras anteriores
+        </button>
       </p>
       <BuscadorProductos
         alElegir={agregar}

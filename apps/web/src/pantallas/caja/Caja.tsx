@@ -12,6 +12,7 @@ import { useDatos } from '../../nucleo/usar-datos.ts';
 import { aplicarActualizacion } from '../../nucleo/actualizacion.ts';
 import { AbrirCaja } from '../vender/AbrirCaja.tsx';
 import { Pendientes } from './Pendientes.tsx';
+import { DetalleHistorial, ListaCierres, ListaVentas } from '../historial/Historial.tsx';
 
 interface DatosCaja {
   turno: { id: string; abiertoEn: string; abiertoPor: string; cambioInicial: number } | null;
@@ -324,117 +325,46 @@ function FormGasto({
   );
 }
 
-interface VentaFila {
-  id: string;
-  total: number;
-  estado: string;
-  devolucion_pendiente: boolean;
-  creada_en_dispositivo: string;
-  nombre: string | null;
-  medios: string[];
-  regalo?: boolean;
-  cambio?: boolean;
-}
-
-const MEDIO: Record<string, string> = {
-  efectivo: 'Efectivo',
-  qr_mp: 'QR',
-  transferencia: 'Transferencia',
-  cuenta_corriente: 'A cuenta',
-};
-
 function VentasDelTurno({ turnoId }: { turnoId: string | null }) {
-  const s = useSesionCompleta();
-  const { datos, recargar } = useDatos<VentaFila[]>(
-    turnoId ? `/api/v1/ventas?turnoId=${turnoId}` : null,
-  );
-  if (!turnoId || !datos?.length) return null;
-  const anular = async (v: VentaFila) => {
-    const motivo = prompt(`Motivo para anular la venta de ${formatearPlata(v.total)}`);
-    if (!motivo) return;
-    try {
-      const r = await api<{ devolucionPendiente: boolean }>(
-        'POST',
-        `/api/v1/ventas/${v.id}/anular`,
-        { motivo },
-      );
-      if (r.devolucionPendiente)
-        alert(
-          'La venta quedó anulada. Hacé la devolución desde la app de Mercado Pago y después marcala como devuelta.',
-        );
-      await recargar();
-    } catch (e) {
-      alert(mensajeDeError(e));
-    }
-  };
+  const [abierta, setAbierta] = useState<string | null>(null);
+  const [version, setVersion] = useState(0);
+  if (!turnoId) return null;
   return (
     <section>
       <h2 className="subtitulo">Ventas del turno</h2>
-      <ul className="lista-filas">
-        {datos.map((v) => (
-          <li key={v.id} className="tarjeta">
-            <span>
-              {new Date(v.creada_en_dispositivo).toLocaleTimeString('es-AR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}{' '}
-              {v.cambio && ' · Cambio'}
-              {v.medios.length > 0 && ` · ${v.medios.map((m) => MEDIO[m] ?? m).join(' y ')}`}
-              {v.regalo && ' · Para regalo'}{' '}
-              {v.estado === 'anulada' && (
-                <strong className="negativo">
-                  Anulada{v.devolucion_pendiente ? ', devolución pendiente' : ''}
-                </strong>
-              )}
-              {v.estado === 'pendiente_cobro' && (
-                <strong className="negativo">Pendiente de cobro</strong>
-              )}
-            </span>
-            <span className="acciones">
-              <strong className="m-plata">{formatearPlata(v.total)}</strong>
-              {s.rol !== 'cajero' && v.estado === 'cobrada' && (
-                <button type="button" className="m-boton" onClick={() => void anular(v)}>
-                  Anular
-                </button>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <ListaVentas
+        key={version}
+        url={`/api/v1/ventas?turnoId=${turnoId}`}
+        conResumen={false}
+        alAbrir={setAbierta}
+      />
+      {abierta && (
+        <DetalleHistorial
+          detalle={{ tipo: 'venta', id: abierta }}
+          alCerrar={() => setAbierta(null)}
+          alCambiar={() => setVersion((v) => v + 1)}
+        />
+      )}
     </section>
   );
 }
 
-interface Cierre {
-  id: string;
-  abierto_en: string;
-  cerrado_en: string;
-  esperado: number;
-  contado: number;
-  diferencia: number;
-  nota: string | null;
-  cerro: string | null;
-}
-
 function CierresAnteriores() {
-  const { datos } = useDatos<Cierre[]>('/api/v1/caja/cierres');
-  if (!datos?.length) return null;
+  const [abierto, setAbierto] = useState<string | null>(null);
   return (
     <section>
       <h2 className="subtitulo">Cierres anteriores</h2>
-      <ul className="lista-filas">
-        {datos.map((c) => (
-          <li key={c.id} className="tarjeta">
-            <span>
-              {new Date(c.cerrado_en).toLocaleString('es-AR')} · {c.cerro}
-              {c.nota && <span className="texto-suave"> · {c.nota}</span>}
-            </span>
-            <strong className={c.diferencia === 0 ? '' : 'negativo'}>
-              {diferenciaEnPalabras(c.contado, c.esperado, formatearPlata)}
-            </strong>
-          </li>
-        ))}
-      </ul>
+      <ListaCierres desde={null} alAbrir={setAbierto} />
+      <button type="button" className="enlace-boton" onClick={() => navegar('/historial?ver=caja')}>
+        Ver todo el historial
+      </button>
+      {abierto && (
+        <DetalleHistorial
+          detalle={{ tipo: 'cierre', id: abierto }}
+          alCerrar={() => setAbierto(null)}
+          alVerVentasDelTurno={(id) => navegar(`/historial?ver=ventas&turno=${id}`)}
+        />
+      )}
     </section>
   );
 }

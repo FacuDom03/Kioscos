@@ -55,6 +55,16 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Historial** (`/historial`, Más → Gestión; dueño y encargado): pestañas Ventas, Compras,
+  Caja y Stock, período Hoy / 7 / 30 días, y el detalle de cada uno al tocarlo (venta con
+  productos, pagos y "Anular"; compra con productos y costos; cierre de caja con ventas por
+  medio, gastos, retiros, contado y diferencia, y "Ver las ventas de este turno"). En Caja, las
+  ventas del turno y los cierres anteriores se abren al tocarlos. Accesos: Stock → Movimientos,
+  Cargar compra → Ver compras anteriores, ficha de producto → Ver todos los movimientos.
+  API nueva: `GET /api/v1/caja/cierres/:id`, `GET /api/v1/compras/:id` (y `desde`/`hasta` en la
+  lista), `GET /api/v1/movimientos-stock` (`routes/movimientos.ts`), todas en
+  `casos-aislamiento.ts`.
+
 - **Descargar mi stock (Excel)** en Stock y en Importar: `GET /api/v1/exportar/productos.xlsx`
   (dueño, encargado, soporte; auditado como `exportacion.xlsx`; costo solo si lo puede ver),
   con las mismas columnas que la planilla modelo (`planillaDeStock` en `importar.ts`). Al

@@ -440,7 +440,7 @@ function FormProducto({
             <button
               type="button"
               className="enlace-boton"
-              onClick={() => navegar(`/historial?ver=stock&producto=${detalle.id}`)}
+              onClick={() => navegar(`/stock/movimientos?producto=${detalle.id}`)}
             >
               Ver todos los movimientos
             </button>

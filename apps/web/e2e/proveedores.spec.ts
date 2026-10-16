@@ -44,7 +44,7 @@ test('se sube la lista en Excel, se revisa, se aplica, se imprimen etiquetas y s
   );
 
   await entrar(page, d);
-  await page.goto('/stock');
+  await page.goto('/compras');
   await page.getByRole('button', { name: 'Proveedores' }).click();
   await expect(page.getByRole('heading', { name: 'Proveedores' })).toBeVisible();
   await page.getByRole('button', { name: 'Subir lista nueva' }).click();
@@ -132,7 +132,7 @@ test('la lista nueva recuerda el formato y los números de la anterior del prove
   );
 
   await entrar(page, d);
-  await page.goto(`/stock/proveedores/${proveedor}/lista`);
+  await page.goto(`/compras/proveedores/${proveedor}/lista`);
   await expect(page.getByRole('heading', { name: /Lista nueva/ })).toBeVisible();
   await page.getByLabel(/Elegir la lista/).setInputFiles({
     name: 'lista-sur-octubre.xlsx',

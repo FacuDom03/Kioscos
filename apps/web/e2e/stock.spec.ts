@@ -30,6 +30,8 @@ test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ pa
   );
 
   // Cargar compra: llegan 24 a $ 800 con 50 % de margen.
+  const nav = page.getByRole('navigation', { name: 'Secciones' });
+  await nav.getByRole('button', { name: 'Compras' }).click();
   await page.getByRole('button', { name: 'Cargar compra' }).click();
   await page.getByLabel('Agregar producto').fill('7790040000001');
   await page.getByLabel('Agregar producto').press('Enter');
@@ -38,6 +40,10 @@ test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ pa
   await page.getByLabel(/Margen/).fill('50');
   await expect(page.getByText('$ 19.200')).toBeVisible();
   await page.getByRole('button', { name: 'Guardar compra' }).click();
+  // Vuelve a Compras, con la compra nueva en la lista; el stock subió.
+  await expect(page.getByRole('heading', { name: 'Compras' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /\$ 19\.200/ })).toBeVisible();
+  await nav.getByRole('button', { name: 'Stock' }).click();
   await expect(page.getByText('27 en stock')).toBeVisible();
   await expect(page.getByText('$ 1.200').first()).toBeVisible();
 

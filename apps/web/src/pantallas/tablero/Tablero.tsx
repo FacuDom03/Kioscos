@@ -107,7 +107,7 @@ export function Tablero() {
               <button
                 type="button"
                 className="m-boton"
-                onClick={() => navegar('/stock/proveedores')}
+                onClick={() => navegar('/compras/proveedores')}
               >
                 Actualizar precios
               </button>
@@ -370,7 +370,7 @@ function PrimerosPasos({ huboVentas }: { huboVentas: boolean }) {
             { texto: 'Cargar un producto', ruta: '/stock/producto/nuevo' },
             { texto: 'Importar planilla', ruta: '/stock/importar' },
             ...(negocio.tiene('precios_proveedor')
-              ? [{ texto: 'Lista de proveedor', ruta: '/stock/proveedores' }]
+              ? [{ texto: 'Lista de proveedor', ruta: '/compras/proveedores' }]
               : []),
           ]
         : [],

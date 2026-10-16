@@ -66,11 +66,6 @@ export function Mas() {
         ...(encargado
           ? [
               {
-                ruta: '/historial',
-                nombre: 'Historial',
-                detalle: 'Ventas, compras, caja y movimientos de stock',
-              },
-              {
                 ruta: '/mas/exportar',
                 nombre: 'Exportar datos',
                 detalle: 'Ventas y compras para el contador',

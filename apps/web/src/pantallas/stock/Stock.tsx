@@ -100,13 +100,6 @@ export function Stock() {
             <button
               type="button"
               className="m-boton m-boton--accion"
-              onClick={() => navegar('/stock/compra')}
-            >
-              Cargar compra
-            </button>
-            <button
-              type="button"
-              className="m-boton"
               onClick={() => navegar('/stock/producto/nuevo')}
             >
               Nuevo producto
@@ -205,11 +198,6 @@ export function Stock() {
               Aumentar precios
             </button>
           )}
-          {editar && negocio.tiene('precios_proveedor') && (
-            <button type="button" className="m-boton" onClick={() => navegar('/stock/proveedores')}>
-              Proveedores
-            </button>
-          )}
           {negocio.tiene('variantes') && (
             <button type="button" className="m-boton" onClick={() => navegar('/stock/variantes')}>
               Tonos y tamaños
@@ -225,11 +213,7 @@ export function Stock() {
             </button>
           )}
           {editar && (
-            <button
-              type="button"
-              className="m-boton"
-              onClick={() => navegar('/historial?ver=stock')}
-            >
+            <button type="button" className="m-boton" onClick={() => navegar('/stock/movimientos')}>
               Movimientos
             </button>
           )}

@@ -53,7 +53,7 @@ export function CargarCompra() {
         ...(nota.trim() ? { nota: nota.trim() } : {}),
       });
       await refrescarCatalogo();
-      navegar('/stock');
+      navegar('/compras');
     } catch (e) {
       setError(mensajeDeError(e));
     } finally {
@@ -63,17 +63,10 @@ export function CargarCompra() {
 
   return (
     <div className="pantalla pantalla--ancha">
-      <Volver onClick={() => navegar('/stock')} />
+      <Volver onClick={() => navegar('/compras')} />
       <h1 className="m-titulo">Cargar compra</h1>
       <p className="texto-suave">
-        Escaneá o buscá cada producto que llegó, con la cantidad y el costo por unidad.{' '}
-        <button
-          type="button"
-          className="enlace-boton"
-          onClick={() => navegar('/historial?ver=compras')}
-        >
-          Ver compras anteriores
-        </button>
+        Escaneá o buscá cada producto que llegó, con la cantidad y el costo por unidad.
       </p>
       <BuscadorProductos
         alElegir={agregar}

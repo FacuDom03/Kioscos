@@ -5,29 +5,19 @@ import {
   type Unidad,
 } from '@mostrador/shared';
 import { useState, type ReactNode } from 'react';
-import { BuscadorProductos } from '../../componentes/BuscadorProductos.tsx';
-import { Aviso, Volver } from '../../componentes/Formulario.tsx';
-import { api, mensajeDeError } from '../../nucleo/api.ts';
-import { productoPorId } from '../../nucleo/catalogo.ts';
-import { hoyArgentina } from '../../nucleo/descargar.ts';
-import { useSesionCompleta } from '../../nucleo/sesion.tsx';
-import { useDatos } from '../../nucleo/usar-datos.ts';
+import { Aviso } from './Formulario.tsx';
+import { api, mensajeDeError } from '../nucleo/api.ts';
+import { hoyArgentina } from '../nucleo/descargar.ts';
+import { useSesionCompleta } from '../nucleo/sesion.tsx';
+import { useDatos } from '../nucleo/usar-datos.ts';
 
-// Historial (dueño y encargado): ventas, compras, cierres de caja y movimientos de stock, con el
-// detalle de cada uno al tocarlo.
+// Piezas del historial que usan las secciones Ventas, Compras, Caja y Stock: listas por período
+// y el detalle de cada venta, compra o cierre al tocarlo.
 
-type Pestana = 'ventas' | 'compras' | 'caja' | 'stock';
-type Periodo = 1 | 7 | 30;
+export type Periodo = 1 | 7 | 30;
 export type Detalle = { tipo: 'venta' | 'compra' | 'cierre'; id: string };
 
-const PESTANAS: [Pestana, string][] = [
-  ['ventas', 'Ventas'],
-  ['compras', 'Compras'],
-  ['caja', 'Caja'],
-  ['stock', 'Stock'],
-];
-
-const PERIODOS: [Periodo, string][] = [
+export const PERIODOS: [Periodo, string][] = [
   [1, 'Hoy'],
   [7, '7 días'],
   [30, '30 días'],
@@ -65,126 +55,44 @@ export const fechaCorta = (iso: string) =>
   });
 
 /** La fecha de hace `dias - 1` días (hoy incluido), en la Argentina. */
-function desdeHace(dias: Periodo): string {
+export function desdeHace(dias: Periodo): string {
   const hoy = new Date(`${hoyArgentina()}T12:00:00-03:00`);
   return new Date(hoy.getTime() - (dias - 1) * 86_400_000).toLocaleDateString('en-CA', {
     timeZone: 'America/Argentina/Buenos_Aires',
   });
 }
 
-function parametro(nombre: string): string | null {
+export function parametro(nombre: string): string | null {
   return new URLSearchParams(location.search).get(nombre);
 }
 
-export function Historial({ alVolver }: { alVolver: () => void }) {
-  const inicial = parametro('ver');
-  const [ver, setVer] = useState<Pestana>(
-    PESTANAS.some(([p]) => p === inicial) ? (inicial as Pestana) : 'ventas',
-  );
-  const [periodo, setPeriodo] = useState<Periodo>(7);
-  const [turno, setTurno] = useState<string | null>(() => parametro('turno'));
-  const [producto, setProducto] = useState<{ id: string; nombre: string } | null>(() => {
-    const p = productoPorId(parametro('producto') ?? '');
-    return p ? { id: p.id, nombre: p.nombre } : null;
-  });
-  const [detalle, setDetalle] = useState<Detalle | null>(null);
-  const [version, setVersion] = useState(0);
-  const rango = `desde=${desdeHace(periodo)}&hasta=${hoyArgentina()}`;
-
+/** Hoy, 7 o 30 días. */
+export function ElegirPeriodo({
+  periodo,
+  alCambiar,
+}: {
+  periodo: Periodo;
+  alCambiar: (p: Periodo) => void;
+}) {
   return (
-    <div className="pantalla pantalla--ancha historial">
-      <Volver onClick={alVolver} />
-      <h1 className="m-titulo">Historial</h1>
-      <div className="chips" role="group" aria-label="Qué ver">
-        {PESTANAS.map(([p, nombre]) => (
-          <button
-            key={p}
-            type="button"
-            className="chip"
-            aria-pressed={ver === p}
-            onClick={() => {
-              setVer(p);
-              setTurno(null);
-            }}
-          >
-            {nombre}
-          </button>
-        ))}
-      </div>
-      {!(ver === 'ventas' && turno) && (
-        <div className="chips" role="group" aria-label="Período">
-          {PERIODOS.map(([p, nombre]) => (
-            <button
-              key={p}
-              type="button"
-              className="chip"
-              aria-pressed={periodo === p}
-              onClick={() => setPeriodo(p)}
-            >
-              {nombre}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {ver === 'ventas' && (
-        <ListaVentas
-          key={version}
-          url={turno ? `/api/v1/ventas?turnoId=${turno}` : `/api/v1/ventas?${rango}`}
-          deUnTurno={!!turno}
-          alQuitarTurno={() => setTurno(null)}
-          alAbrir={(id) => setDetalle({ tipo: 'venta', id })}
-        />
-      )}
-      {ver === 'compras' && (
-        <ListaCompras
-          url={`/api/v1/compras?${rango}`}
-          alAbrir={(id) => setDetalle({ tipo: 'compra', id })}
-        />
-      )}
-      {ver === 'caja' && (
-        <ListaCierres
-          desde={desdeHace(periodo)}
-          alAbrir={(id) => setDetalle({ tipo: 'cierre', id })}
-        />
-      )}
-      {ver === 'stock' && (
-        <>
-          {producto ? (
-            <p className="filtro-producto">
-              Solo <strong>{producto.nombre}</strong>{' '}
-              <button type="button" className="enlace-boton" onClick={() => setProducto(null)}>
-                Ver todos
-              </button>
-            </p>
-          ) : (
-            <BuscadorProductos
-              etiqueta="Ver los movimientos de un producto"
-              alElegir={(p) => setProducto({ id: p.id, nombre: p.nombre })}
-            />
-          )}
-          <ListaMovimientos
-            url={`/api/v1/movimientos-stock?${rango}${producto ? `&productoId=${producto.id}` : ''}`}
-            alAbrir={setDetalle}
-          />
-        </>
-      )}
-
-      {detalle && (
-        <DetalleHistorial
-          detalle={detalle}
-          alCerrar={() => setDetalle(null)}
-          alCambiar={() => setVersion((v) => v + 1)}
-          alVerVentasDelTurno={(id) => {
-            setDetalle(null);
-            setTurno(id);
-            setVer('ventas');
-          }}
-        />
-      )}
+    <div className="chips" role="group" aria-label="Período">
+      {PERIODOS.map(([p, nombre]) => (
+        <button
+          key={p}
+          type="button"
+          className="chip"
+          aria-pressed={periodo === p}
+          onClick={() => alCambiar(p)}
+        >
+          {nombre}
+        </button>
+      ))}
     </div>
   );
 }
+
+/** `desde=…&hasta=…` para la API. */
+export const rango = (p: Periodo) => `desde=${desdeHace(p)}&hasta=${hoyArgentina()}`;
 
 function Vacio({ texto }: { texto: string }) {
   return <p className="vacio">{texto}</p>;
@@ -273,12 +181,14 @@ interface CompraFila {
   productos: number;
 }
 
-function ListaCompras({ url, alAbrir }: { url: string; alAbrir: (id: string) => void }) {
+export function ListaCompras({ url, alAbrir }: { url: string; alAbrir: (id: string) => void }) {
   const { datos, error } = useDatos<CompraFila[]>(url);
   return (
     <section aria-label="Compras">
       {error && <Aviso>{error}</Aviso>}
-      {datos && datos.length === 0 && <Vacio texto="No hay compras cargadas en este período." />}
+      {datos && datos.length === 0 && (
+        <Vacio texto="No hay compras en este período. Cuando llegue mercadería, tocá Cargar compra." />
+      )}
       <ul className="lista-historial">
         {datos?.map((c) => (
           <li key={c.id}>
@@ -360,7 +270,7 @@ interface Movimiento {
   nombre: string | null;
 }
 
-function ListaMovimientos({ url, alAbrir }: { url: string; alAbrir: (d: Detalle) => void }) {
+export function ListaMovimientos({ url, alAbrir }: { url: string; alAbrir: (d: Detalle) => void }) {
   const { datos, error } = useDatos<Movimiento[]>(url);
   return (
     <section aria-label="Movimientos de stock">

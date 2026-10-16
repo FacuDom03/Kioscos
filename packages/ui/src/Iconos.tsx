@@ -18,6 +18,21 @@ export const IconoVender = () => (
   </svg>
 );
 
+export const IconoVentas = () => (
+  <svg {...comun}>
+    <path d="M6 3h12v18l-3-2-3 2-3-2-3 2Z" />
+    <path d="M9 8h6M9 12h6M9 16h3" />
+  </svg>
+);
+
+export const IconoCompras = () => (
+  <svg {...comun}>
+    <path d="M2 6h11v10H2zM13 10h4l3 3v3h-7" />
+    <circle cx="6" cy="18" r="2" />
+    <circle cx="17" cy="18" r="2" />
+  </svg>
+);
+
 export const IconoStock = () => (
   <svg {...comun}>
     <path d="M21 8 12 3 3 8v8l9 5 9-5Z" />

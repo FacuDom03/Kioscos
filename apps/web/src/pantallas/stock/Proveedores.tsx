@@ -36,7 +36,7 @@ export function Proveedores() {
 
   return (
     <div className="pantalla">
-      <Volver onClick={() => navegar('/stock')} />
+      <Volver onClick={() => navegar('/compras')} />
       <h1 className="m-titulo">Proveedores</h1>
       <p className="texto-suave">
         Cuando un proveedor te manda la lista nueva, subila acá y los precios se recalculan solos.
@@ -59,7 +59,7 @@ export function Proveedores() {
                 <button
                   type="button"
                   className="m-boton"
-                  onClick={() => navegar(`/stock/proveedores/${p.id}/lista`)}
+                  onClick={() => navegar(`/compras/proveedores/${p.id}/lista`)}
                 >
                   Subir lista nueva
                 </button>

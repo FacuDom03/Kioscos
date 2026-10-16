@@ -36,7 +36,9 @@ import { AumentoPrecios } from './pantallas/stock/Aumento.tsx';
 import { CargarCompra } from './pantallas/stock/CargarCompra.tsx';
 import { ImportarProductos } from './pantallas/stock/Importar.tsx';
 import { ProductoPantalla } from './pantallas/stock/Producto.tsx';
-import { Historial } from './pantallas/historial/Historial.tsx';
+import { Ventas } from './pantallas/ventas/Ventas.tsx';
+import { Compras } from './pantallas/compras/Compras.tsx';
+import { Movimientos } from './pantallas/stock/Movimientos.tsx';
 import { Stock } from './pantallas/stock/Stock.tsx';
 import { ListaProveedor } from './pantallas/stock/ListaProveedor.tsx';
 import { Proveedores } from './pantallas/stock/Proveedores.tsx';
@@ -102,6 +104,8 @@ function SinSesion() {
 }
 
 const SECCION_DE_RUTA: [string, Seccion][] = [
+  ['/ventas', 'ventas'],
+  ['/compras', 'compras'],
   ['/stock', 'stock'],
   ['/caja', 'caja'],
   ['/mas', 'mas'],
@@ -111,7 +115,6 @@ const SECCION_DE_RUTA: [string, Seccion][] = [
   ['/presupuestos', 'mas'],
   ['/promos', 'mas'],
   ['/cambios', 'mas'],
-  ['/historial', 'mas'],
 ];
 
 function AppConSesion({ ruta }: { ruta: string }) {
@@ -145,7 +148,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
 
   let pantalla;
   const producto = /^\/stock\/producto\/([0-9a-f-]{36})$/.exec(ruta);
-  const listaProveedor = /^\/stock\/proveedores\/([0-9a-f-]{36})\/lista$/.exec(ruta);
+  const listaProveedor = /^\/compras\/proveedores\/([0-9a-f-]{36})\/lista$/.exec(ruta);
   const presupuesto = /^\/presupuestos\/([0-9a-f-]{36})$/.exec(ruta);
   const cliente = /^\/clientes\/([0-9a-f-]{36})$/.exec(ruta);
   const grupo = /^\/stock\/variantes\/([0-9a-f-]{36})$/.exec(ruta);
@@ -153,7 +156,7 @@ function AppConSesion({ ruta }: { ruta: string }) {
     producto
       ? '/stock/producto/:id'
       : listaProveedor
-        ? '/stock/proveedores/:id/lista'
+        ? '/compras/proveedores/:id/lista'
         : presupuesto
           ? '/presupuestos/:id'
           : cliente
@@ -195,10 +198,19 @@ function AppConSesion({ ruta }: { ruta: string }) {
     case '/presupuestos/:id':
       pantalla = <PresupuestoPantalla key={presupuesto?.[1]} id={presupuesto?.[1] ?? ''} />;
       break;
-    case '/stock/proveedores':
+    case '/ventas':
+      pantalla = <Ventas />;
+      break;
+    case '/compras':
+      pantalla = <Compras />;
+      break;
+    case '/compras/nueva':
+      pantalla = <CargarCompra />;
+      break;
+    case '/compras/proveedores':
       pantalla = <Proveedores />;
       break;
-    case '/stock/proveedores/:id/lista':
+    case '/compras/proveedores/:id/lista':
       pantalla = <ListaProveedor key={listaProveedor?.[1]} id={listaProveedor?.[1] ?? ''} />;
       break;
     case '/stock':
@@ -215,8 +227,8 @@ function AppConSesion({ ruta }: { ruta: string }) {
     case '/stock/producto/:id':
       pantalla = <ProductoPantalla key={producto?.[1]} id={producto?.[1] ?? null} />;
       break;
-    case '/stock/compra':
-      pantalla = <CargarCompra />;
+    case '/stock/movimientos':
+      pantalla = <Movimientos />;
       break;
     case '/stock/aumento':
       pantalla = <AumentoPrecios />;
@@ -248,11 +260,6 @@ function AppConSesion({ ruta }: { ruta: string }) {
     case '/mas/actividad':
       pantalla = <Auditoria alVolver={volverAMas} />;
       break;
-    case '/historial':
-      pantalla = (
-        <Historial alVolver={() => (history.length > 1 ? history.back() : navegar('/mas'))} />
-      );
-      break;
     case '/mas/exportar':
       pantalla = <Exportar alVolver={volverAMas} />;
       break;
@@ -279,7 +286,9 @@ function AppConSesion({ ruta }: { ruta: string }) {
         seccion={seccion}
         alCambiar={(s) => navegar(s === 'vender' ? '/' : `/${s}`)}
         estado={estadoConexion}
-        conTablero={estado.tipo === 'completa' && estado.rol !== 'cajero'}
+        ocultas={
+          estado.tipo === 'completa' && estado.rol !== 'cajero' ? [] : ['compras', 'tablero']
+        }
       >
         <BannerConexion />
         <BannerVersion />

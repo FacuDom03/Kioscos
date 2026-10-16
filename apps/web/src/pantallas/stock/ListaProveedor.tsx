@@ -310,7 +310,7 @@ export function ListaProveedor({ id }: { id: string }) {
   if (hecho) {
     return (
       <div className="pantalla">
-        <Volver onClick={() => navegar('/stock/proveedores')} />
+        <Volver onClick={() => navegar('/compras/proveedores')} />
         <h1 className="m-titulo">Lista aplicada</h1>
         <Aviso tipo="ok">
           {hecho.cambiados === 1 ? 'Cambió 1 producto' : `Cambiaron ${hecho.cambiados} productos`}
@@ -338,7 +338,7 @@ export function ListaProveedor({ id }: { id: string }) {
 
   return (
     <div className="pantalla pantalla--ancha lista-proveedor">
-      <Volver onClick={() => navegar('/stock/proveedores')} />
+      <Volver onClick={() => navegar('/compras/proveedores')} />
       <h1 className="m-titulo">Lista nueva{proveedor ? ` de ${proveedor.nombre}` : ''}</h1>
 
       <section className="tarjeta-form formulario" aria-labelledby="paso-archivo">

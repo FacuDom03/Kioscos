@@ -244,6 +244,18 @@ h3 {
   display: none;
 }
 
+/* Hasta siete secciones en un celular angosto: letra e ícono un poco más chicos. */
+@media (max-width: 480px) {
+  .m-nav__item {
+    font-size: 11px;
+    letter-spacing: -0.2px;
+  }
+  .m-nav__icono {
+    width: 22px;
+    height: 22px;
+  }
+}
+
 @media (min-width: 1024px) and (pointer: fine) {
   .m-marco {
     grid-template-columns: 220px minmax(0, 1fr);

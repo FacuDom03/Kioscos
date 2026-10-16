@@ -12,7 +12,7 @@ import { useDatos } from '../../nucleo/usar-datos.ts';
 import { aplicarActualizacion } from '../../nucleo/actualizacion.ts';
 import { AbrirCaja } from '../vender/AbrirCaja.tsx';
 import { Pendientes } from './Pendientes.tsx';
-import { DetalleHistorial, ListaCierres, ListaVentas } from '../historial/Historial.tsx';
+import { DetalleHistorial, ListaCierres, ListaVentas } from '../../componentes/Historial.tsx';
 
 interface DatosCaja {
   turno: { id: string; abiertoEn: string; abiertoPor: string; cambioInicial: number } | null;
@@ -355,14 +355,11 @@ function CierresAnteriores() {
     <section>
       <h2 className="subtitulo">Cierres anteriores</h2>
       <ListaCierres desde={null} alAbrir={setAbierto} />
-      <button type="button" className="enlace-boton" onClick={() => navegar('/historial?ver=caja')}>
-        Ver todo el historial
-      </button>
       {abierto && (
         <DetalleHistorial
           detalle={{ tipo: 'cierre', id: abierto }}
           alCerrar={() => setAbierto(null)}
-          alVerVentasDelTurno={(id) => navegar(`/historial?ver=ventas&turno=${id}`)}
+          alVerVentasDelTurno={(id) => navegar(`/ventas?turno=${id}`)}
         />
       )}
     </section>

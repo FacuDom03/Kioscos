@@ -46,6 +46,11 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Vender en el celular** (menos de 600 px): encabezado en dos renglones, ticket plegado
+  abajo ("Ticket · N productos", "Último: …", Ver/Ocultar) con total y Cobrar siempre a la
+  vista; desplegado muestra renglones con − y +, "Vaciar ticket" y "Guardar presupuesto".
+  Hook `useEsCelular` en `apps/web/src/nucleo/medios.ts`. Tablet y PC casi sin cambios.
+
 - **Escáner con guía** (`apps/web/src/componentes/Escaner.tsx`): marco con línea roja, aviso
   "Mantené unos 15 cm de distancia", lee solo dentro del marco (cuentas en
   `packages/shared/src/camara.ts`), pide 1920×1080 y enfoque continuo, muestra la imagen al

@@ -37,7 +37,7 @@ test('venta completa en efectivo con vuelto', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Cobrado' })).toBeVisible();
   await expect(page.getByText('Cobrado en efectivo · Vuelto $ 5.200')).toBeVisible();
   await page.getByRole('button', { name: 'Nueva venta' }).click();
-  await expect(page.getByText('El ticket está vacío.')).toBeVisible();
+  await expect(page.getByText('Ticket · 0 productos')).toBeVisible();
 
   // La venta se subió: aparece en la caja.
   await page.goto('/caja');
@@ -51,7 +51,8 @@ test('producto sin código con precio libre y transferencia', async ({ page }) =
   await page.getByLabel('Monto').fill('2.500');
   await page.getByLabel('Descripción (opcional)').fill('Fiambre');
   await page.getByRole('button', { name: 'Sumar al ticket' }).click();
-  await expect(page.getByText('Fiambre')).toBeVisible();
+  await expect(page.getByText('Ticket · 1 producto')).toBeVisible();
+  await expect(page.locator('.ticket__linea', { hasText: 'Fiambre' })).toHaveCount(1);
   await page
     .getByRole('button', { name: /^Cobrar/ })
     .last()

@@ -21,6 +21,14 @@ contraseñas ni claves: esas no se pasan por chat.
   modelo en el repo.
 - Verificar siempre el código de salida de lint, format, typecheck y tests (no esconderlo con
   `| head`).
+- **Siempre que se suba algo, mandarle el comando para actualizar el servidor** (la persona lo
+  pidió explícitamente):
+  ```sh
+  cd /opt/mostrador/app && git pull
+  cd infra && docker compose -f compose.prod.yml -f compose.traefik.yml \
+    --env-file /opt/mostrador/config.env up -d --build
+  ```
+  y recordarle tocar "Actualizar" en la app.
 
 ## Qué es
 

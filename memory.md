@@ -99,7 +99,10 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 - No hay "olvidé mi contraseña". Se ofreció armar un enlace de contraseña nueva desde el panel
   admin; sin respuesta todavía.
-- Respaldos sin configurar (paso 7 de `docs/DEPLOY.md`).
+- Respaldos sin configurar (paso 7 de `docs/DEPLOY.md`). Decisión de la persona: con el primer
+  cliente contrata el respaldo diario de Hostinger; el respaldo propio a otro proveedor
+  (Backblaze B2 recomendado) queda para después. Los WAL se acumulaban (1,5 GB): se le pasó un
+  cron de root que borra los de más de 2 días.
 - Cloudflare: no se usa. La variante Traefik de `docs/DEPLOY.md` no lo necesita y el DNS de
   `mimostrador.tech` está en Hostinger.
 - Se ofreció que la dirección vieja redirija a la nueva; sin respuesta.

@@ -194,6 +194,11 @@ desde **Más → Usuarios** crea a los cajeros con PIN.
 
 ## 7. Respaldos
 
+> PostgreSQL guarda un archivo de cambios (WAL) cada 5 minutos en `/opt/mostrador/respaldos/wal`
+> desde el primer día. Si todavía no configurás estos respaldos, agregá al cron de root una
+> limpieza para que no llenen el disco:
+> `0 * * * * find /opt/mostrador/respaldos/wal -type f -mmin +2880 -delete`
+
 1. Creá un bucket en R2 o B2 y configurá rclone con un remoto llamado `respaldos`:
    `rclone config` (para que además vaya cifrado del lado del proveedor podés usar un remoto
    "crypt" encima; igual los archivos ya van cifrados con age).

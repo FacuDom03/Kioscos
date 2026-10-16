@@ -33,6 +33,8 @@ function EstadoStock({ p }: { p: Fila }) {
 }
 
 function Nivel({ p }: { p: Fila }) {
+  // Sin mínimo cargado la barra siempre estaría llena y no diría nada.
+  if (p.minimo <= 0) return null;
   const tope = Math.max(p.minimo * 2, p.stock, 1);
   const pct = Math.max(0, Math.min(100, (p.stock / tope) * 100));
   return (
@@ -131,59 +133,37 @@ export function Stock() {
       </div>
       {error && <Aviso>{error}</Aviso>}
 
-      {editar && negocio.tiene('precios_proveedor') && (
-        <section className="tarjeta-aumento">
-          <div>
-            <h2 className="subtitulo">Listas de proveedores</h2>
-            <p className="texto-suave">
-              Subí la lista que te mandó un proveedor y los precios se recalculan solos.
-            </p>
-          </div>
-          <button type="button" className="m-boton" onClick={() => navegar('/stock/proveedores')}>
-            Proveedores
-          </button>
-        </section>
-      )}
-
-      {negocio.tiene('variantes') && (
-        <section className="tarjeta-aumento">
-          <div>
-            <h2 className="subtitulo">Productos con tonos y tamaños</h2>
-            <p className="texto-suave">
-              Un esmalte en doce tonos: cada tono con su stock y su código.
-            </p>
-          </div>
-          <button type="button" className="m-boton" onClick={() => navegar('/stock/variantes')}>
-            Tonos y tamaños
-          </button>
-        </section>
-      )}
-
-      {negocio.tiene('vencimientos') && (
-        <section className="tarjeta-aumento">
-          <div>
-            <h2 className="subtitulo">Vencimientos</h2>
-            <p className="texto-suave">Lo que vence pronto, para venderlo antes o sacarlo.</p>
-          </div>
-          <button type="button" className="m-boton" onClick={() => navegar('/stock/vencimientos')}>
-            Ver vencimientos
-          </button>
-        </section>
-      )}
-
-      {s.rol === 'dueno' && (
-        <section className="tarjeta-aumento">
-          <div>
-            <h2 className="subtitulo">Aumento de un proveedor</h2>
-            <p className="texto-suave">
-              Subí los precios de todo, de una categoría o de algunos productos, con vista previa.
-            </p>
-          </div>
-          <button type="button" className="m-boton" onClick={() => navegar('/stock/aumento')}>
-            Aumentar precios
-          </button>
-        </section>
-      )}
+      {(editar && negocio.tiene('precios_proveedor')) ||
+      negocio.tiene('variantes') ||
+      negocio.tiene('vencimientos') ||
+      s.rol === 'dueno' ? (
+        <div className="herramientas" role="group" aria-label="Más herramientas de stock">
+          {s.rol === 'dueno' && (
+            <button type="button" className="m-boton" onClick={() => navegar('/stock/aumento')}>
+              Aumentar precios
+            </button>
+          )}
+          {editar && negocio.tiene('precios_proveedor') && (
+            <button type="button" className="m-boton" onClick={() => navegar('/stock/proveedores')}>
+              Proveedores
+            </button>
+          )}
+          {negocio.tiene('variantes') && (
+            <button type="button" className="m-boton" onClick={() => navegar('/stock/variantes')}>
+              Tonos y tamaños
+            </button>
+          )}
+          {negocio.tiene('vencimientos') && (
+            <button
+              type="button"
+              className="m-boton"
+              onClick={() => navegar('/stock/vencimientos')}
+            >
+              Ver vencimientos
+            </button>
+          )}
+        </div>
+      ) : null}
 
       {datos && filas.length === 0 && (
         <p className="vacio">

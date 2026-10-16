@@ -7,7 +7,9 @@ export function MarcoAcceso({ titulo, children }: { titulo: string; children: Re
     <div className="acceso">
       <Toldo />
       <main className="acceso__contenido" id="contenido">
-        <p className="acceso__marca">Mostrador</p>
+        <p className="acceso__marca" translate="no">
+          Mostrador
+        </p>
         <h1 className="m-titulo">{titulo}</h1>
         {children}
       </main>

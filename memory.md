@@ -47,6 +47,16 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Revisión UX/UI** contra Square, Loyverse, Mercado Pago y sistemas argentinos (YoFacturo,
+  MiPOS): nuestro diferencial es el estilo kiosco (toldo, cartel con marcador, precios
+  amarillos) y el sobrio para ferreterías. Mejoras: ingreso con la marca "Mostrador" grande y
+  centrado en tablet/PC (sin la etiqueta en mayúsculas); Cobrar en columna centrada y un medio
+  de pago por renglón en celular, QR sin conectar se ve deshabilitado; Caja no se estira a todo
+  el ancho; Stock con las herramientas (Aumentar precios, Proveedores, Tonos y tamaños, Ver
+  vencimientos) como una fila de botones en vez de tarjetas, y la barra de nivel solo si hay
+  mínimo cargado. Ideas no hechas: teclado numérico para cobrar un monto suelto, colores o
+  fotos por producto en los mosaicos.
+
 - **Vender en el celular** (menos de 600 px): encabezado en dos renglones, ticket plegado
   abajo ("Ticket · N productos", "Último: …", Ver/Ocultar) con total y Cobrar siempre a la
   vista; desplegado muestra renglones con − y +, "Vaciar ticket" y "Guardar presupuesto".

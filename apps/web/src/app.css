@@ -642,20 +642,32 @@
   width: 100%;
   max-width: 440px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: 32px 16px 40px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
 .acceso__marca {
-  margin: 0;
-  color: var(--text-soft);
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 44px;
   font-weight: 800;
-  font-stretch: 82%;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  font-size: 14px;
+  font-stretch: 75%;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.acceso__marca + .m-titulo {
+  font-size: 22px;
+}
+
+/* En tablet y PC el ingreso queda centrado en la pantalla, no pegado arriba. */
+@media (min-width: 600px) {
+  .acceso__contenido {
+    margin-block: auto;
+    padding-bottom: 12vh;
+  }
 }
 
 .acceso__contenido p {
@@ -839,6 +851,12 @@
   height: 9px;
   border-radius: 50%;
   background: var(--danger-dot);
+}
+
+.herramientas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .tarjeta-aumento {
@@ -1450,11 +1468,35 @@ fieldset.campo legend {
   font-size: 16px;
 }
 
-/* En celulares angostos, "Transferencia" no entra en un tercio de la pantalla. */
-@media (max-width: 420px) {
+/* En el celular, un medio por renglón: botones grandes, fáciles de acertar con el pulgar. */
+@media (max-width: 599px) {
   .medios {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
+  .medio {
+    min-height: 60px;
+    font-size: 18px;
+  }
+}
+
+/* Cobrar en pantalla completa: una columna centrada, sin estirarse en la tablet. */
+.cobrar.pantalla {
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+/* Caja: los renglones de cuentas no se estiran a todo el ancho (cuesta seguir la cifra). */
+.pantalla.caja > * {
+  width: 100%;
+  max-width: 680px;
+}
+
+.medio:disabled {
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-soft);
+  cursor: not-allowed;
 }
 
 .medio[aria-pressed='true'] {

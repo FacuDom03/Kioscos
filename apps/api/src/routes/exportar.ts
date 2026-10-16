@@ -3,10 +3,11 @@
 import type { FastifyInstance } from 'fastify';
 import { sql } from '@mostrador/db';
 import { verificarPassword } from '@mostrador/servidor';
-import { armarCsv } from '@mostrador/shared';
+import { armarCsv, escribirXlsx, planillaDeStock } from '@mostrador/shared';
 import { z } from 'zod';
 import { ErrorPublico } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
+import { tieneModulo } from '../servicios/negocio.ts';
 import { borrarOtrasSesiones } from '../servicios/sesiones.ts';
 import { borrarCookieSesion } from '../sesion.ts';
 import { validar } from '../validar.ts';
@@ -31,6 +32,74 @@ const ESTADOS: Record<string, string> = {
 };
 
 export async function rutasExportar(app: FastifyInstance): Promise<void> {
+  // "Descargar mi stock": Excel con las columnas de la planilla para importar. El costo solo va
+  // para quien lo puede ver (no el cajero, que igual no entra a Stock a editar).
+  app.get(
+    '/api/v1/exportar/productos.xlsx',
+    { config: { roles: ['dueno', 'encargado', 'soporte'] } },
+    async (req, reply) => {
+      const costos = req.completa.rol !== 'cajero';
+      const { hojas } = await req.db(async (tx) => {
+        const kiosco = await tx
+          .selectFrom('kioscos')
+          .select('rubro')
+          .where('id', '=', req.completa.kioscoId)
+          .executeTakeFirstOrThrow();
+        const [unidades, ubicaciones, gremio] = await Promise.all([
+          tieneModulo(tx, 'venta_fraccionada'),
+          tieneModulo(tx, 'ubicaciones'),
+          tieneModulo(tx, 'listas_precios'),
+        ]);
+        const filas = await tx
+          .selectFrom('productos as p')
+          .leftJoin('categorias as c', 'c.id', 'p.categoria_id')
+          .select([
+            'p.nombre',
+            'p.precio',
+            'p.costo',
+            'p.stock_actual',
+            'p.stock_minimo',
+            'p.unidad',
+            'p.ubicacion',
+            'p.precio_gremio',
+            'c.nombre as categoria',
+            (eb) =>
+              eb
+                .selectFrom('codigos_barra as b')
+                .select((e) => e.fn.min('b.codigo').as('codigo'))
+                .whereRef('b.producto_id', '=', 'p.id')
+                .as('codigo'),
+          ])
+          .where('p.activo', '=', true)
+          .orderBy('p.nombre')
+          .execute();
+        await auditar(tx, req.completa, 'exportacion.xlsx', { tipo: 'productos' }, req.ip);
+        return {
+          hojas: planillaDeStock(
+            { rubro: kiosco.rubro, unidades, ubicaciones, gremio, costos },
+            filas.map((f) => ({
+              nombre: f.nombre,
+              precio: Number(f.precio),
+              codigo: f.codigo ?? null,
+              categoria: f.categoria ?? null,
+              costo: costos && f.costo !== null ? Number(f.costo) : null,
+              stock: Number(f.stock_actual),
+              minimo: Number(f.stock_minimo),
+              unidad: f.unidad,
+              ubicacion: f.ubicacion,
+              gremio: f.precio_gremio === null ? null : Number(f.precio_gremio),
+            })),
+          ),
+        };
+      });
+      const fecha = new Date().toLocaleDateString('sv-SE', { timeZone: ZONA });
+      return reply
+        .header('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        .header('content-disposition', `attachment; filename="stock-${fecha}.xlsx"`)
+        .send(Buffer.from(escribirXlsx(hojas)));
+    },
+  );
+
   app.get('/api/v1/exportar/ventas.csv', { config: { roles: ['dueno'] } }, async (req, reply) => {
     const { desde, hasta } = validar(rango, req.query);
     const csv = await req.db(async (tx) => {

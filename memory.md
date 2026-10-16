@@ -55,6 +55,13 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Descargar mi stock (Excel)** en Stock y en Importar: `GET /api/v1/exportar/productos.xlsx`
+  (dueño, encargado, soporte; auditado como `exportacion.xlsx`; costo solo si lo puede ver),
+  con las mismas columnas que la planilla modelo (`planillaDeStock` en `importar.ts`). Al
+  volver a subirla actualiza: la importación ahora también reconoce por nombre los productos
+  sin código (si hay uno solo con ese nombre), así no se duplican. El stock de productos
+  existentes no cambia al importar.
+
 - **Atajos de gestión:** la lista nueva de un proveedor recuerda las columnas y los números
   (bonificación, IVA, ganancia, redondeo, gremio) de su última lista (van en `opciones.columnas`
   de `listas_proveedor`, sin migración); la ficha de producto tiene Escanear para el código; al

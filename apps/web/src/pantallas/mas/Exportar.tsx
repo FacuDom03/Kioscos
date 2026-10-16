@@ -1,22 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
+import { descargar, hoyArgentina as hoy } from '../../nucleo/descargar.ts';
 import { borrarDatosDelKiosco } from '../../nucleo/local.ts';
 import { useSesion, useSesionCompleta } from '../../nucleo/sesion.tsx';
 
-const hoy = () =>
-  new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
 const primeroDelMes = () => `${hoy().slice(0, 8)}01`;
-
-async function descargar(url: string, nombre: string) {
-  const r = await fetch(url, { credentials: 'same-origin' });
-  if (!r.ok) throw new Error('No se pudo descargar. Probá de nuevo.');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(await r.blob());
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
 
 export function Exportar({ alVolver }: { alVolver: () => void }) {
   const s = useSesionCompleta();

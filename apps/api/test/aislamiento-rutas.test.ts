@@ -2,6 +2,7 @@
 // las rutas intentando leer, editar y borrar recursos del kiosco B. Nada de B puede verse ni
 // cambiar.
 import { TABLAS_DE_KIOSCO } from '@mostrador/db';
+import { leerXlsx } from '@mostrador/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   altaConInvitacion,
@@ -104,6 +105,16 @@ describe('aislamiento por rutas (A contra B)', () => {
     }
     // La exportación de A tiene que traer datos de A (si no, la prueba no probaría nada).
     if (caso.url.endsWith('todo.json')) expect(r.body).toContain('Kiosco Anita');
+    // El Excel de stock trae exactamente los productos de A (A y B tienen los mismos nombres).
+    if (caso.url.endsWith('productos.xlsx')) {
+      const filas = await leerXlsx(new Uint8Array(r.rawPayload));
+      const { rows } = await e.admin.query<{ n: string }>(
+        'select count(*) as n from productos where kiosco_id = $1 and activo',
+        [KIOSCO_A],
+      );
+      expect(filas.length - 1).toBe(Number(rows[0]!.n));
+      expect(Number(rows[0]!.n)).toBeGreaterThan(0);
+    }
     // En ningún caso la respuesta trae IDs de B.
     for (const id of todosLosIdsDeB) expect(r.body).not.toContain(id);
     expect(await huellaDeB()).toEqual(antes);

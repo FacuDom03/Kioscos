@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { leerXlsx } from '../../../packages/shared/src/xlsx.ts';
 import { entrar, kioscoConDueno, productos } from './ayuda.ts';
 
 test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ page }, info) => {
@@ -118,4 +119,22 @@ test('buscar por código en Stock: lo encuentra o ofrece cargarlo', async ({ pag
   await expect(page.getByText('No encontramos el código 7790099999999.')).toBeVisible();
   await page.getByRole('button', { name: 'Cargar producto' }).click();
   await expect(page).toHaveURL(/producto\/nuevo\?codigo=7790099999999/);
+});
+
+test('descargar mi stock en Excel con las columnas de importar', async ({ page }) => {
+  const d = await kioscoConDueno();
+  await productos(d.kioscoId, [
+    { nombre: 'Yerba 1 kg', precio: 400000, codigo: '7790000000023', stock: 12 },
+  ]);
+  await entrar(page, d);
+  await page.goto('/stock');
+  await expect(page.getByText('Yerba 1 kg')).toBeVisible();
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Descargar mi stock (Excel)' }).click(),
+  ]);
+  expect(descarga.suggestedFilename()).toMatch(/^stock-\d{4}-\d{2}-\d{2}\.xlsx$/);
+  const filas = await leerXlsx(new Uint8Array(readFileSync(await descarga.path())));
+  expect(filas[0]?.slice(0, 3)).toEqual(['Nombre', 'Precio', 'Código']);
+  expect(filas[1]?.slice(0, 3)).toEqual(['Yerba 1 kg', '4000', '7790000000023']);
 });

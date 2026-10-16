@@ -1,6 +1,13 @@
-import { uuidv7 } from '@mostrador/shared';
+import { filasDeXlsxParaImportar, leerXlsx, uuidv7 } from '@mostrador/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { altaConInvitacion, Cliente, crearEntorno, nuevoKiosco, type Entorno } from './ayuda.ts';
+import {
+  altaConInvitacion,
+  cajeroEnEquipo,
+  Cliente,
+  crearEntorno,
+  nuevoKiosco,
+  type Entorno,
+} from './ayuda.ts';
 
 let e: Entorno;
 beforeAll(async () => {
@@ -131,5 +138,60 @@ describe('borrar la cuenta', () => {
       (await otra.post('/api/v1/auth/login', { email: dueno.email, password: dueno.password }))
         .statusCode,
     ).toBe(401);
+  });
+});
+
+describe('descargar mi stock en Excel', () => {
+  it('trae los productos con las columnas de importar y se puede volver a subir', async () => {
+    const kioscoId = await nuevoKiosco(e.admin);
+    const dueno = await altaConInvitacion(e.app, e.admin, kioscoId);
+    await dueno.cliente.post('/api/v1/productos/importar', {
+      csv: 'nombre;precio;codigo;costo;stock;minimo\nYerba 1 kg;4000,50;7790000000023;3000;12;4\nCaramelos sueltos;50;;30;200;0',
+    });
+    const r = await dueno.cliente.get('/api/v1/exportar/productos.xlsx');
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['content-type']).toContain('spreadsheetml');
+    expect(r.headers['content-disposition']).toMatch(/attachment; filename="stock-/);
+    const filas = await leerXlsx(new Uint8Array(r.rawPayload));
+    expect(filas[0]).toEqual([
+      'Nombre',
+      'Precio',
+      'Código',
+      'Categoría',
+      'Costo',
+      'Stock',
+      'Mínimo',
+    ]);
+    expect(filas.slice(1)).toEqual([
+      ['Caramelos sueltos', '50', '', '', '30', '200', '0'],
+      ['Yerba 1 kg', '4000.5', '7790000000023', '', '3000', '12', '4'],
+    ]);
+    const { rows } = await e.admin.query(
+      `select detalle from auditoria where kiosco_id = $1 and accion = 'exportacion.xlsx'`,
+      [kioscoId],
+    );
+    expect(rows).toEqual([{ detalle: { tipo: 'productos' } }]);
+
+    // Volver a subirla (con un precio cambiado) actualiza, no duplica, aun sin código.
+    const csv = filasDeXlsxParaImportar(filas)
+      .map((f) => f.join(';'))
+      .join('\n')
+      .replace('Caramelos sueltos;50;', 'Caramelos sueltos;80;');
+    const r2 = await dueno.cliente.post('/api/v1/productos/importar', { csv });
+    expect(r2.json()).toMatchObject({ creados: 0, actualizados: 2 });
+    const cat = (await dueno.cliente.get('/api/v1/catalogo')).json<{
+      productos: { nombre: string; precio: number }[];
+    }>();
+    expect(cat.productos.map((p) => [p.nombre, p.precio]).sort()).toEqual([
+      ['Caramelos sueltos', 8000],
+      ['Yerba 1 kg', 400050],
+    ]);
+  });
+
+  it('el cajero no la puede descargar', async () => {
+    const dueno = await altaConInvitacion(e.app, e.admin, await nuevoKiosco(e.admin));
+    const { cajero } = await cajeroEnEquipo(dueno, e.app);
+    expect((await cajero.get('/api/v1/exportar/productos.xlsx')).statusCode).toBe(403);
+    expect((await new Cliente(e.app).get('/api/v1/exportar/productos.xlsx')).statusCode).toBe(401);
   });
 });

@@ -8,6 +8,7 @@ import {
 import { useState } from 'react';
 import { Aviso, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
+import { descargar, hoyArgentina } from '../../nucleo/descargar.ts';
 import { refrescarCatalogo } from '../../nucleo/catalogo.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { navegar } from '../../nucleo/ruta.ts';
@@ -123,6 +124,26 @@ export function ImportarProductos() {
           </label>
         </li>
       </ol>
+      <section className="tarjeta-aumento">
+        <div>
+          <h2 className="subtitulo">¿Querés corregir lo que ya cargaste?</h2>
+          <p className="texto-suave">
+            Descargá tu stock con las mismas columnas, cambiá precios o costos en Excel y subilo
+            acá. Se actualiza cada producto; el stock no cambia.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="m-boton"
+          onClick={() =>
+            descargar('/api/v1/exportar/productos.xlsx', `stock-${hoyArgentina()}.xlsx`).catch(
+              (e: unknown) => setError(mensajeDeError(e)),
+            )
+          }
+        >
+          Descargar mi stock (Excel)
+        </button>
+      </section>
       {error && <Aviso>{error}</Aviso>}
       {resultado && (
         <Aviso tipo="ok">

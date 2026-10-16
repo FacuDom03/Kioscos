@@ -135,7 +135,7 @@ function columnas(o: OpcionesPlanilla): Columna[] {
       ancho: 18,
       texto: true,
       ayuda:
-        'Código de barras. Si ya existe un producto con ese código, se actualiza en vez de crear otro.',
+        'Código de barras. Si ya existe un producto con ese código, se actualiza en vez de crear otro. Sin código, se actualiza el que se llama igual.',
     },
     {
       clave: 'categoria',
@@ -216,6 +216,81 @@ export function planillaModelo(o: OpcionesPlanilla): Hoja[] {
           'En Mostrador: Stock → Importar productos desde un archivo → Elegir archivo.',
         ],
         ['Máximo', '5000 productos por archivo.'],
+      ],
+    },
+  ];
+}
+
+/** Un producto tal como sale en "Descargar mi stock" (plata en centavos). */
+export interface ProductoParaPlanilla {
+  nombre: string;
+  precio: number;
+  codigo: string | null;
+  categoria: string | null;
+  /** null si quien descarga no puede ver costos, o si no tiene. */
+  costo: number | null;
+  stock: number;
+  minimo: number;
+  unidad: string;
+  ubicacion: string | null;
+  gremio: number | null;
+}
+
+const pesos = (centavos: number | null) => (centavos === null ? null : centavos / 100);
+
+/**
+ * "Descargar mi stock": las mismas columnas que la planilla modelo, con los productos del
+ * comercio. Se puede corregir en Excel y volver a subir para actualizar precios.
+ */
+export function planillaDeStock(
+  o: OpcionesPlanilla & { costos: boolean },
+  productos: ProductoParaPlanilla[],
+): Hoja[] {
+  const cols = columnas(o).filter((c) => o.costos || c.clave !== 'costo');
+  const valor = (p: ProductoParaPlanilla, clave: keyof Ejemplo): Celda => {
+    switch (clave) {
+      case 'precio':
+        return pesos(p.precio);
+      case 'costo':
+        return pesos(p.costo);
+      case 'gremio':
+        return pesos(p.gremio);
+      case 'codigo':
+        return p.codigo ?? '';
+      case 'categoria':
+        return p.categoria ?? '';
+      case 'ubicacion':
+        return p.ubicacion ?? '';
+      default:
+        return p[clave];
+    }
+  };
+  return [
+    {
+      nombre: 'Productos',
+      filas: [
+        cols.map((c) => c.titulo),
+        ...productos.map((p) => cols.map((c) => valor(p, c.clave))),
+      ],
+      anchos: cols.map((c) => c.ancho),
+      texto: cols.flatMap((c, i) => (c.texto ? [i] : [])),
+    },
+    {
+      nombre: 'Cómo usarla',
+      anchos: [22, 90],
+      filas: [
+        ['Qué es', 'Tus productos como estaban al descargarla.'],
+        [
+          'Para cambiar precios',
+          'Corregí la planilla y subila en Stock → Importar productos desde un archivo. Cada fila actualiza el producto con ese código (o, si no tiene código, el que se llama igual).',
+        ],
+        [
+          'El stock',
+          'Al subirla no se cambia el stock de los productos que ya existen. Para eso usá Cargar compra.',
+        ],
+        [],
+        ['Columna', 'Qué va'],
+        ...cols.map((c) => [c.titulo, c.ayuda]),
       ],
     },
   ];

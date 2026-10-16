@@ -676,6 +676,16 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
             (c) => [c.codigo, c.producto_id],
           ),
         );
+        // Nombre → producto, solo si hay uno con ese nombre (null si hay varios).
+        const porNombre = new Map<string, string | null>();
+        for (const p of await tx
+          .selectFrom('productos')
+          .select(['id', 'nombre'])
+          .where('activo', '=', true)
+          .execute()) {
+          const clave = p.nombre.toLowerCase();
+          porNombre.set(clave, porNombre.has(clave) ? null : p.id);
+        }
         for (const [n, f] of filas.entries()) {
           const linea = n + 2;
           const nombre = f[iNombre]?.trim() ?? '';
@@ -729,7 +739,11 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
               categorias.set(nombreCat.toLowerCase(), categoriaId);
             }
           }
-          const existente = cod ? codigos.get(cod) : undefined;
+          // Sin código, el que se llama igual (si hay uno solo): así volver a subir la planilla
+          // de "Descargar mi stock" no duplica los productos sin código.
+          const existente = cod
+            ? codigos.get(cod)
+            : (porNombre.get(nombre.toLowerCase()) ?? undefined);
           if (existente) {
             await tx
               .updateTable('productos')
@@ -761,6 +775,7 @@ export async function rutasCatalogo(app: FastifyInstance): Promise<void> {
               ...extras,
             })
             .execute();
+          if (!porNombre.has(nombre.toLowerCase())) porNombre.set(nombre.toLowerCase(), id);
           if (cod) {
             await tx
               .insertInto('codigos_barra')

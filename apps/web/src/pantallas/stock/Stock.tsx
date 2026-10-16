@@ -4,6 +4,8 @@ import { Escaner } from '../../componentes/Escaner.tsx';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { productoPorCodigo } from '../../nucleo/catalogo.ts';
 import { enlaceWhatsApp } from '../../nucleo/presupuestos.ts';
+import { descargar, hoyArgentina } from '../../nucleo/descargar.ts';
+import { mensajeDeError } from '../../nucleo/api.ts';
 import { useEsPC } from '../../nucleo/medios.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
@@ -57,6 +59,7 @@ export function Stock() {
   const [filtro, setFiltro] = useState<'todos' | 'por_reponer'>('todos');
   const [q, setQ] = useState('');
   const [escaner, setEscaner] = useState(false);
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
   const { datos, error } = useDatos<Respuesta>(`/api/v1/productos?filtro=${filtro}`);
   const [orden, setOrden] = useState<{ campo: 'nombre' | 'stock' | 'precio'; asc: boolean }>({
     campo: 'nombre',
@@ -175,6 +178,7 @@ export function Stock() {
         </button>
       </div>
       {error && <Aviso>{error}</Aviso>}
+      {errorDescarga && <Aviso>{errorDescarga}</Aviso>}
       {filtro === 'por_reponer' && filas.length > 0 && (
         <a
           className="m-boton boton-enlace"
@@ -194,10 +198,7 @@ export function Stock() {
         </a>
       )}
 
-      {(editar && negocio.tiene('precios_proveedor')) ||
-      negocio.tiene('variantes') ||
-      negocio.tiene('vencimientos') ||
-      s.rol === 'dueno' ? (
+      {editar || negocio.tiene('variantes') || negocio.tiene('vencimientos') ? (
         <div className="herramientas" role="group" aria-label="Más herramientas de stock">
           {s.rol === 'dueno' && (
             <button type="button" className="m-boton" onClick={() => navegar('/stock/aumento')}>
@@ -221,6 +222,20 @@ export function Stock() {
               onClick={() => navegar('/stock/vencimientos')}
             >
               Ver vencimientos
+            </button>
+          )}
+          {editar && (
+            <button
+              type="button"
+              className="m-boton"
+              onClick={() => {
+                setErrorDescarga(null);
+                descargar('/api/v1/exportar/productos.xlsx', `stock-${hoyArgentina()}.xlsx`).catch(
+                  (e: unknown) => setErrorDescarga(mensajeDeError(e)),
+                );
+              }}
+            >
+              Descargar mi stock (Excel)
             </button>
           )}
         </div>

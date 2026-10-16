@@ -70,7 +70,9 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ## Producción (servidor del cliente, Hostinger)
 
-- App en `https://mostrador.srv1995859.hstgr.cloud`, detrás de un Traefik que ya existía.
+- App en `https://mimostrador.tech` (antes `mostrador.srv1995859.hstgr.cloud`, que ya no
+  anda), detrás de un Traefik que ya existía. DNS en Hostinger: A `@` → `2.25.133.5` y AAAA
+  `@` → `2a02:4780:75:b0ce::1` (las IP del VPS). `DOMINIO=mimostrador.tech` en `config.env`.
   Se levanta con `infra/compose.prod.yml` más `infra/compose.traefik.yml`.
 - Código en `/opt/mostrador/app`, configuración en `/opt/mostrador/config.env`, secretos en
   `/opt/mostrador/secretos`.
@@ -92,9 +94,11 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 - No hay "olvidé mi contraseña". Se ofreció armar un enlace de contraseña nueva desde el panel
   admin; sin respuesta todavía.
 - Respaldos sin configurar (paso 7 de `docs/DEPLOY.md`).
-- Cloudflare: la persona no hizo nada todavía. Con la dirección actual (`*.hstgr.cloud`, detrás de
-  Traefik) no hace falta: la variante Traefik de `docs/DEPLOY.md` no lo usa. Solo sirve si compra
-  un dominio propio.
+- Cloudflare: no se usa. La variante Traefik de `docs/DEPLOY.md` no lo necesita y el DNS de
+  `mimostrador.tech` está en Hostinger.
+- Se ofreció que la dirección vieja redirija a la nueva; sin respuesta.
+- El escáner con guía está en `claude/blissful-gates-hx4qur`; falta que llegue a la rama que usa
+  el servidor (se le preguntó a la persona).
 - Hay un PostgreSQL de otra app expuesto a todo internet (puerto 32769) y el SSH acepta
   contraseña. Conviene cerrar el puerto, usar firewall (22, 80, 443) y pasar a clave SSH.
 - Mercado Pago: aún sin configurar. Falta crear la aplicación en Mercado Pago, dos vendedores y un

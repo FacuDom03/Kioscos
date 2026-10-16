@@ -1,0 +1,117 @@
+# Memoria del proyecto Mostrador (para retomar en otra sesión)
+
+Pegá este archivo al inicio de la sesión nueva, o pedile a Claude que lo lea. No tiene
+contraseñas ni claves: esas no se pasan por chat.
+
+## Cómo trabajar con la persona
+
+- Responder siempre en castellano rioplatense, con voseo y sin jerga técnica. Respuestas cortas.
+- No gastar tokens de más: la persona pidió ir de a poco.
+- La persona va ejecutando los comandos en su servidor y yo la guío. Nunca pedir ni pegar
+  contraseñas, secretos TOTP, `claves.json` ni credenciales en el chat. Para cargarlas se usa
+  `read -rs` en el servidor.
+- Reglas de `CLAUDE.md` del repo: preguntar antes de agregar una dependencia grande, cambiar el
+  modelo de datos de forma incompatible, tocar políticas RLS o roles de base, o guardar un dato
+  personal nuevo.
+- No crear Pull Request salvo que se pida. Trabajar y subir solo a la rama
+  `claude/mostrador-etapa-a-7jft9w` del repo `facudom03/kioscos`.
+- Los commits terminan con las líneas de atribución que indique el sistema. No poner nombres de
+  modelo en el repo.
+- Verificar siempre el código de salida de lint, format, typecheck y tests (no esconderlo con
+  `| head`).
+
+## Qué es
+
+Mostrador: sistema de gestión en la nube para kioscos y otros comercios (ferretería, perfumería,
+almacén, librería). PWA que anda sin conexión. Especificación en `docs/SPEC.md`, decisiones en
+`docs/decisiones/`, guía de producción en `docs/DEPLOY.md`.
+
+Monorepo pnpm, Node 22 corriendo TypeScript directo (imports con extensión `.ts`/`.tsx`, nada de
+`enum`). `apps/web` (React + Vite + Workbox + Dexie), `apps/api` (Fastify), `apps/worker`
+(BullMQ, Mercado Pago), `apps/admin` (panel interno), `packages/shared`, `db`, `ui`, `servidor`,
+`mp`. PostgreSQL 16 con RLS forzada, Redis.
+
+Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test` (necesita
+`TEST_DATABASE_ADMIN_URL` y PostgreSQL), `pnpm contraste`, `pnpm e2e` (Playwright, 4 tamaños).
+
+## Estado
+
+- Etapas A a H hechas. Etapa I (rubros) hecha: I1 rubro y diseño por rubro, I2 ferretería,
+  I3 proveedores y listas de precios, I4 presupuestos y remitos, I5 clientes y cuenta
+  corriente, I6 tablero, I7 perfumería (variantes, promos, regalo, vencimientos).
+- Revisión de seguridad y correctitud de la etapa I hecha y corregida.
+- Último commit subido: `47c6daa` ("Más ordenado en grupos, Tablero en la barra y planilla
+  modelo para importar"). Todo está subido y las pruebas pasan (unidad, integración y e2e).
+
+### Lo último que se hizo
+
+- **Tablero**: cuando no hay datos muestra "Primeros pasos" en vez de cuadros vacíos. Ahora tiene
+  sección propia en la barra de navegación (dueño y encargado; el cajero no la ve).
+- **Más**: reorganizado en grupos (Gestión, Personas y seguridad, Este equipo), con tarjetas en
+  2 o 3 columnas.
+- **Importar productos**: botón "Descargar planilla (Excel)" que genera un `.xlsx` modelo según el
+  rubro y las funciones activas (unidades, ubicación, precio gremio), con ejemplos y una hoja
+  "Cómo llenarla". Se puede subir el `.xlsx` o un CSV. Código en
+  `packages/shared/src/importar.ts` y `xlsx-escribir.ts` (escritor propio sin dependencias).
+- **Botón "Actualizar"** de la PWA: ahora recarga siempre al aplicar la versión nueva
+  (`apps/web/src/nucleo/actualizacion.ts`).
+
+## Producción (servidor del cliente, Hostinger)
+
+- App en `https://mostrador.srv1995859.hstgr.cloud`, detrás de un Traefik que ya existía.
+  Se levanta con `infra/compose.prod.yml` más `infra/compose.traefik.yml`.
+- Código en `/opt/mostrador/app`, configuración en `/opt/mostrador/config.env`, secretos en
+  `/opt/mostrador/secretos`.
+- Actualizar el servidor:
+  ```sh
+  cd /opt/mostrador/app && git pull
+  cd infra && docker compose -f compose.prod.yml -f compose.traefik.yml \
+    --env-file /opt/mostrador/config.env up -d --build
+  ```
+  Después, en la app, tocar "Actualizar" en el cartel (o cerrar todas las pestañas y reabrir).
+- El panel admin solo escucha en `127.0.0.1:8081`: se entra con un túnel SSH
+  (`ssh -L 8081:127.0.0.1:8081 root@<servidor>`). El usuario del panel es distinto del de los
+  comercios.
+- Si el panel bloquea la cuenta por intentos: poner `intentos_fallidos=0` y `bloqueado_hasta=null`
+  en la tabla `admins`.
+
+### Pendientes de producción (avisados a la persona)
+
+- No hay "olvidé mi contraseña". Se ofreció armar un enlace de contraseña nueva desde el panel
+  admin; sin respuesta todavía.
+- Respaldos sin configurar (paso 7 de `docs/DEPLOY.md`).
+- Hay un PostgreSQL de otra app expuesto a todo internet (puerto 32769) y el SSH acepta
+  contraseña. Conviene cerrar el puerto, usar firewall (22, 80, 443) y pasar a clave SSH.
+- Mercado Pago: aún sin configurar. Falta crear la aplicación en Mercado Pago, dos vendedores y un
+  comprador de prueba, cargar Client ID, secreto y clave de webhooks (con `read -rs`), usar
+  `MP_PRUEBAS=1` y probar. Pasos en `docs/DEPLOY.md`, sección 6.
+
+## Ideas y pendientes de producto
+
+- **Cámara para escanear**: en iPhone se desenfoca cuando el código está muy cerca. Agregar una
+  guía en pantalla (marco con línea roja y texto "alejá unos 15 cm"), pedir enfoque continuo y más
+  resolución, leer solo dentro del marco y, si se puede, linterna y tocar para enfocar. Archivo:
+  `apps/web/src/componentes/Escaner.tsx`. La cámara nunca se probó con una real.
+- **Nombre**: se evaluó renombrar el producto (hoy "Mostrador"). Opciones: Caja Abierta, Despacho.
+  Sin decisión. Antes verificar INPI, dominio e Instagram.
+- **"Gremio"**: es el precio especial para clientes que compran por oficio (plomero, electricista).
+  Se pensó renombrarlo a "Profesional" o "Precio especial" en la interfaz, pero sin decisión.
+  Mantener aceptada la columna "Precio gremio" en las planillas.
+- No existe integración con Mercado Libre (solo Mercado Pago para QR).
+- Fuera de lo hecho: devolución de pagos QR por API, y corregir la dirección de la sucursal de
+  Mercado Pago (se crea genérica en Buenos Aires).
+
+## Cómo funciona Mercado Pago en producción
+
+Una sola aplicación de Mercado Pago (la de Mostrador). Cada dueño la autoriza con su propia cuenta
+en Más → Conexiones y la plata le entra directo a él. Los tokens van cifrados. Antes de dar un
+cobro por pagado se reconsulta a la API y se verifica venta, monto y cuenta. Detalle en
+`docs/decisiones/007-mercado-pago.md`.
+
+## Cómo seguir
+
+1. Leer `CLAUDE.md`, `docs/SPEC.md` y este archivo.
+2. Confirmar con la persona qué sigue: hay que elegir entre el escáner con guía, el enlace de
+   contraseña nueva, los respaldos, el endurecimiento del servidor, probar Mercado Pago o el
+   nombre de la app.
+3. Trabajar siempre en la rama `claude/mostrador-etapa-a-7jft9w`.

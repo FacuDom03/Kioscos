@@ -1,28 +1,35 @@
 import { formatearPlata } from '@mostrador/shared';
 import { useId, useState } from 'react';
 import { buscarProductos, productoPorCodigo, type Producto } from '../nucleo/catalogo.ts';
+import { Escaner } from './Escaner.tsx';
 
 /** Buscador con lista de resultados navegable con teclado. Enter con un código exacto lo elige. */
 export function BuscadorProductos({
   alElegir,
   etiqueta,
+  ayudaEscaner,
 }: {
   alElegir: (p: Producto) => void;
   etiqueta: string;
+  /** Con esto aparece el botón Escanear (cámara del celular o la tablet). */
+  ayudaEscaner?: string;
 }) {
   const id = useId();
   const [q, setQ] = useState('');
   const [activo, setActivo] = useState(0);
+  const [escaner, setEscaner] = useState(false);
+  const [desconocido, setDesconocido] = useState<string | null>(null);
   const resultados = q.trim() ? buscarProductos(q, 8) : [];
 
   const elegir = (p: Producto) => {
     alElegir(p);
     setQ('');
     setActivo(0);
+    setDesconocido(null);
   };
 
   return (
-    <div className="buscador-productos">
+    <div className={`buscador-productos${ayudaEscaner ? ' buscador' : ''}`}>
       <label className="m-solo-lectores" htmlFor={id}>
         {etiqueta}
       </label>
@@ -39,6 +46,7 @@ export function BuscadorProductos({
         onChange={(e) => {
           setQ(e.target.value);
           setActivo(0);
+          setDesconocido(null);
         }}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') {
@@ -55,6 +63,11 @@ export function BuscadorProductos({
           }
         }}
       />
+      {ayudaEscaner && (
+        <button type="button" className="buscador__escanear" onClick={() => setEscaner(true)}>
+          Escanear
+        </button>
+      )}
       {resultados.length > 0 && (
         <ul id={`${id}-lista`} role="listbox" className="resultados">
           {resultados.map((p, i) => (
@@ -66,6 +79,22 @@ export function BuscadorProductos({
             </li>
           ))}
         </ul>
+      )}
+      {desconocido && (
+        <p className="buscador__desconocido" role="alert">
+          No encontramos el código {desconocido}. Cargalo primero desde Nuevo producto.
+        </p>
+      )}
+      {escaner && ayudaEscaner && (
+        <Escaner
+          ayuda={ayudaEscaner}
+          alLeer={(codigo) => {
+            const p = productoPorCodigo(codigo);
+            if (p) elegir(p);
+            else setDesconocido(codigo);
+          }}
+          alCerrar={() => setEscaner(false)}
+        />
       )}
     </div>
   );

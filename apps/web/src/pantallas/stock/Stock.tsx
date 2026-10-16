@@ -1,6 +1,8 @@
 import { formatearCantidad, formatearPlata, type Unidad } from '@mostrador/shared';
 import { useMemo, useState } from 'react';
+import { Escaner } from '../../componentes/Escaner.tsx';
 import { Aviso } from '../../componentes/Formulario.tsx';
+import { productoPorCodigo } from '../../nucleo/catalogo.ts';
 import { useEsPC } from '../../nucleo/medios.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
@@ -53,6 +55,7 @@ export function Stock() {
   const esPC = useEsPC();
   const [filtro, setFiltro] = useState<'todos' | 'por_reponer'>('todos');
   const [q, setQ] = useState('');
+  const [escaner, setEscaner] = useState(false);
   const { datos, error } = useDatos<Respuesta>(`/api/v1/productos?filtro=${filtro}`);
   const [orden, setOrden] = useState<{ campo: 'nombre' | 'stock' | 'precio'; asc: boolean }>({
     campo: 'nombre',
@@ -63,13 +66,21 @@ export function Stock() {
 
   const filas = useMemo(() => {
     const nq = normalizar(q);
-    const lista = (datos?.productos ?? []).filter((p) => !nq || normalizar(p.nombre).includes(nq));
+    // Un código escaneado o tipeado muestra solo ese producto.
+    const porCodigo = productoPorCodigo(q.trim());
+    const lista = (datos?.productos ?? []).filter((p) =>
+      porCodigo ? p.id === porCodigo.id : !nq || normalizar(p.nombre).includes(nq),
+    );
     const f = orden.campo;
     return [...lista].sort((a, b) => {
       const r = f === 'nombre' ? a.nombre.localeCompare(b.nombre, 'es') : a[f] - b[f];
       return orden.asc ? r : -r;
     });
   }, [datos, q, orden]);
+
+  // Un código (de 6 cifras o más) que no está en el catálogo: se ofrece cargarlo.
+  const codigoDesconocido =
+    /^\d{6,}$/.test(q.trim()) && !productoPorCodigo(q.trim()) ? q.trim() : null;
 
   const ordenarPor = (campo: 'nombre' | 'stock' | 'precio') =>
     setOrden((o) => ({ campo, asc: o.campo === campo ? !o.asc : true }));
@@ -99,17 +110,48 @@ export function Stock() {
           </div>
         )}
       </div>
-      <label className="m-solo-lectores" htmlFor="buscar-stock">
-        Buscar producto
-      </label>
-      <input
-        id="buscar-stock"
-        className="buscador__campo"
-        type="search"
-        placeholder="Buscar producto"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+      <div className="buscador">
+        <label className="m-solo-lectores" htmlFor="buscar-stock">
+          Buscar producto
+        </label>
+        <input
+          id="buscar-stock"
+          className="buscador__campo"
+          type="search"
+          placeholder="Buscá o escaneá un producto"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button type="button" className="buscador__escanear" onClick={() => setEscaner(true)}>
+          Escanear
+        </button>
+      </div>
+      {codigoDesconocido && (
+        <div className="aviso aviso--error desconocido" role="alert">
+          <p>No encontramos el código {codigoDesconocido}.</p>
+          {editar && (
+            <button
+              type="button"
+              className="m-boton"
+              onClick={() =>
+                navegar(`/stock/producto/nuevo?codigo=${encodeURIComponent(codigoDesconocido)}`)
+              }
+            >
+              Cargar producto
+            </button>
+          )}
+        </div>
+      )}
+      {escaner && (
+        <Escaner
+          ayuda="Apuntá al código para ver su precio y su stock."
+          alLeer={(codigo) => {
+            setQ(codigo);
+            setEscaner(false);
+          }}
+          alCerrar={() => setEscaner(false)}
+        />
+      )}
       <div className="chips" role="group" aria-label="Filtro">
         <button
           type="button"
@@ -165,11 +207,13 @@ export function Stock() {
         </div>
       ) : null}
 
-      {datos && filas.length === 0 && (
+      {datos && filas.length === 0 && !codigoDesconocido && (
         <p className="vacio">
           {filtro === 'por_reponer'
             ? 'No hay productos por reponer.'
-            : 'No hay productos. Cargá el primero o importá un archivo.'}
+            : q.trim()
+              ? 'No hay productos con ese nombre.'
+              : 'No hay productos. Cargá el primero o importá un archivo.'}
         </p>
       )}
 

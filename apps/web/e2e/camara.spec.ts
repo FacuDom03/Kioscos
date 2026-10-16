@@ -87,3 +87,25 @@ test('la cámara lee el código dentro del marco y lo suma al ticket', async ({ 
   await expect(dialogo).toBeHidden();
   await expect(page.getByText(/^Ticket · \d+ productos?$/)).toBeVisible();
 });
+
+test('en Stock, escanear muestra el precio y el stock de ese producto', async ({ page }, info) => {
+  test.skip(info.project.name === 'pc', 'En la computadora se usa el lector, no la cámara.');
+  const d = await kioscoConDueno();
+  await productos(d.kioscoId, [
+    { nombre: 'Coca-Cola 500 ml', precio: 180000, codigo: CODIGO, stock: 7 },
+    { nombre: 'Alfajor de maicena', precio: 90000, codigo: '7790000000016' },
+  ]);
+  await entrar(page, d);
+  await page.goto('/');
+  await expect(page.locator('.mosaico', { hasText: 'Coca-Cola' })).toBeVisible();
+  await page.goto('/stock');
+  await expect(page.getByText('Alfajor de maicena')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Escanear' }).click();
+  await page.getByRole('button', { name: 'Abrir la cámara' }).click();
+  await expect(page.getByRole('dialog', { name: 'Escanear' })).toBeHidden();
+  await expect(page.getByLabel('Buscar producto')).toHaveValue(CODIGO);
+  await expect(page.getByText('Coca-Cola 500 ml')).toBeVisible();
+  await expect(page.getByText('7 en stock')).toBeVisible();
+  await expect(page.getByText('Alfajor de maicena')).toBeHidden();
+});

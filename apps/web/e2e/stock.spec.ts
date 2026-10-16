@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { entrar, kioscoConDueno } from './ayuda.ts';
+import { entrar, kioscoConDueno, productos } from './ayuda.ts';
 
 test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ page }, info) => {
   const d = await kioscoConDueno();
@@ -92,4 +92,26 @@ test('la planilla modelo se descarga, se sube tal cual y carga los ejemplos', as
   await page.goto('/stock');
   await page.getByLabel('Buscar producto').fill('alfajor triple');
   await expect(page.getByText('Alfajor triple chocolate')).toBeVisible();
+});
+
+test('buscar por código en Stock: lo encuentra o ofrece cargarlo', async ({ page }) => {
+  const d = await kioscoConDueno();
+  await productos(d.kioscoId, [
+    { nombre: 'Yerba 1 kg', precio: 400000, codigo: '7790000000023', stock: 12 },
+    { nombre: 'Azúcar 1 kg', precio: 150000 },
+  ]);
+  await entrar(page, d);
+  await page.goto('/');
+  await expect(page.locator('.mosaico', { hasText: 'Yerba' })).toBeVisible();
+  await page.goto('/stock');
+  await expect(page.getByText('Azúcar 1 kg')).toBeVisible();
+
+  await page.getByLabel('Buscar producto').fill('7790000000023');
+  await expect(page.getByText('Yerba 1 kg')).toBeVisible();
+  await expect(page.getByText('Azúcar 1 kg')).toBeHidden();
+
+  await page.getByLabel('Buscar producto').fill('7790099999999');
+  await expect(page.getByText('No encontramos el código 7790099999999.')).toBeVisible();
+  await page.getByRole('button', { name: 'Cargar producto' }).click();
+  await expect(page).toHaveURL(/producto\/nuevo\?codigo=7790099999999/);
 });

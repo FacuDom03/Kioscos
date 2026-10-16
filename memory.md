@@ -47,6 +47,12 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Escanear en Stock y en Cargar compra** (idea de la persona): en Stock, el botón Escanear (o
+  un código tipeado o del lector USB en el buscador) muestra solo ese producto con precio y
+  stock; si el código no existe ofrece "Cargar producto". En Cargar compra, el escáner suma a
+  la compra cada producto leído sin cerrar la cámara. `Escaner` tiene la prop `ayuda` para el
+  texto de abajo de la cámara.
+
 - **Revisión UX/UI** contra Square, Loyverse, Mercado Pago y sistemas argentinos (YoFacturo,
   MiPOS): nuestro diferencial es el estilo kiosco (toldo, cartel con marcador, precios
   amarillos) y el sobrio para ferreterías. Mejoras: ingreso con la marca "Mostrador" grande y

@@ -6,6 +6,8 @@ import { Aviso } from './Formulario.tsx';
 interface Props {
   alLeer: (codigo: string) => void;
   alCerrar: () => void;
+  /** Qué pasa con cada código leído, para el renglón de abajo de la cámara. */
+  ayuda?: string;
 }
 
 const FORMATOS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'];
@@ -131,7 +133,11 @@ function detener(flujo: MediaStream | null) {
  * distancia es para el iPhone, que no enfoca de muy cerca. Ignora el mismo código durante
  * 1,5 segundos.
  */
-export function Escaner({ alLeer, alCerrar }: Props) {
+export function Escaner({
+  alLeer,
+  alCerrar,
+  ayuda = 'Cada producto leído se suma al ticket.',
+}: Props) {
   const [paso, setPaso] = useState<'explicacion' | 'camara' | 'error'>('explicacion');
   const [error, setError] = useState<string | null>(null);
   const [funciones, setFunciones] = useState({ linterna: false, enfocar: false });
@@ -375,7 +381,7 @@ export function Escaner({ alLeer, alCerrar }: Props) {
             alejá un poco la cámara{funciones.enfocar ? ' o tocá la imagen para enfocar' : ''}.
           </p>
           <p className="escaner__leido" role="status">
-            {leido ? `Último código leído: ${leido}` : 'Cada producto leído se suma al ticket.'}
+            {leido ? `Último código leído: ${leido}` : ayuda}
           </p>
           <div className="acciones">
             <button type="button" className="m-boton m-boton--principal" onClick={alCerrar}>

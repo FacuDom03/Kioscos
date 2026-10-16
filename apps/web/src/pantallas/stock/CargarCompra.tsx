@@ -68,7 +68,11 @@ export function CargarCompra() {
       <p className="texto-suave">
         Escaneá o buscá cada producto que llegó, con la cantidad y el costo por unidad.
       </p>
-      <BuscadorProductos alElegir={agregar} etiqueta="Agregar producto" />
+      <BuscadorProductos
+        alElegir={agregar}
+        etiqueta="Agregar producto"
+        ayudaEscaner="Cada producto leído se suma a la compra."
+      />
       <ul className="lista-filas">
         {items.map((x, i) => (
           <li key={x.producto.id} className="tarjeta tarjeta--compra">

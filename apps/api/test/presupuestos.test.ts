@@ -99,9 +99,13 @@ describe('presupuestos', () => {
   it('el que vence queda vencido y se puede anular', async () => {
     const p = presupuesto();
     await cajero.post('/api/v1/presupuestos', p);
-    await e.admin.query(`update presupuestos set vence_en = current_date - 1 where id = $1`, [
-      p.id,
-    ]);
+    // Ayer en la Argentina, como lo cuenta la API (current_date de la base va en UTC).
+    await e.admin.query(
+      `update presupuestos
+          set vence_en = (now() at time zone 'America/Argentina/Buenos_Aires')::date - 1
+        where id = $1`,
+      [p.id],
+    );
     const lista = (await cajero.get('/api/v1/presupuestos')).json<
       { id: string; estado: string }[]
     >();

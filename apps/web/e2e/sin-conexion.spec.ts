@@ -60,6 +60,9 @@ test('sin internet se sigue vendiendo en efectivo y las ventas se suben solas', 
     .click();
   await expect(page.getByRole('button', { name: 'QR (necesita internet)' })).toBeDisabled();
   await page.getByRole('button', { name: /Volver/ }).click();
+  // En el celular el ticket está plegado: se despliega para vaciarlo.
+  const plegado = page.getByRole('button', { name: /^Ticket · .*Ver$/ });
+  if (await plegado.isVisible()) await plegado.click();
   await page.getByRole('button', { name: 'Vaciar ticket' }).click();
   await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
 

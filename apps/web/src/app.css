@@ -31,14 +31,29 @@
 }
 
 .vender__encabezado {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'nombre estado'
+    'acciones acciones';
+  align-items: start;
+  gap: 8px 12px;
+}
+
+.vender__nombre {
+  grid-area: nombre;
+  min-width: 0;
 }
 
 .vender__encabezado .m-titulo {
+  overflow: hidden;
   font-stretch: 82%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vender__estado {
+  grid-area: estado;
 }
 
 .vender__columnas {
@@ -130,8 +145,71 @@
   font-size: 15px;
 }
 
+.vender__ticket [hidden] {
+  display: none;
+}
+
+.ticket__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ticket__acciones .vaciar {
+  align-self: center;
+}
+
+.ticket__presupuesto {
+  margin-left: auto;
+}
+
+/* En el celular el título del ticket lo pliega y lo despliega. */
+.ticket__plegar {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.ticket__plegar-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ticket__ultimo {
+  overflow: hidden;
+  color: var(--paper-soft);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticket__plegar-accion {
+  flex: none;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* Tablet y PC: dos columnas, productos a la izquierda y ticket con total a la derecha. */
 @media (min-width: 600px) {
+  .vender__encabezado {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'nombre acciones estado';
+  }
+
   .vender__columnas {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
@@ -1207,6 +1285,7 @@ fieldset.campo legend {
 }
 
 .mosaico__precio {
+  white-space: nowrap;
   padding: var(--price-pad);
   background: var(--price-bg);
   color: var(--price-ink);
@@ -1290,18 +1369,13 @@ fieldset.campo legend {
   font-weight: 800;
 }
 
-.ticket__botones {
-  display: none;
+.ticket__linea:has(.ticket__botones) {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
 
-@media (min-width: 600px) {
-  .ticket__linea {
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-  }
-  .ticket__botones {
-    display: flex;
-    gap: 4px;
-  }
+.ticket__botones {
+  display: flex;
+  gap: 4px;
 }
 
 .ticket__boton {
@@ -1645,24 +1719,53 @@ fieldset.campo legend {
   }
 }
 
-/* Celular: los productos siempre tienen lugar; el ticket y el cartel se achican en pantallas bajas. */
+/* Celular: los productos ocupan la pantalla. Abajo, fijos, el ticket plegado, el total y Cobrar. */
 @media (max-width: 599px) {
+  .vender__acciones .lista-precios {
+    order: -1;
+    margin-right: auto;
+  }
+  .vender__acciones .chip {
+    padding: 0 12px;
+  }
   .vender__productos {
-    flex: 1 1 45%;
-    min-height: 170px;
+    flex: 1 1 auto;
+    min-height: 140px;
   }
   .vender__ticket {
-    flex: 0 1 auto;
-    min-height: 0;
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px 10px;
+    margin: 0 -16px -16px;
+    padding: 10px 16px 12px;
+    border-top: var(--line-w) solid var(--line);
+    background: var(--bg);
+  }
+  .vender__ticket > section,
+  .vender__ticket > .ticket__acciones,
+  .vender__ticket > .aviso,
+  .vender__ticket > .nota-sin-qr {
+    grid-column: 1 / -1;
   }
   .ticket__lineas {
-    max-height: 15vh;
+    max-height: 38dvh;
   }
   .vender__ticket .m-ticket {
-    padding: 10px 14px 4px;
+    padding: 6px 12px 4px;
   }
   .vender__ticket .m-ticket__separador {
     margin: 6px 0;
+  }
+  .vender__ticket--plegado .m-ticket__separador {
+    display: none;
+  }
+  .vender__ticket .vender__total .m-cartel {
+    width: 150px !important;
+  }
+  .vender__ticket .vender__total .m-cartel__monto {
+    font-size: 28px;
   }
 }
 
@@ -1684,39 +1787,10 @@ fieldset.campo legend {
     padding-top: 8px;
   }
   .vender__ticket {
-    gap: 4px;
+    padding-top: 8px;
   }
   .vender__ticket .m-boton--principal {
     min-height: 56px;
-  }
-}
-
-@media (max-width: 599px) {
-  .vender__ticket {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: 10px;
-  }
-  .vender__ticket > section,
-  .vender__ticket > .vaciar,
-  .vender__ticket > .nota-sin-qr {
-    grid-column: 1 / -1;
-  }
-  .vender__ticket .vender__total .m-cartel {
-    width: 150px !important;
-  }
-  .vender__ticket .vender__total .m-cartel__monto {
-    font-size: 28px;
-  }
-  .vaciar {
-    min-height: 32px;
-  }
-}
-
-@media (max-width: 599px) {
-  .vender__ticket > .vaciar {
-    justify-self: start;
   }
 }
 
@@ -2133,11 +2207,17 @@ details summary {
  * ------------------------------------------------------------------------- */
 
 .vender__acciones {
+  grid-area: acciones;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
   gap: 8px;
+}
+
+@media (min-width: 600px) {
+  .vender__acciones {
+    justify-content: flex-end;
+  }
 }
 
 .lista-precios {
@@ -2164,6 +2244,10 @@ details summary {
 .resultado__precio {
   flex: none;
   font-weight: 700;
+}
+
+.mosaico__unidad {
+  white-space: normal;
 }
 
 .resultado__unidad,

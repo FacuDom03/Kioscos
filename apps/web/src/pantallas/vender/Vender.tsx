@@ -17,7 +17,7 @@ import {
   type Producto,
 } from '../../nucleo/catalogo.ts';
 import { useEnLinea } from '../../nucleo/conexion.ts';
-import { useEsPC, useHayTeclado } from '../../nucleo/medios.ts';
+import { useEsCelular, useEsPC, useHayTeclado } from '../../nucleo/medios.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { puede, useSesionCompleta } from '../../nucleo/sesion.tsx';
 import {
@@ -108,6 +108,22 @@ export function Vender({ estado }: { estado: ReactNode }) {
   const { catalogo } = useCatalogo();
   const items = useTicket();
   const esPC = useEsPC();
+  // En el celular el ticket va plegado abajo para que los productos tengan la pantalla.
+  const celular = useEsCelular();
+  const [verTicket, setVerTicket] = useState(false);
+  const ticketAbierto = !celular || verTicket;
+  // Lo último que se sumó (un producto repetido suma cantidad en su renglón, no va al final).
+  const [itemsAntes, setItemsAntes] = useState(items);
+  const [ultimoId, setUltimoId] = useState<string | null>(null);
+  if (items !== itemsAntes) {
+    const sumado = items.find((x) => {
+      const antes = itemsAntes.find((y) => y.id === x.id);
+      return !antes || x.cantidad > antes.cantidad;
+    });
+    setItemsAntes(items);
+    if (sumado) setUltimoId(sumado.id);
+  }
+  const ultimo = items.find((x) => x.id === ultimoId) ?? items[items.length - 1];
   const teclado = useHayTeclado();
   const enLinea = useEnLinea();
   const mp = useEstadoMp();
@@ -347,43 +363,45 @@ export function Vender({ estado }: { estado: ReactNode }) {
   return (
     <div className="vender">
       <header className="vender__encabezado">
-        <div>
+        <div className="vender__nombre">
           <h1 className="m-titulo">{s.kiosco.nombre}</h1>
           <p className="texto-suave">Caja de {s.usuario.nombre || 'vos'}</p>
         </div>
-        <div className="vender__acciones">
-          {conCambios && !cambio && (
-            <button type="button" className="chip" onClick={() => navegar('/cambios')}>
-              Cambio
-            </button>
-          )}
-          {conPresupuestos && (
-            <button type="button" className="chip" onClick={() => navegar('/presupuestos')}>
-              Presupuestos
-            </button>
-          )}
-          {conListas && (
-            <div className="chips lista-precios" role="group" aria-label="Lista de precios">
-              <button
-                type="button"
-                className="chip"
-                aria-pressed={lista === 'mostrador'}
-                onClick={() => fijarLista('mostrador')}
-              >
-                Mostrador
+        <div className="vender__estado">{estado}</div>
+        {((conCambios && !cambio) || conPresupuestos || conListas) && (
+          <div className="vender__acciones">
+            {conCambios && !cambio && (
+              <button type="button" className="chip" onClick={() => navegar('/cambios')}>
+                Cambio
               </button>
-              <button
-                type="button"
-                className="chip"
-                aria-pressed={lista === 'gremio'}
-                onClick={() => fijarLista('gremio')}
-              >
-                Gremio{atajo('F3')}
+            )}
+            {conPresupuestos && (
+              <button type="button" className="chip" onClick={() => navegar('/presupuestos')}>
+                Presupuestos
               </button>
-            </div>
-          )}
-          <div className="vender__estado">{estado}</div>
-        </div>
+            )}
+            {conListas && (
+              <div className="chips lista-precios" role="group" aria-label="Lista de precios">
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={lista === 'mostrador'}
+                  onClick={() => fijarLista('mostrador')}
+                >
+                  Mostrador
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={lista === 'gremio'}
+                  onClick={() => fijarLista('gremio')}
+                >
+                  Gremio{atajo('F3')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       {presupuesto && (
@@ -622,19 +640,56 @@ export function Vender({ estado }: { estado: ReactNode }) {
           )}
         </section>
 
-        <aside className="vender__ticket" aria-label="Ticket y total">
+        <aside
+          className={`vender__ticket${ticketAbierto ? '' : ' vender__ticket--plegado'}`}
+          aria-label="Ticket y total"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && celular && verTicket) setVerTicket(false);
+          }}
+        >
           {cobrar || (
             <>
               <Ticket etiqueta="Ticket">
-                <h2 className="ticket__titulo">
-                  Ticket · {unidades(items)} {unidades(items) === 1 ? 'producto' : 'productos'}
-                </h2>
+                {celular ? (
+                  <h2 className="ticket__titulo">
+                    <button
+                      type="button"
+                      className="ticket__plegar"
+                      aria-expanded={verTicket}
+                      aria-controls="lineas-ticket"
+                      onClick={() => setVerTicket((v) => !v)}
+                    >
+                      <span className="ticket__plegar-texto">
+                        <span>
+                          Ticket · {unidades(items)}{' '}
+                          {unidades(items) === 1 ? 'producto' : 'productos'}
+                        </span>
+                        {!verTicket && ultimo && (
+                          <span className="ticket__ultimo">Último: {ultimo.descripcion}</span>
+                        )}
+                      </span>
+                      <span className="ticket__plegar-accion">{verTicket ? 'Ocultar' : 'Ver'}</span>
+                    </button>
+                  </h2>
+                ) : (
+                  <h2 className="ticket__titulo">
+                    Ticket · {unidades(items)} {unidades(items) === 1 ? 'producto' : 'productos'}
+                  </h2>
+                )}
                 <hr className="m-ticket__separador" />
                 {items.length === 0 ? (
-                  <p className="ticket__vacio">El ticket está vacío.</p>
+                  <p className="ticket__vacio" id="lineas-ticket" hidden={!ticketAbierto}>
+                    El ticket está vacío.
+                  </p>
                 ) : (
                   // Se puede enfocar: en pantallas chicas la lista se desplaza.
-                  <ul className="ticket__lineas" tabIndex={0} aria-label="Productos del ticket">
+                  <ul
+                    id="lineas-ticket"
+                    className="ticket__lineas"
+                    tabIndex={0}
+                    aria-label="Productos del ticket"
+                    hidden={!ticketAbierto}
+                  >
                     {items.map((x) => (
                       <li
                         key={x.id}
@@ -693,14 +748,28 @@ export function Vender({ estado }: { estado: ReactNode }) {
                   </ul>
                 )}
               </Ticket>
-              {items.length > 0 && (
-                <button
-                  type="button"
-                  className="enlace-boton vaciar"
-                  onClick={() => setConfirmarVaciar(true)}
-                >
-                  Vaciar ticket
-                </button>
+              {ticketAbierto && (items.length > 0 || (!esPC && conPresupuestos && !cambio)) && (
+                <div className="ticket__acciones">
+                  {items.length > 0 && (
+                    <button
+                      type="button"
+                      className="enlace-boton vaciar"
+                      onClick={() => setConfirmarVaciar(true)}
+                    >
+                      Vaciar ticket
+                    </button>
+                  )}
+                  {!esPC && conPresupuestos && !cambio && (
+                    <button
+                      type="button"
+                      className="m-boton ticket__presupuesto"
+                      disabled={!items.length || !enLinea}
+                      onClick={() => setGuardarPresupuesto(true)}
+                    >
+                      Guardar presupuesto
+                    </button>
+                  )}
+                </div>
               )}
               <div className="vender__total">
                 <CartelTotal centavos={Math.max(0, total)} />
@@ -775,16 +844,6 @@ export function Vender({ estado }: { estado: ReactNode }) {
                   >
                     {cambio && total === 0 ? 'Confirmar el cambio' : 'Cobrar'}
                   </button>
-                  {conPresupuestos && !cambio && (
-                    <button
-                      type="button"
-                      className="m-boton"
-                      disabled={!items.length || !enLinea}
-                      onClick={() => setGuardarPresupuesto(true)}
-                    >
-                      Guardar presupuesto
-                    </button>
-                  )}
                 </>
               )}
             </>

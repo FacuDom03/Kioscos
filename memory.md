@@ -97,8 +97,8 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 - Cloudflare: no se usa. La variante Traefik de `docs/DEPLOY.md` no lo necesita y el DNS de
   `mimostrador.tech` está en Hostinger.
 - Se ofreció que la dirección vieja redirija a la nueva; sin respuesta.
-- El escáner con guía está en `claude/blissful-gates-hx4qur`; falta que llegue a la rama que usa
-  el servidor (se le preguntó a la persona).
+- El escáner con guía ya está también en `claude/mostrador-etapa-a-7jft9w` (la que usa el
+  servidor). Falta que la persona lo pruebe con un iPhone.
 - Hay un PostgreSQL de otra app expuesto a todo internet (puerto 32769) y el SSH acepta
   contraseña. Conviene cerrar el puerto, usar firewall (22, 80, 443) y pasar a clave SSH.
 - Mercado Pago: aún sin configurar. Falta crear la aplicación en Mercado Pago, dos vendedores y un

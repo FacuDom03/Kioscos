@@ -109,8 +109,14 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
   32770 (n8n) y descarta todo lo demás. El PostgreSQL de otra app (32769) ya quedó cerrado.
   Pendiente: n8n se usa por `http://2.25.133.5:32770` sin cifrar; se le pasaron los pasos para
   `https://n8n.mimostrador.tech` (DNS A/AAAA `n8n` + labels de Traefik con certresolver
-  `letsencrypt`) y después borrar la regla del 32770. Lo mismo con 8000 y 32768. El SSH todavía
-  acepta contraseña: falta pasar a clave SSH.
+  `letsencrypt`) y después borrar la regla del 32770. Lo mismo con 8000 y 32768.
+- SSH: desde internet solo con clave (la persona tiene una clave ed25519 en su Windows; el panel
+  se abre con `ssh -L 8081:127.0.0.1:8081 root@2.25.133.5` en PowerShell y
+  `http://127.0.0.1:8081`). La contraseña sigue valiendo solo desde `169.254.0.0/16`, que es la
+  terminal de hPanel que usa la persona (`Match Address` al final de `/etc/ssh/sshd_config` y
+  `/etc/ssh/sshd_config.d/00-sin-contrasena.conf`; respaldo en `/root/sshd_config.respaldo`).
+- Servidor: Ubuntu 24.04 con 10 actualizaciones pendientes y "System restart required". Falta
+  actualizar y reiniciar en un horario sin ventas. No pasar a 26.04 por ahora.
 - Mercado Pago: aún sin configurar. Falta crear la aplicación en Mercado Pago, dos vendedores y un
   comprador de prueba, cargar Client ID, secreto y clave de webhooks (con `read -rs`), usar
   `MP_PRUEBAS=1` y probar. Pasos en `docs/DEPLOY.md`, sección 6.

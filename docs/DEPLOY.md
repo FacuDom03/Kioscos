@@ -140,8 +140,9 @@ docker compose -f compose.prod.yml --env-file /opt/mostrador/config.env up -d --
 docker compose -f compose.prod.yml --env-file /opt/mostrador/config.env ps
 ```
 
-Tienen que quedar `postgres`, `redis`, `api` (healthy), `web` y `admin` andando. `migrar` corre las
-migraciones y termina. `worker` termina solo si Mercado Pago no está configurado.
+Tienen que quedar `postgres`, `redis`, `api` (healthy), `web`, `worker` y `admin` andando. `migrar`
+corre las migraciones y termina. El `worker` manda los avisos automáticos de los comercios (y los
+trabajos de Mercado Pago, si está configurado).
 
 Probá en el navegador `https://app.tukiosco.com.ar`: tiene que abrir la pantalla de ingreso.
 

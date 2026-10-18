@@ -241,6 +241,16 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     [uuidv7(), k.id, dueno, `hash-state-${k.id}`],
   );
   await q(
+    `insert into claves_api (id, kiosco_id, nombre, prefijo, token_hash, creada_por)
+     values ($1, $2, 'n8n de prueba', 'mst_semill', $3, $4)`,
+    [uuidv7(), k.id, `hash-clave-api-${k.id}`, dueno],
+  );
+  await q(
+    `insert into webhooks (id, kiosco_id, url, eventos, secreto_cifrado, clave_version, creado_por)
+     values ($1, $2, 'https://n8n.ejemplo.test/webhook/ventas', '{venta.creada}', '\\x00', 1, $3)`,
+    [uuidv7(), k.id, dueno],
+  );
+  await q(
     `insert into auditoria (id, kiosco_id, usuario_id, accion, detalle) values ($1, $2, $3, 'semillas.cargadas', '{}')`,
     [uuidv7(), k.id, dueno],
   );

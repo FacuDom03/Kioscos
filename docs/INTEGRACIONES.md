@@ -19,7 +19,7 @@ Para cada integración se miró:
 | #   | Integración                                         | Trámites para empezar                                                            | Esfuerzo     | Para qué                                                                              |
 | --- | --------------------------------------------------- | -------------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------- |
 | 1   | Email (avisos y "olvidé mi contraseña")             | Ninguno: cuenta en un proveedor y verificar el dominio                           | Bajo         | Recuperar la cuenta sin depender de nosotros; resumen diario                          |
-| 2   | Avisos a otras apps (webhooks salientes)            | Ninguno                                                                          | Bajo         | Conectar con n8n, Make, Zapier, LeadConnector, Google Sheets                          |
+| 2   | Avisos a otras apps (webhooks salientes) y API      | Ninguno                                                                          | **Hecho**    | Conectar con n8n, Make, Zapier, LeadConnector, Google Sheets (ver `docs/API.md`)      |
 | 3   | Entrada de contactos y pedidos (webhook entrante)   | Ninguno                                                                          | Bajo         | Recibir leads de Facebook vía LeadConnector/Zapier/Make sin pasar la revisión de Meta |
 | 4   | Análisis con IA (Claude)                            | Ninguno: cuenta de API de Anthropic                                              | Bajo a medio | Informe semanal y preguntas en palabras ("¿qué conviene reponer?")                    |
 | 5   | Mercado Pago: cobrar la suscripción a los comercios | Ninguno extra (la app de MP ya existe)                                           | Medio        | Que Mostrador cobre su abono todos los meses, solo                                    |
@@ -65,6 +65,10 @@ Antes de la primera integración nueva:
 - **Cuidado:** el email es un dato personal que ya guardamos. No se agregan datos nuevos.
 
 ### 2. Avisos a otras apps (webhooks salientes)
+
+**Hecho en octubre de 2026,** junto con una API de solo lectura con claves de acceso. Ver
+`docs/API.md`. Eventos de la primera versión: venta cobrada, venta anulada, compra cargada y stock
+bajo. Quedan para después: cierre de caja, cliente nuevo y presupuesto creado.
 
 - **Qué resuelve:** cada comercio conecta Mostrador con lo que ya usa, sin que tengamos que
   programar cada integración. Ejemplos: anotar cada venta en una planilla de Google, avisar por

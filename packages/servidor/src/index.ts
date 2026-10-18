@@ -12,3 +12,14 @@ export {
 } from './totp.ts';
 export { crearCifrador, type Cifrador } from './cifrado.ts';
 export { leerClaves } from './claves.ts';
+export {
+  EVENTOS_AVISO,
+  enviarAviso,
+  esIpPublica,
+  firmarAviso,
+  problemaDeUrl,
+  type EventoAviso,
+  type OpcionesEnvio,
+  type ResultadoEnvio,
+} from './avisos.ts';
+export { destinosDeAviso, entregarAviso, FALLOS_PARA_PAUSAR, type Aviso } from './entregas.ts';

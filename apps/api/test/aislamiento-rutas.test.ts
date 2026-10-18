@@ -6,6 +6,7 @@ import { leerXlsx } from '@mostrador/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   altaConInvitacion,
+  Cliente,
   crearEntorno,
   KIOSCO_A,
   KIOSCO_B,
@@ -16,6 +17,8 @@ import { CASOS_AISLAMIENTO } from './casos-aislamiento.ts';
 
 let e: Entorno;
 let a: Persona;
+/** Cliente con la clave de API de A (con permiso de clientes), sin sesión. */
+let conClave: Cliente;
 const idsB = new Map<string, string[]>();
 
 function filtroKiosco(tabla: string): string {
@@ -53,6 +56,11 @@ function reemplazarB(valor: unknown): unknown {
 beforeAll(async () => {
   e = await crearEntorno();
   a = await altaConInvitacion(e.app, e.admin, KIOSCO_A);
+  conClave = new Cliente(e.app);
+  conClave.origen = null;
+  conClave.clave = (
+    await a.cliente.post('/api/v1/claves-api', { nombre: 'Aislamiento', clientes: true })
+  ).json<{ clave: string }>().clave;
   for (const t of [...TABLAS_DE_KIOSCO, 'passkeys']) {
     const { rows } = await e.admin.query<{ id: string }>(
       `select id from ${t} where ${filtroKiosco(t)}`,
@@ -95,7 +103,7 @@ describe('aislamiento por rutas (A contra B)', () => {
     if (caso.consulta)
       url += `?${new URLSearchParams(reemplazarB(caso.consulta) as Record<string, string>)}`;
     const cuerpo = caso.metodo === 'GET' ? undefined : (reemplazarB(caso.cuerpo) ?? {});
-    const r = await a.cliente.pedir(caso.metodo, url, cuerpo);
+    const r = await (caso.conClave ? conClave : a.cliente).pedir(caso.metodo, url, cuerpo);
 
     if (caso.espera === 'no_encontrado') {
       expect(r.statusCode, r.body).toBe(404);

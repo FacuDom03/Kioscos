@@ -86,6 +86,11 @@ export function Mas() {
                 nombre: 'Conexiones',
                 detalle: 'Mercado Pago, copia en la nube y soporte',
               },
+              {
+                ruta: '/mas/api',
+                nombre: 'API y automatizaciones',
+                detalle: 'n8n, Make, Zapier y avisos automáticos',
+              },
             ]
           : []),
       ],

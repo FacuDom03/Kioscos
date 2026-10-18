@@ -3267,3 +3267,57 @@ details summary {
   border-top: 2px dotted var(--line-dashed);
   font-weight: 800;
 }
+
+/* ---------------------------------------------------------------------------
+ * API y automatizaciones
+ * ------------------------------------------------------------------------- */
+
+.una-vez {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.una-vez p {
+  margin: 0;
+}
+
+.tarjeta--columna {
+  align-items: flex-start;
+}
+
+.tarjeta--apagada {
+  border-style: dashed;
+  border-color: var(--line-dashed);
+}
+
+.texto-peligro {
+  margin: 2px 0 0;
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.pasos-api,
+.lista-api {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 1.4em;
+}
+
+.api-negocio code {
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.api-negocio summary {
+  padding: 10px 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.api-negocio .formulario {
+  padding-top: 8px;
+  border-top: var(--line-w) solid var(--line);
+}

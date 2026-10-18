@@ -38,6 +38,8 @@ export interface CasoAislamiento {
   cuerpo?: unknown;
   /** Parámetros de la URL (`?productoId=…`), con el mismo reemplazo que el cuerpo. */
   consulta?: Record<string, string>;
+  /** Ruta de la API para los comercios: se entra con la clave de API de A, no con la sesión. */
+  conClave?: true;
 }
 
 const caso = (
@@ -346,4 +348,34 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   caso('POST', '/api/v1/kiosco/borrar', 'escribe_solo_lo_propio', {
     cuerpo: { nombreKiosco: 'Almacén Don Beto', password: 'x' },
   }),
+
+  // Claves de API y avisos automáticos
+  caso('GET', '/api/v1/claves-api', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/claves-api', 'escribe_solo_lo_propio', {
+    cuerpo: { nombre: 'Intrusa', clientes: true },
+  }),
+  caso('DELETE', '/api/v1/claves-api/:id', 'no_encontrado', { tabla: 'claves_api' }),
+  caso('GET', '/api/v1/avisos', 'sin_datos_de_b'),
+  caso('POST', '/api/v1/avisos', 'escribe_solo_lo_propio', {
+    cuerpo: { url: 'https://n8n.ejemplo.com/webhook/x', eventos: ['venta.creada'] },
+  }),
+  caso('PATCH', '/api/v1/avisos/:id', 'no_encontrado', {
+    tabla: 'webhooks',
+    cuerpo: { activo: false },
+  }),
+  caso('DELETE', '/api/v1/avisos/:id', 'no_encontrado', { tabla: 'webhooks' }),
+  caso('POST', '/api/v1/avisos/:id/probar', 'no_encontrado', { tabla: 'webhooks' }),
+
+  // API para los comercios (con la clave de A)
+  caso('GET', '/api/externa/v1/negocio', 'sin_datos_de_b', { conClave: true }),
+  caso('GET', '/api/externa/v1/productos', 'sin_datos_de_b', { conClave: true }),
+  caso('GET', '/api/externa/v1/productos/:id', 'no_encontrado', {
+    tabla: 'productos',
+    conClave: true,
+  }),
+  caso('GET', '/api/externa/v1/ventas', 'sin_datos_de_b', { conClave: true }),
+  caso('GET', '/api/externa/v1/ventas/:id', 'no_encontrado', { tabla: 'ventas', conClave: true }),
+  caso('GET', '/api/externa/v1/compras', 'sin_datos_de_b', { conClave: true }),
+  caso('GET', '/api/externa/v1/resumen', 'sin_datos_de_b', { conClave: true }),
+  caso('GET', '/api/externa/v1/clientes', 'sin_datos_de_b', { conClave: true }),
 ];

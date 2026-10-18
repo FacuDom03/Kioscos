@@ -55,6 +55,25 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **API para los comercios y avisos automáticos** (pedido de la persona; OK: lectura + avisos,
+  clientes con permiso aparte). Ver `docs/API.md`.
+  - Más → API y automatizaciones (solo dueño, `/mas/api`).
+  - Claves `mst_…` de solo lectura: en la base solo el hash, revocables, 120 pedidos por minuto
+    por clave.
+  - Rutas `/api/externa/v1/*` con `config.externa`: la clave se valida en `sesion.ts`.
+  - Avisos firmados (HMAC) a n8n, Make y Zapier: `venta.creada`, `venta.anulada`,
+    `compra.creada`, `stock.bajo`.
+  - Protección contra la red interna (`packages/servidor/src/avisos.ts`). El worker reparte y
+    reintenta, y ahora sigue andando aunque Mercado Pago no esté configurado.
+  - Migración `0014_api.sql`, con `auth_clave_api`. Falta: QR de MP → `venta.creada`.
+- **Facturación: el dueño eligió Afip SDK** (18/10/2026).
+  - Análisis de cómo funciona hoy en `docs/FACTURACION.md`: la clave privada viaja en cada pedido,
+    no usar `createNextVoucher`, precios y preguntas a hacerles.
+  - Qué hacer con ARCA caída: cola, reintentos, plazo de 5 días sin pasar del mes, CAEA como
+    segunda etapa.
+  - Siguiente paso posible: fase 0 con el modo de desarrollo de Afip SDK, sin trámites. Para las
+    tablas de facturación falta su OK.
+
 - **Facturación ARCA, análisis** en `docs/FACTURACION.md`:
   - delegación, sin pedir nunca la clave fiscal;
   - qué hace el dueño del proyecto, qué hace cada comercio, alta y baja;

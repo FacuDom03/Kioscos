@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { precioConMargen, uuidv7 } from '@mostrador/shared';
 import { z } from 'zod';
 import { noEncontrado } from '../errores.ts';
+import { eventosEsperados, type AvisoPendiente } from '../servicios/avisos.ts';
 import { moverStock } from '../servicios/stock.ts';
 import { validar } from '../validar.ts';
 
@@ -31,7 +32,7 @@ export async function rutasCompras(app: FastifyInstance): Promise<void> {
     );
     const id = uuidv7();
     const s = req.completa;
-    await req.db(async (tx) => {
+    const avisos = await req.db(async (tx) => {
       const ids = [...new Set(d.items.map((i) => i.productoId))];
       const encontrados = await tx
         .selectFrom('productos')
@@ -80,7 +81,26 @@ export async function rutasCompras(app: FastifyInstance): Promise<void> {
           .where('id', '=', i.productoId)
           .execute();
       }
+      const avisos: AvisoPendiente[] = [];
+      if ((await eventosEsperados(tx, ['compra.creada'])).size)
+        avisos.push({
+          evento: 'compra.creada',
+          datos: {
+            id,
+            fecha: new Date().toISOString(),
+            total,
+            nota: d.nota ?? null,
+            items: d.items.map((i) => ({
+              productoId: i.productoId,
+              cantidad: i.cantidad,
+              costoUnitario: i.costoUnitario,
+              subtotal: Math.round(i.cantidad * i.costoUnitario),
+            })),
+          },
+        });
+      return avisos;
     });
+    await app.avisar(s.kioscoId, avisos);
     return { id };
   });
 

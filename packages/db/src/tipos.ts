@@ -439,6 +439,38 @@ export interface OauthEstadosTabla {
   created_at: FechaDefault;
 }
 
+export interface ClavesApiTabla {
+  id: string;
+  kiosco_id: string;
+  nombre: string;
+  prefijo: string;
+  /** Solo se escribe: la API no tiene permiso para leerlo. */
+  token_hash: string;
+  permisos: Generated<string[]>;
+  creada_por: string;
+  ultimo_uso: Fecha | null;
+  revocada_en: Fecha | null;
+  created_at: FechaDefault;
+}
+
+export type EventoAviso = 'venta.creada' | 'venta.anulada' | 'compra.creada' | 'stock.bajo';
+
+export interface WebhooksTabla {
+  id: string;
+  kiosco_id: string;
+  url: string;
+  eventos: EventoAviso[];
+  secreto_cifrado: Buffer;
+  clave_version: number;
+  activo: Generated<boolean>;
+  ultimo_envio: Fecha | null;
+  ultimo_estado: string | null;
+  fallos_seguidos: Generated<number>;
+  creado_por: string;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
 export interface EventosWebhookTabla {
   id: string;
   proveedor: 'mercadopago';
@@ -484,6 +516,8 @@ export interface Database {
   venta_descuentos: VentaDescuentosTabla;
   devoluciones: DevolucionesTabla;
   lotes: LotesTabla;
+  claves_api: ClavesApiTabla;
+  webhooks: WebhooksTabla;
 }
 
 /** Tablas que pertenecen a un kiosco (todas salvo las globales). */
@@ -522,6 +556,8 @@ export const TABLAS_DE_KIOSCO = [
   'venta_descuentos',
   'devoluciones',
   'lotes',
+  'claves_api',
+  'webhooks',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

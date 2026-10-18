@@ -8,7 +8,15 @@ import { randomUUID } from 'node:crypto';
 import type { Config } from './config.ts';
 import { ErrorPublico } from './errores.ts';
 import { registrarRutas } from './routes/index.ts';
-import { crearCifrador, type Cifrador } from '@mostrador/servidor';
+import {
+  crearCifrador,
+  destinosDeAviso,
+  entregarAviso,
+  type Cifrador,
+  type OpcionesEnvio,
+} from '@mostrador/servidor';
+import type { TrabajoAviso } from './cola.ts';
+import type { AvisoPendiente } from './servicios/avisos.ts';
 import { registrarSesion } from './sesion.ts';
 
 declare module 'fastify' {
@@ -24,6 +32,13 @@ declare module 'fastify' {
     rutasRegistradas: string[];
     /** Guarda el ID del evento de webhook. Devuelve false si ya se había recibido. */
     registrarEventoWebhook: (eventoId: string) => Promise<boolean>;
+    /**
+     * Manda los avisos automáticos del comercio (docs/API.md), después de confirmar la
+     * transacción. Nunca falla: un problema con un aviso no puede frenar una venta.
+     */
+    avisar: (kioscoId: string, avisos: AvisoPendiente[]) => Promise<void>;
+    /** Cómo se conecta con los webhooks (en pruebas, un servidor local). */
+    opcionesEnvio: OpcionesEnvio;
   }
 }
 
@@ -57,6 +72,9 @@ export interface OpcionesApp {
   fetchMp?: typeof fetch;
   /** Encola la reconsulta de una orden. Por defecto se hace en este proceso. */
   encolarOrdenMp?: (ordenId: string) => Promise<void>;
+  /** Encola un aviso automático. Por defecto se manda en este proceso, sin reintentos. */
+  encolarAviso?: (trabajo: TrabajoAviso) => Promise<void>;
+  opcionesEnvio?: OpcionesEnvio;
 }
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -69,6 +87,8 @@ export async function construirApp({
   mp = null,
   fetchMp,
   encolarOrdenMp,
+  encolarAviso,
+  opcionesEnvio = {},
 }: OpcionesApp): Promise<FastifyInstance> {
   const app = Fastify({
     logger: logger === true ? { redact: REDACTAR } : logger,
@@ -103,6 +123,34 @@ export async function construirApp({
         .execute(),
     );
     return r.length > 0;
+  });
+
+  app.decorate('opcionesEnvio', opcionesEnvio);
+  const encolar =
+    encolarAviso ??
+    // Sin cola (desarrollo): se manda en este proceso, sin esperar, para no demorar la venta.
+    (async ({ kioscoId, aviso }: TrabajoAviso) => {
+      const evento = aviso.evento;
+      if (evento === 'prueba') return;
+      setImmediate(() => {
+        void (async () => {
+          for (const id of await destinosDeAviso(base, kioscoId, evento))
+            await entregarAviso(base, app.cifrador, kioscoId, id, aviso, opcionesEnvio);
+        })().catch((err: unknown) => app.log.error({ err }, 'No se pudo mandar el aviso'));
+      });
+    });
+  app.decorate('avisar', async (kioscoId: string, avisos: AvisoPendiente[]) => {
+    for (const a of avisos) {
+      const aviso = {
+        id: uuidv7(),
+        evento: a.evento,
+        creado: new Date().toISOString(),
+        datos: a.datos,
+      };
+      await encolar({ kioscoId, aviso }).catch((err: unknown) =>
+        app.log.error({ err, evento: a.evento }, 'No se pudo encolar el aviso'),
+      );
+    }
   });
 
   const rutasRegistradas: string[] = [];

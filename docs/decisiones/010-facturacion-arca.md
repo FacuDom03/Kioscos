@@ -103,11 +103,17 @@ El análisis completo está en `docs/FACTURACION.md`. Lo que cambia o se confirm
   que aceptarla ("Aceptación de Designación") y asignarla al computador fiscal de Mostrador. Se
   hace a mano, 2 minutos por comercio, avisado desde el panel. Automatizarlo exige nuestra clave
   fiscal en un robot o en un proveedor; por ahora, no.
-- **Afip SDK recibe la clave privada** del certificado en cada inicio de sesión. Esa clave factura
-  por todos nuestros comercios. Además, sus planes se cuentan por pedidos (10.000 o 100.000 por
-  mes), y un kiosco hace unas 4.500 facturas por mes. **Propuesta: conexión directa con ARCA**,
-  sin intermediario ni dependencias nuevas, con Afip SDK como plan B. Pendiente del OK del dueño
-  del proyecto.
+- **Afip SDK recibe la clave privada** del certificado antes de cada operación, y sus planes se
+  cuentan por pedidos. Se propuso la conexión directa, pero **el dueño del proyecto eligió Afip SDK
+  (18/10/2026)**. Antes de contratar hay que preguntarles por escrito qué cuenta como pedido, si
+  cada comercio cuenta como CUIT del plan, y cómo guardan la clave (acuerdo de tratamiento de
+  datos). La conexión directa queda como plan B.
+- **No se usa `createNextVoucher`** (choca con dos cajas a la vez): numeramos con nuestra cola.
+- **ARCA caída:**
+  - La venta nunca se frena y la factura se reintenta.
+  - ARCA acepta la fecha real hasta 5 días después, sin pasar del mes.
+  - El CAEA (RG 5782 y 5785, desde el 1/8/2026) es la contingencia oficial para una segunda etapa.
+  - Ver `docs/FACTURACION.md`.
 - **El punto 3 ("mejora posible" con la clave fiscal del comercio) queda descartado.**
 - **Reglas vigentes:**
   - Identificar al consumidor final desde $10.000.000 (RG 5866/2026).

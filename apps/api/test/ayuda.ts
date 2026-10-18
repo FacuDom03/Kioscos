@@ -6,7 +6,7 @@ import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fas
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 import { inject } from 'vitest';
-import { construirApp } from '../src/app.ts';
+import { construirApp, type OpcionesApp } from '../src/app.ts';
 import type { Config } from '../src/config.ts';
 import { codigoTotp } from '@mostrador/servidor';
 import { hashToken, tokenAleatorio } from '@mostrador/servidor';
@@ -34,7 +34,12 @@ export interface Entorno {
 export const SECRETO_WEBHOOK = 'clave-secreta-de-webhooks';
 
 export async function crearEntorno(
-  opciones: { mpUrl?: string; encolarOrdenMp?: (id: string) => Promise<void> } = {},
+  opciones: {
+    mpUrl?: string;
+    encolarOrdenMp?: (id: string) => Promise<void>;
+    encolarAviso?: OpcionesApp['encolarAviso'];
+    opcionesEnvio?: OpcionesApp['opcionesEnvio'];
+  } = {},
 ): Promise<Entorno> {
   const base = crearBaseApp(inject('appUrl'), 4);
   const app = await construirApp({
@@ -42,6 +47,8 @@ export async function crearEntorno(
     config: configPrueba,
     limitarPedidos: false,
     ...(opciones.encolarOrdenMp ? { encolarOrdenMp: opciones.encolarOrdenMp } : {}),
+    ...(opciones.encolarAviso ? { encolarAviso: opciones.encolarAviso } : {}),
+    ...(opciones.opcionesEnvio ? { opcionesEnvio: opciones.opcionesEnvio } : {}),
     mp: opciones.mpUrl
       ? {
           clientId: 'app-id',
@@ -72,6 +79,8 @@ export async function crearEntorno(
 export class Cliente {
   cookies = new Map<string, string>();
   origen: string | null = ORIGEN;
+  /** Clave de API (`mst_…`) para las rutas de la API de los comercios. */
+  clave: string | null = null;
   private readonly app: FastifyInstance;
   constructor(app: FastifyInstance) {
     this.app = app;
@@ -84,6 +93,7 @@ export class Cliente {
   ): Promise<LightMyRequestResponse> {
     const headers: Record<string, string> = {};
     if (this.origen) headers['origin'] = this.origen;
+    if (this.clave) headers['authorization'] = `Bearer ${this.clave}`;
     if (this.cookies.size)
       headers['cookie'] = [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ');
     const opciones: InjectOptions = { method: metodo, url, headers };

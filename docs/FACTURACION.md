@@ -1,6 +1,7 @@
 # Facturación electrónica con ARCA: análisis y plan
 
-Análisis de octubre de 2026 para empezar a facturar desde Mostrador. Completa la decisión
+Análisis de octubre de 2026 para empezar a facturar desde Mostrador. **Decidido el 18/10/2026: se
+usa Afip SDK como intermediario** (ver "Afip SDK: cómo funciona hoy"). Completa la decisión
 `docs/decisiones/010-facturacion-arca.md`. Lo marcado como **verificar** se confirma con la
 documentación vigente de ARCA antes de salir a producción. No es asesoramiento legal ni contable:
 antes de facturar para clientes reales, revisarlo con un contador y un abogado.
@@ -26,8 +27,9 @@ Comercio (una vez, en ARCA)          Mostrador (por cada comercio)        Cada v
 ```
 
 - **Certificado de Mostrador:** un solo certificado digital, a nombre del CUIT de Mostrador. Sirve
-  para todos los comercios que nos autorizaron. Su clave privada se genera en nuestro servidor y no
-  sale de ahí.
+  para todos los comercios que nos autorizaron. Su clave privada se genera en nuestro servidor; con
+  Afip SDK viaja a sus servidores (por HTTPS) en cada pedido, así que hay que cuidarla como lo que
+  es: la llave para facturar por todos.
 - **En cada pedido a ARCA** viaja el CUIT del comercio. ARCA rechaza el pedido si ese comercio no
   autorizó a Mostrador ("Computador no autorizado a acceder al servicio").
 
@@ -139,9 +141,10 @@ altas por semana.
     CAE y QR.
   - Si ARCA tarda, sale el ticket común y la factura se puede reimprimir o mandar por WhatsApp
     desde Ventas.
-- **Sin internet:** la venta se guarda en el equipo y se factura al sincronizar. ARCA acepta la
-  fecha de factura unos días hacia atrás (**verificar** el plazo exacto: las fuentes dicen 5 o 10
-  días). Si se pasa el plazo, la app avisa en lugar de facturar con otra fecha.
+- **Sin internet:** la venta se guarda en el equipo y se factura al sincronizar. Para venta de
+  productos, ARCA acepta la fecha de la factura hasta 5 días antes o después del envío, sin pasar
+  del mes (manual WSFEv1). La factura sale con la fecha real de la venta. Si se pasa el plazo, la
+  app avisa en lugar de facturar con otra fecha (ver "Si ARCA o Afip SDK se caen").
 - **Qué factura sale:**
   - **Monotributo:** factura C siempre. Es el primer caso a hacer: es el más común en kioscos y el
     más simple.
@@ -171,13 +174,13 @@ altas por semana.
 
 ### Lo que la app vigila sola
 
-| Cada      | Qué revisa                                                     | Si falla                                      |
-| --------- | -------------------------------------------------------------- | --------------------------------------------- |
-| Minuto    | Facturas pendientes hace más de una hora                       | Aviso en el panel                             |
-| 5 minutos | Que ARCA responda (`FEDummy`)                                  | Pausa los envíos y reintenta, sin perder nada |
-| Día       | Tope diario y alertas de abuso de cada comercio (decisión 010) | Aviso en el panel y, si es grave, suspende    |
-| Mes       | Padrón de cada comercio: condición frente al IVA, CUIT activo  | Le avisa al dueño y pausa si cambió           |
-| Mes       | Vencimiento del certificado de Mostrador                       | Aviso 60, 30 y 7 días antes                   |
+| Cada   | Qué revisa                                                     | Si falla                                      |
+| ------ | -------------------------------------------------------------- | --------------------------------------------- |
+| Minuto | Facturas pendientes hace más de una hora                       | Aviso en el panel                             |
+| Minuto | Que ARCA responda (`FEDummy`)                                  | Pausa los envíos y reintenta, sin perder nada |
+| Día    | Tope diario y alertas de abuso de cada comercio (decisión 010) | Aviso en el panel y, si es grave, suspende    |
+| Mes    | Padrón de cada comercio: condición frente al IVA, CUIT activo  | Le avisa al dueño y pausa si cambió           |
+| Mes    | Vencimiento del certificado de Mostrador                       | Aviso 60, 30 y 7 días antes                   |
 
 ### Lo que tenés que hacer vos
 
@@ -211,22 +214,78 @@ altas por semana.
 - **Errores en palabras:** "El punto de venta 3 no es de tipo Web Services. Creá uno nuevo en ARCA
   como explica la guía." Nada de códigos.
 
-## ¿Afip SDK o conexión directa con ARCA?
+## Afip SDK: cómo funciona hoy
 
-Afip SDK es un intermediario: Mostrador le habla a Afip SDK y Afip SDK le habla a ARCA. La
-"conexión directa" es que Mostrador le hable a ARCA sin nadie en el medio.
+Análisis del 18/10/2026. Su sitio de documentación no se pudo abrir desde acá. Por eso se leyó el
+código de su librería para Node, `@afipsdk/afip.js` 1.2.3 (febrero de 2026), y se completó con sus
+páginas públicas de precios, foro y estado.
 
-|                                           | Afip SDK                                                                                                                               | Conexión directa                                                                                                 |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Costo por mes                             | 25 USD hasta 10 CUIT y 10.000 pedidos; 80 USD hasta 100 CUIT y 100.000 pedidos; 250 USD hasta 1.000 CUIT (de su página, **verificar**) | 0                                                                                                                |
-| ¿Alcanza para kioscos?                    | Un kiosco con 150 ventas por día hace unas 4.500 facturas por mes. Con 20 kioscos se pasa de los 100.000 pedidos del plan de 80 USD    | Sin límite (solo los de ARCA)                                                                                    |
-| La clave privada del certificado          | Viaja a sus servidores en cada inicio de sesión. Con esa clave se factura por **todos** nuestros comercios                             | No sale de nuestro servidor                                                                                      |
-| Programar                                 | Menos: ellos hablan con ARCA                                                                                                           | Unos días más: el inicio de sesión con certificado y los pedidos de facturación                                  |
-| Certificado, aceptar autorizaciones       | Igual que directa (o automático entregándoles tu clave fiscal)                                                                         | A mano, 2 minutos por comercio                                                                                   |
-| Reglas de facturación (tipos, IVA, topes) | Las mantenemos nosotros igual                                                                                                          | Las mantenemos nosotros                                                                                          |
-| Numeración, reintentos, cola, avisos      | Los hacemos nosotros igual                                                                                                             | Los hacemos nosotros                                                                                             |
-| Si ARCA cambia su formato                 | Lo absorben ellos                                                                                                                      | Lo ajustamos nosotros (el servicio de facturación es el mismo desde 2010 y los cambios suelen ser campos nuevos) |
-| Si el proveedor cae o cierra              | No se factura                                                                                                                          | No aplica                                                                                                        |
+**Cómo funciona por dentro:**
+
+- La librería no habla con ARCA: le pide todo a la API de Afip SDK en la nube
+  (`app.afipsdk.com`), y ellos hablan con ARCA.
+- Se usa una instancia por comercio: `new Afip({ CUIT, cert, key, access_token, production })`. El
+  `CUIT` es el del comercio y `cert`/`key` son los de Mostrador (el modelo de delegación que ellos
+  mismos recomiendan).
+- **Antes de cada operación** (salvo la consulta de estado) manda el certificado **y la clave
+  privada** a su servidor para iniciar sesión en ARCA. El permiso de ARCA (un "ticket" que dura 12
+  horas) lo guardan ellos. No publican cómo guardan ni cuánto retienen la clave.
+- **Métodos que vamos a usar:**
+  - `getLastVoucher`: último número autorizado.
+  - `createVoucher`: pide el CAE.
+  - `getVoucherInfo`: consulta si una factura ya existe.
+  - `getSalesPoints`: puntos de venta.
+  - `getServerStatus`: estado de ARCA.
+  - `executeRequest`: cualquier otro método del servicio de facturación.
+- **No vamos a usar `createNextVoucher`.** Hace "último número + 1" en dos pasos, sin bloqueo: con
+  dos cajas vendiendo a la vez en el mismo punto de venta, chocan. Mostrador numera con su propia
+  cola, una factura a la vez por punto de venta.
+- **Sin reintentos:** cada pedido espera hasta 30 segundos y, si falla, devuelve el error. Los
+  reintentos los hace nuestro worker.
+- **Página de estado** (status.afipsdk.com): mide **su** servicio, no el de ARCA. Registra una
+  caída de "Factura electrónica" el 26/09/2026.
+- **Automatizaciones:**
+  - Pueden crear certificados, autorizar servicios, delegar, aceptar delegaciones y crear puntos de
+    venta.
+  - **Todas piden usuario y clave fiscal.** Las de delegar y crear el punto de venta piden la clave
+    fiscal **del comercio**: no se usan, por lo explicado más arriba.
+  - Las de aceptar y autorizar piden la nuestra: por ahora se hacen a mano.
+- **Modo de desarrollo:** funciona sin certificado con su CUIT de prueba 20409378472. **Sirve para
+  empezar a probar ya, sin trámites en ARCA.**
+
+**Precios** (de su página, sin fecha visible):
+
+| Plan    | Precio      | CUIT  | Pedidos por mes | Excedente                                      |
+| ------- | ----------- | ----- | --------------- | ---------------------------------------------- |
+| Free    | Gratis      | 1     | 1.000           | No                                             |
+| Pro     | 25 USD/mes  | 10    | 10.000          | 10 USD por CUIT y 10 USD cada 1.000 pedidos    |
+| Growth  | 80 USD/mes  | 100   | 100.000         | 5 USD por CUIT y 5 USD cada 1.000 pedidos      |
+| Startup | 250 USD/mes | 1.000 | 1.000.000       | 1 USD cada 10 CUIT y 1 USD cada 10.000 pedidos |
+
+**Lo que hay que preguntarles por escrito antes de contratar:**
+
+1. **Qué cuenta como "pedido".** Si cuentan el inicio de sesión además de la factura, cada factura
+   son 2 pedidos o más. Un kiosco con 150 ventas por día hace unas 4.500 facturas por mes.
+   - Con 20 kioscos son 90.000 facturas, en el límite del plan Growth.
+   - Con 100 kioscos son entre 450.000 y 900.000 pedidos: plan Startup (250 USD) o excedentes.
+2. Si cada CUIT representado (cada comercio) cuenta como un CUIT del plan.
+3. Cómo guardan, cifran y cuánto retienen el certificado y la clave. Pedir un acuerdo de
+   tratamiento de datos.
+4. Si guardan un permiso de ARCA por cada CUIT cuando todos usan el mismo certificado (ARCA no da
+   un segundo permiso mientras el primero sigue vigente).
+5. Límite de pedidos por segundo.
+
+**Cómo nos cuidamos con Afip SDK:**
+
+- La clave privada vive en el archivo de secretos del servidor, como las otras claves. Nunca en la
+  base ni en el repo.
+- Si Afip SDK informara un incidente de seguridad: se revoca el certificado en ARCA, se genera otro
+  y se carga. Los comercios no tienen que hacer nada, porque la autorización es al CUIT de
+  Mostrador, no al certificado (**verificar** en la primera alta si hay que reasignar el
+  computador fiscal).
+- **Plan B, la conexión directa con ARCA.** Las reglas de factura (`packages/shared/src/factura.ts`)
+  no dependen de Afip SDK, y la cola, la numeración y los reintentos son nuestros. Cambiar de camino
+  es reemplazar una pieza.
 
 **Sobre "con Afip SDK no tengo que mantener nada":** no es así. Afip SDK solo resuelve la parte de
 hablar con ARCA. Igual quedan de nuestro lado:
@@ -235,31 +294,82 @@ hablar con ARCA. Igual quedan de nuestro lado:
 - aceptar cada autorización;
 - las reglas de facturación y los cambios de ARCA;
 - la numeración, los reintentos y las notas de crédito;
-- los límites del plan.
+- qué hacer cuando ARCA se cae;
+- los límites y el costo del plan.
 
-**Recomendación: conexión directa.** No tiene costo fijo, no tiene topes que choquen con el
-volumen de un kiosco y la clave que factura por todos nuestros clientes no sale de nuestro
-servidor. Se programa sin agregar dependencias, con lo que ya trae Node. Afip SDK queda como plan
-B si la conexión directa se complica. Es un cambio respecto de la decisión 010 (que proponía Afip
-SDK) y lo decide el dueño del proyecto.
+## Si ARCA o Afip SDK se caen
+
+ARCA no tiene una página oficial de estado, y su consulta de estado (`FEDummy`) puede decir "OK"
+mientras facturar falla. Por eso Mostrador se basa en lo que de verdad pasa con cada factura.
+
+**La regla: la venta nunca se frena.**
+
+1. **Se cobra igual.** La venta, el stock y el "pendiente de facturar" se guardan juntos. El
+   cliente se lleva un ticket que dice "Comprobante provisorio: tu factura sale en cuanto ARCA
+   responda". Desde Ventas se puede reimprimir o mandar por WhatsApp cuando salga.
+2. **Cola con reintentos.** El worker reintenta con espera creciente (30 segundos, 1, 2, 4, 8
+   minutos y después cada 15 minutos).
+   - Solo reintenta los errores de conexión y de servicio.
+   - Si ARCA rechaza la factura por un dato (por ejemplo, un punto de venta mal cargado), no
+     reintenta: queda "No se pudo facturar" y le avisa al dueño con palabras claras.
+3. **Sin duplicados.** Si se cortó la respuesta, antes de reintentar se consulta si ese número ya
+   quedó autorizado (`getVoucherInfo`). Si ya existe, se toma ese CAE.
+4. **Corte automático.** Si fallan varias facturas seguidas de un mismo comercio, o ARCA no
+   responde, se pausan los envíos de todos y se prueba cada minuto. Al volver, se manda lo
+   pendiente en orden (la numeración y las fechas tienen que ser correlativas).
+5. **Avisos según el plazo.** ARCA acepta la fecha real de la venta hasta 5 días después, sin pasar
+   del mes:
+   - **más de una hora pendiente:** aviso en el panel de Mostrador;
+   - **más de 24 horas, o fin de mes cerca:** aviso al dueño del comercio;
+   - **al cuarto día:** urgente. Si se pasa el plazo, la app no inventa otra fecha: le explica al
+     dueño cómo seguir (contingencia de ARCA o contador).
+6. **CAEA, la contingencia oficial (segunda etapa).** Desde el 1/8/2026 (RG 5782 y 5785) el CAE en
+   línea es la forma única, y el CAEA (CAE anticipado) queda solo para contingencias. Es la primera
+   alternativa para quien factura por web service. Cómo funciona:
+   - Se pide **antes**: es uno por comercio y por quincena, desde 5 días antes. Durante una caída no
+     se puede pedir.
+   - Se usa en un **punto de venta aparte**, solo para CAEA, con el mismo domicilio.
+   - Se **rinde** cada quincena, hasta 8 días corridos después de terminada. Se informan los
+     comprobantes emitidos con ese CAEA, o "sin movimiento". Si no se rinde, ARCA puede negar el
+     próximo y aplicar restricciones.
+   - Afip SDK tiene `createCAEA` y `getCAEA`. La rendición se hace con `executeRequest`.
+   - **Para los monotributistas probablemente aplica** (la norma habla de comprobantes A, B y C).
+     **Verificar** con el contador y si hace falta alguna adhesión.
+   - En Mostrador:
+     - el alta pide un segundo punto de venta;
+     - el worker pide el CAEA de cada comercio en cada quincena;
+     - se usa solo si ARCA no responde por más de un rato;
+     - se rinde solo.
+   - Suma pedidos al plan y complejidad: se hace **después del piloto**, si las caídas lo
+     justifican.
+7. **Último recurso, a mano:** el Facturador o el Facturador Móvil de ARCA, que el comercio usa
+   desde su cuenta. Que el talonario de papel siga sirviendo para quien factura por web service es
+   **incierto** desde la RG 5785: consultarlo con el contador antes de recomendarlo.
+
+**Si Afip SDK se cae y ARCA no:** pasa lo mismo, la cola espera y reintenta. Es la dependencia
+que suma el intermediario. Si llegara a repetirse, el plan B es la conexión directa.
 
 ## Plan de pruebas
 
-1. **Fase 0, pruebas de ARCA (homologación):**
+1. **Fase 0, ya mismo, sin trámites:** Afip SDK en modo de desarrollo, con su CUIT de prueba 20409378472. Sirve para armar la cola, la numeración, los reintentos, el ticket con QR y la
+   nota de crédito. Hace falta crear la cuenta gratis de Afip SDK y cargar su `access_token` en
+   los secretos del servidor, nunca en el chat.
+2. **Fase 0b, pruebas de ARCA (homologación) con tu CUIT:**
    - Necesita tu CUIT con clave nivel 3 y el certificado de pruebas de WSASS.
    - Se factura "de mentira" con tu propio CUIT: factura C, nota de crédito C, ARCA caída,
      respuesta perdida y numeración con dos cajas a la vez.
    - No hace falta ningún comercio.
-2. **Fase 1, producción con Mostrador:**
+3. **Fase 1, producción con Mostrador:**
    - Certificado de producción.
    - Mostrador factura su propio abono a los clientes (hay que hacerlo igual).
    - Prueba la conexión real sin riesgo para ningún comercio.
-3. **Fase 2, piloto:**
+4. **Fase 2, piloto:**
    - Uno a tres comercios monotributistas que quieran facturar: solo factura C y nota de crédito C.
    - Dos semanas revisando cada factura en "Mis Comprobantes" de ARCA contra las ventas.
    - Antes de esta fase: términos y condiciones firmados.
-4. **Fase 3, responsables inscriptos:**
+5. **Fase 3, responsables inscriptos:**
    - Facturas A y B, IVA por producto, transparencia fiscal y notas de crédito A y B.
+6. **Fase 4, contingencia con CAEA,** si las caídas de ARCA lo justifican.
 
 **Listo cuando:**
 
@@ -270,17 +380,17 @@ SDK) y lo decide el dueño del proyecto.
 
 ## Qué hay que decidir y qué guarda la app
 
-Antes de programar la conexión, según `CLAUDE.md`, necesito tu OK en:
+Ya decidido: **Afip SDK** (18/10/2026). Antes de programar la conexión, según `CLAUDE.md`,
+necesito tu OK en:
 
-1. **Conexión directa o Afip SDK** (recomendación: directa).
-2. **Tablas nuevas:**
+1. **Tablas nuevas:**
    - la configuración fiscal de cada comercio: CUIT, punto de venta, condición y estado;
    - las facturas: venta, tipo, número, CAE, vencimiento y estado.
    - Llevan la misma protección entre comercios que el resto. Hay que cambiar la sección 23 de
      `docs/SPEC.md`, que hoy dice "no crear tablas de comprobantes fiscales en la V1".
-3. **Datos personales nuevos:** el CUIT o el DNI del comprador, solo cuando pide factura a su nombre
+2. **Datos personales nuevos:** el CUIT o el DNI del comprador, solo cuando pide factura a su nombre
    o la venta llega a $10.000.000. Entra en la exportación y en el borrado de la cuenta.
-4. **Empezar solo con monotributo** (factura C) y dejar responsables inscriptos para la fase 3.
+3. **Empezar solo con monotributo** (factura C) y dejar responsables inscriptos para la fase 3.
 
 Ya está hecho, sin tocar nada de lo anterior: las reglas de factura en
 `packages/shared/src/factura.ts`, con sus pruebas. Incluyen el tipo de factura según quién vende y
@@ -315,3 +425,12 @@ usa esa validación del CUIT.
 - Afip SDK, precios y API: https://afipsdk.com/en/api-factura-electronica/
 - Constancia de inscripción (padrón): https://www.afip.gob.ar/ws/documentacion/catalogo.asp
 - Clave fiscal nivel 3 desde la app: https://fortunaweb.com.ar/blog/clave-fiscal-de-arca-que-es-realmente-y-como-subir-de-nivel-sin-errores
+- Afip SDK, librería para Node (código leído): https://www.npmjs.com/package/@afipsdk/afip.js
+- Afip SDK, precios: https://afipsdk.com/en/pricing/
+- Afip SDK, automatizaciones: https://afipsdk.com/docs/automations/introduction/
+- Afip SDK, ir a producción: https://docs.afipsdk.com/siguientes-pasos/ir-a-produccion
+- Afip SDK, estado de su servicio: https://status.afipsdk.com/
+- ARCA, contingencias de factura electrónica: https://www.afip.gob.ar/fe/emision-autorizacion/contingencias.asp
+- RG 5782/2025 (CAE como modalidad única, CAEA para contingencias): https://www.argentina.gob.ar/normativa/nacional/resoluci%C3%B3n-5782-2025-419496/texto
+- RG 5852/2026 (prórroga a agosto de 2026): https://tributum.news/res-gral-5852-2026-arca-facturacion-electronica-cae-modalidad-unica-caea-ante-contingencias-vigencia-prorroga-a-agosto-2026/
+- Manual WSFEv1 (fechas del comprobante): https://www.afip.gob.ar/ws/documentacion/manuales/manual-desarrollador-ARCA-COMPG.pdf

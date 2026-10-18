@@ -140,8 +140,9 @@ services:
       MP_WEBHOOK_SECRET_ARCHIVO: /run/secrets/mp_webhook_secret
       MP_PRUEBAS: ${MP_PRUEBAS:-0}
     secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret]
-    # Sin Mercado Pago configurado, el worker termina solo y no se reinicia.
-    restart: on-failure
+    # Manda los avisos automáticos de los comercios y, si está configurado, los trabajos de
+    # Mercado Pago. Necesita salir a internet (los avisos van a n8n, Make, Zapier…).
+    restart: unless-stopped
     depends_on:
       migrar: { condition: service_completed_successfully }
       redis: { condition: service_healthy }

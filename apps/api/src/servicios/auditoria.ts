@@ -5,7 +5,7 @@ import type { Sesion } from './sesiones.ts';
 /** Agrega una fila a la auditoría del kiosco de la transacción. Nunca guarda secretos. */
 export async function auditar(
   tx: TxKiosco,
-  sesion: Pick<Sesion, 'usuarioId' | 'kioscoId' | 'esSoporte'>,
+  sesion: Pick<Sesion, 'kioscoId' | 'esSoporte'> & { usuarioId: string | null },
   accion: string,
   detalle: Record<string, unknown> = {},
   ip: string | null = null,

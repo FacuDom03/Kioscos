@@ -229,6 +229,9 @@ importers:
 
   packages/servidor:
     dependencies:
+      '@mostrador/db':
+        specifier: workspace:*
+        version: link:../db
       '@node-rs/argon2':
         specifier: 2.2.2
         version: 2.2.2

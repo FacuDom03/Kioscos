@@ -4,6 +4,12 @@ import { sql } from '@mostrador/db';
 import { uuidv7 } from '@mostrador/shared';
 import { z } from 'zod';
 import { devueltoPorItem } from '../servicios/promos.ts';
+import {
+  avisosDeVentas,
+  datosDeVenta,
+  eventosEsperados,
+  type AvisoPendiente,
+} from '../servicios/avisos.ts';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { moverStock } from '../servicios/stock.ts';
@@ -39,7 +45,8 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
       );
       const s = req.completa;
       const resultados: (ResultadoOp & { id: string })[] = [];
-      await req.db(async (tx) => {
+      const ventasNuevas: string[] = [];
+      const avisos = await req.db(async (tx) => {
         for (const [n, op] of crudo.ops.entries()) {
           const r = operacion.safeParse(op);
           const id = (op as { datos?: { id?: unknown } })?.datos?.id;
@@ -58,6 +65,7 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
                   : await registrarGasto(tx, s, r.data.datos);
             if (res.estado === 'rechazada') await sql`rollback to savepoint op`.execute(tx);
             else await sql`release savepoint op`.execute(tx);
+            if (r.data.tipo === 'venta' && res.estado === 'ok') ventasNuevas.push(r.data.datos.id);
             resultados.push({ id: idTexto, ...res });
           } catch (error) {
             await sql`rollback to savepoint op`.execute(tx);
@@ -70,7 +78,9 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
             }
           }
         }
+        return avisosDeVentas(tx, ventasNuevas);
       });
+      await app.avisar(s.kioscoId, avisos);
       return { resultados };
     },
   );
@@ -207,7 +217,7 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
         req.body,
       );
       const s = req.completa;
-      return req.db(async (tx) => {
+      const r = await req.db(async (tx) => {
         const v = await tx
           .selectFrom('ventas')
           .select(['id', 'estado', 'creada_en_dispositivo'])
@@ -320,8 +330,15 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
           .where('id', '=', id)
           .execute();
         await auditar(tx, s, 'venta.anulada', { venta: id, motivo }, req.ip);
-        return { ok: true, devolucionPendiente: !!qr };
+        const avisos: AvisoPendiente[] = [];
+        if ((await eventosEsperados(tx, ['venta.anulada'])).size) {
+          const datos = await datosDeVenta(tx, id);
+          if (datos) avisos.push({ evento: 'venta.anulada', datos });
+        }
+        return { ok: true, devolucionPendiente: !!qr, avisos };
       });
+      await app.avisar(s.kioscoId, r.avisos);
+      return { ok: r.ok, devolucionPendiente: r.devolucionPendiente };
     },
   );
 

@@ -11,7 +11,7 @@ import {
   verificarTotp,
   type Cifrador,
 } from '@mostrador/servidor';
-import { RUBROS, uuidv7 } from '@mostrador/shared';
+import { RUBROS, cuitValido, uuidv7 } from '@mostrador/shared';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -189,11 +189,8 @@ export async function construirPanel(
     const d = validar(
       z.strictObject({
         nombre: z.string().trim().min(1).max(120),
-        cuit: z
-          .string()
-          .regex(/^\d{11}$/)
-          .or(z.literal(''))
-          .optional(),
+        // Con dígito verificador: un error de tipeo en el CUIT rompería la facturación.
+        cuit: z.string().refine(cuitValido).or(z.literal('')).optional(),
         plan,
         rubro: z.enum(RUBROS),
         emailDueno: z.email().max(254),

@@ -117,6 +117,19 @@ describe('panel admin', () => {
     expect(r.statusCode).toBe(400);
   });
 
+  it('no da de alta un CUIT con el dígito verificador mal', async () => {
+    const alta = (cuit: string) =>
+      pedir('POST', '/panel/api/kioscos', {
+        nombre: `Kiosco ${cuit}`,
+        cuit,
+        plan: 'esencial',
+        rubro: 'kiosco',
+        emailDueno: `dueno-${cuit}@cuit.test`,
+      });
+    expect((await alta('20409378473')).statusCode).toBe(400);
+    expect((await alta('20409378472')).statusCode).toBe(200);
+  });
+
   it('cambia plan y estado', async () => {
     const lista = (await pedir('GET', '/panel/api/kioscos')).json<
       { id: string; nombre: string }[]

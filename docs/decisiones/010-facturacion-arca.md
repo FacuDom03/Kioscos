@@ -95,6 +95,32 @@ actuaría en nombre del comercio. Es más incómodo para el cliente.
 - Quién responde ante ARCA ante un error o un abuso: términos y responsabilidades con un contador.
 - Reglas de identificación del consumidor final por monto, y desglose de IVA por tipo de comprobante.
 
+## Actualización de octubre de 2026
+
+El análisis completo está en `docs/FACTURACION.md`. Lo que cambia o se confirma:
+
+- **La autorización tiene un paso nuestro:** después de que el comercio autoriza a Mostrador, hay
+  que aceptarla ("Aceptación de Designación") y asignarla al computador fiscal de Mostrador. Se
+  hace a mano, 2 minutos por comercio, avisado desde el panel. Automatizarlo exige nuestra clave
+  fiscal en un robot o en un proveedor; por ahora, no.
+- **Afip SDK recibe la clave privada** del certificado en cada inicio de sesión. Esa clave factura
+  por todos nuestros comercios. Además, sus planes se cuentan por pedidos (10.000 o 100.000 por
+  mes), y un kiosco hace unas 4.500 facturas por mes. **Propuesta: conexión directa con ARCA**,
+  sin intermediario ni dependencias nuevas, con Afip SDK como plan B. Pendiente del OK del dueño
+  del proyecto.
+- **El punto 3 ("mejora posible" con la clave fiscal del comercio) queda descartado.**
+- **Reglas vigentes:**
+  - Identificar al consumidor final desde $10.000.000 (RG 5866/2026).
+  - `CondicionIVAReceptorId` obligatorio desde el 1/12/2026 (manual WSFEv1 versión 4.8).
+  - Transparencia fiscal solo para responsables inscriptos.
+- **Hecho sin tocar el modelo de datos:** `packages/shared/src/factura.ts`, con sus pruebas:
+  - tipo de comprobante y nota de crédito;
+  - campos de WSFEv1;
+  - desglose de IVA;
+  - QR;
+  - tope de identificación;
+  - CUIT con dígito verificador, que el alta del panel ya valida.
+
 ## Referencias
 
 - `docs/SPEC.md`: Fase 3 (sección 22), tarjeta "Facturación ARCA, Próximamente" en Conexiones y

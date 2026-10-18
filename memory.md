@@ -55,6 +55,16 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Facturación ARCA, análisis** en `docs/FACTURACION.md`:
+  - delegación, sin pedir nunca la clave fiscal;
+  - qué hace el dueño del proyecto, qué hace cada comercio, alta y baja;
+  - mantenimiento;
+  - Afip SDK contra conexión directa (se recomienda directa);
+  - plan de pruebas por fases.
+    Reglas puras en `packages/shared/src/factura.ts` (tipo de comprobante, campos WSFEv1, IVA, QR,
+    `cuitValido`; el panel ya valida el CUIT). Falta el OK sobre: conexión directa o Afip SDK,
+    tablas nuevas y datos del comprador.
+
 - **Plan de integraciones** en `docs/INTEGRACIONES.md` (orden: email y "olvidé mi contraseña",
   webhooks salientes y entrantes —así llegan los leads de Facebook vía LeadConnector/Zapier/Make
   sin pasar la revisión de Meta—, IA con Claude, suscripción con MP, Mercado Libre, Tiendanube,

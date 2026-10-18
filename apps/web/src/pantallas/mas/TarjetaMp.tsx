@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Aviso } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { refrescarMp, useEstadoMp } from '../../nucleo/mp.ts';
+import { confirmar } from '../../componentes/Dialogos.tsx';
 
 const ESTADOS = {
   conectado: 'Conectado',
@@ -43,9 +44,22 @@ export function TarjetaMp() {
   }
 
   async function desconectar() {
-    if (!confirm('¿Desconectar Mercado Pago? Ya no vas a poder cobrar con QR.')) return;
-    await api('POST', '/api/v1/mp/desconectar', {});
-    await refrescarMp();
+    if (
+      !(await confirmar({
+        titulo: '¿Desconectar Mercado Pago?',
+        texto: 'Ya no vas a poder cobrar con QR.',
+        aceptar: 'Desconectar',
+        peligro: true,
+      }))
+    )
+      return;
+    try {
+      await api('POST', '/api/v1/mp/desconectar', {});
+      await refrescarMp();
+    } catch (e) {
+      setAviso({ tipo: 'error', texto: mensajeDeError(e) });
+      return;
+    }
     setAviso({
       tipo: 'ok',
       texto:

@@ -6,6 +6,7 @@ import { borrarDatosDelKiosco } from '../nucleo/local.ts';
 import { rubroDe, useNegocio } from '../nucleo/rubro.ts';
 import { navegar } from '../nucleo/ruta.ts';
 import { useSesion, useSesionCompleta } from '../nucleo/sesion.tsx';
+import { avisar } from '../componentes/Dialogos.tsx';
 
 interface Opcion {
   ruta: string;
@@ -25,7 +26,8 @@ export function Mas() {
   // con ventas pendientes no se deja cerrar.
   async function cerrarSesion() {
     if (hayPendientes() && !(await sincronizar())) {
-      alert(
+      await avisar(
+        'Todavía no podés cerrar la sesión',
         `Tenés ${bandeja.pendientes} ventas sin subir. Esperá a que vuelva internet para cerrar la sesión.`,
       );
       return;

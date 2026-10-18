@@ -15,6 +15,7 @@ import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { ticketActual } from '../../nucleo/ticket.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 import { PresupuestoImpreso, imprimirPresupuesto } from './PresupuestoImpreso.tsx';
+import { confirmar } from '../../componentes/Dialogos.tsx';
 
 /** Un presupuesto: mandarlo, imprimirlo, cobrarlo o anularlo (etapa I4). */
 export function PresupuestoPantalla({ id }: { id: string }) {
@@ -34,11 +35,15 @@ export function PresupuestoPantalla({ id }: { id: string }) {
   if (!p) return <div className="pantalla" aria-busy="true" />;
   const sePuedeVender = p.estado === 'abierto' || p.estado === 'vencido';
 
-  function vender(preciosDeHoy: boolean) {
+  async function vender(preciosDeHoy: boolean) {
     if (!p) return;
     if (
       ticketActual().length &&
-      !confirm('Hay productos en el ticket. ¿Los reemplazamos por los del presupuesto?')
+      !(await confirmar({
+        titulo: 'Ya hay productos en el ticket',
+        texto: '¿Los reemplazamos por los del presupuesto?',
+        aceptar: 'Reemplazar',
+      }))
     )
       return;
     venderPresupuesto(p, preciosDeHoy);
@@ -46,7 +51,14 @@ export function PresupuestoPantalla({ id }: { id: string }) {
   }
 
   async function anular() {
-    if (!confirm(`¿Anular el presupuesto ${p?.numero}?`)) return;
+    if (
+      !(await confirmar({
+        titulo: `¿Anular el presupuesto ${p?.numero}?`,
+        aceptar: 'Anular presupuesto',
+        peligro: true,
+      }))
+    )
+      return;
     try {
       await api('POST', `/api/v1/presupuestos/${id}/anular`, {});
       await recargar();

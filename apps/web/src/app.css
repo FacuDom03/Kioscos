@@ -1612,6 +1612,11 @@ fieldset.campo legend {
   margin: 8px 0 14px;
 }
 
+/* Diálogos de confirmar, pedir un dato y avisar: modales, la sombra del .dialogo hace de fondo. */
+.dialogo--sistema::backdrop {
+  background: transparent;
+}
+
 /* ---------------------------------------------------------------------------
  * Caja
  * ------------------------------------------------------------------------- */

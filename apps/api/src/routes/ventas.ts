@@ -155,6 +155,15 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
       return req.db(async (tx) => {
         const v = await tx.selectFrom('ventas').selectAll().where('id', '=', id).executeTakeFirst();
         if (!v) throw noEncontrado();
+        // El cajero ve solo las ventas del turno abierto, igual que en la lista.
+        if (req.completa.rol === 'cajero') {
+          const turno = await tx
+            .selectFrom('turnos_caja')
+            .select('cerrado_en')
+            .where('id', '=', v.turno_id)
+            .executeTakeFirst();
+          if (turno?.cerrado_en) throw noEncontrado();
+        }
         const items = await tx
           .selectFrom('venta_items')
           .select(['id', 'producto_id', 'descripcion', 'cantidad', 'precio_unitario', 'subtotal'])

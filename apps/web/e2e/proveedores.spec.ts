@@ -72,8 +72,11 @@ test('se sube la lista en Excel, se revisa, se aplica, se imprimen etiquetas y s
   ).toEqual([]);
 
   await page.getByRole('button', { name: 'Cargar todos como nuevos' }).click();
-  page.on('dialog', (dialogo) => void dialogo.accept());
   await page.getByRole('button', { name: 'Aplicar: 3 productos' }).click();
+  const confirmacion = page.getByRole('dialog', { name: '¿Aplicar la lista?' });
+  await expect(confirmacion).toContainText('Se cambian 3 productos');
+  expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
+  await confirmacion.getByRole('button', { name: 'Aplicar lista' }).click();
   await expect(page.getByRole('heading', { name: 'Lista aplicada' })).toBeVisible();
   await expect(page.getByText('Cambiaron 2 productos y se cargó 1 nuevo.')).toBeVisible();
 
@@ -85,6 +88,7 @@ test('se sube la lista en Excel, se revisa, se aplica, se imprimen etiquetas y s
   await page.emulateMedia({ media: 'screen' });
 
   await page.getByRole('button', { name: 'Deshacer' }).click();
+  await page.getByRole('button', { name: 'Deshacer lista' }).click();
   await expect(page.getByText('Volvieron los 2 precios de antes.')).toBeVisible();
   const { rows } = await c.query(
     `select nombre, precio::int as precio from productos where kiosco_id = $1 order by nombre`,

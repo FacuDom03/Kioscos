@@ -336,6 +336,7 @@ function VentasDelTurno({ turnoId }: { turnoId: string | null }) {
         key={version}
         url={`/api/v1/ventas?turnoId=${turnoId}`}
         conResumen={false}
+        textoVacio="Todavía no hubo ventas en este turno."
         alAbrir={setAbierta}
       />
       {abierta && (

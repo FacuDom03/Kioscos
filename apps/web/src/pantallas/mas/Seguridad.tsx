@@ -3,6 +3,7 @@ import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 import { ConfigurarSegundoFactor } from '../acceso/Configurar.tsx';
+import { avisar, confirmar } from '../../componentes/Dialogos.tsx';
 
 interface Datos {
   totp: boolean;
@@ -95,14 +96,25 @@ export function Seguridad({ alVolver }: { alVolver: () => void }) {
             type="button"
             className="m-boton"
             onClick={async () => {
-              if (!confirm('Los códigos anteriores dejan de servir. ¿Generar nuevos?')) return;
-              const r = await api<{ codigosRecuperacion: string[] }>(
-                'POST',
-                '/api/v1/cuenta/codigos',
-                {},
-              );
-              setCodigos(r.codigosRecuperacion);
-              await recargar();
+              if (
+                !(await confirmar({
+                  titulo: '¿Generar códigos nuevos?',
+                  texto: 'Los códigos anteriores dejan de servir.',
+                  aceptar: 'Generar códigos',
+                }))
+              )
+                return;
+              try {
+                const r = await api<{ codigosRecuperacion: string[] }>(
+                  'POST',
+                  '/api/v1/cuenta/codigos',
+                  {},
+                );
+                setCodigos(r.codigosRecuperacion);
+                await recargar();
+              } catch (e) {
+                await avisar('No se pudieron generar los códigos', mensajeDeError(e));
+              }
             }}
           >
             Generar códigos nuevos

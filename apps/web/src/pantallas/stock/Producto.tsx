@@ -18,6 +18,7 @@ import { sumarProducto } from '../../nucleo/ticket.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { confirmar, pedirTexto } from '../../componentes/Dialogos.tsx';
 
 interface Detalle {
   id: string;
@@ -164,7 +165,13 @@ function FormProducto({
   }
 
   async function nuevaCategoria() {
-    const nombre = prompt('Nombre de la categoría nueva');
+    const nombre = await pedirTexto({
+      titulo: 'Categoría nueva',
+      etiqueta: 'Nombre',
+      aceptar: 'Crear categoría',
+      valido: (v) => v.length <= 60,
+      error: 'Usá hasta 60 letras.',
+    });
     if (!nombre) return;
     try {
       const r = await api<{ id: string }>('POST', '/api/v1/categorias', { nombre });
@@ -178,12 +185,21 @@ function FormProducto({
   async function archivar() {
     if (
       !detalle ||
-      !confirm(`¿Sacar "${detalle.nombre}" del catálogo? Las ventas viejas no se tocan.`)
+      !(await confirmar({
+        titulo: `¿Sacar "${detalle.nombre}" del catálogo?`,
+        texto: 'Deja de aparecer para vender. Las ventas viejas no se tocan.',
+        aceptar: 'Sacar del catálogo',
+        peligro: true,
+      }))
     )
       return;
-    await api('PATCH', `/api/v1/productos/${detalle.id}`, { activo: false });
-    await refrescarCatalogo();
-    volver();
+    try {
+      await api('PATCH', `/api/v1/productos/${detalle.id}`, { activo: false });
+      await refrescarCatalogo();
+      volver();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
   }
 
   return (

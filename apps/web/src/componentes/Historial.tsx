@@ -10,6 +10,7 @@ import { api, mensajeDeError } from '../nucleo/api.ts';
 import { hoyArgentina } from '../nucleo/descargar.ts';
 import { useSesionCompleta } from '../nucleo/sesion.tsx';
 import { useDatos } from '../nucleo/usar-datos.ts';
+import { pedirTexto } from './Dialogos.tsx';
 
 // Piezas del historial que usan las secciones Ventas, Compras, Caja y Stock: listas por período
 // y el detalle de cada venta, compra o cierre al tocarlo.
@@ -94,6 +95,14 @@ export function ElegirPeriodo({
 /** `desde=…&hasta=…` para la API. */
 export const rango = (p: Periodo) => `desde=${desdeHace(p)}&hasta=${hoyArgentina()}`;
 
+function Cargando() {
+  return (
+    <p className="texto-suave" aria-busy="true">
+      Cargando…
+    </p>
+  );
+}
+
 function Vacio({ texto }: { texto: string }) {
   return <p className="vacio">{texto}</p>;
 }
@@ -114,12 +123,14 @@ export function ListaVentas({
   alQuitarTurno,
   alAbrir,
   conResumen = true,
+  textoVacio = 'No hay ventas en este período.',
 }: {
   url: string;
   deUnTurno?: boolean;
   alQuitarTurno?: () => void;
   alAbrir: (id: string) => void;
   conResumen?: boolean;
+  textoVacio?: string;
 }) {
   const { datos, error } = useDatos<VentaFila[]>(url);
   const cobradas = (datos ?? []).filter((v) => v.estado === 'cobrada');
@@ -134,7 +145,8 @@ export function ListaVentas({
         </p>
       )}
       {error && <Aviso>{error}</Aviso>}
-      {datos && datos.length === 0 && <Vacio texto="No hay ventas en este período." />}
+      {!datos && !error && <Cargando />}
+      {datos && datos.length === 0 && <Vacio texto={textoVacio} />}
       {conResumen && datos && datos.length > 0 && (
         <p className="resumen-historial">
           {cobradas.length} {cobradas.length === 1 ? 'venta' : 'ventas'} por{' '}
@@ -186,6 +198,7 @@ export function ListaCompras({ url, alAbrir }: { url: string; alAbrir: (id: stri
   return (
     <section aria-label="Compras">
       {error && <Aviso>{error}</Aviso>}
+      {!datos && !error && <Cargando />}
       {datos && datos.length === 0 && (
         <Vacio texto="No hay compras en este período. Cuando llegue mercadería, tocá Cargar compra." />
       )}
@@ -234,6 +247,7 @@ export function ListaCierres({
   return (
     <section aria-label="Cierres de caja">
       {error && <Aviso>{error}</Aviso>}
+      {!datos && !error && <Cargando />}
       {datos && filas.length === 0 && <Vacio texto="No hay cierres de caja en este período." />}
       <ul className="lista-historial">
         {filas.map((c) => (
@@ -275,6 +289,7 @@ export function ListaMovimientos({ url, alAbrir }: { url: string; alAbrir: (d: D
   return (
     <section aria-label="Movimientos de stock">
       {error && <Aviso>{error}</Aviso>}
+      {!datos && !error && <Cargando />}
       {datos && datos.length === 0 && (
         <Vacio texto="No hubo movimientos de stock en este período." />
       )}
@@ -451,7 +466,13 @@ function DetalleVenta({ url, alCambiar }: { url: string; alCambiar?: (() => void
   if (error) return <Aviso>{error}</Aviso>;
   if (!v) return <p aria-busy="true">Cargando…</p>;
   const anular = async () => {
-    const motivo = prompt(`Motivo para anular la venta de ${formatearPlata(v.total)}`);
+    const motivo = await pedirTexto({
+      titulo: `Anular la venta de ${formatearPlata(v.total)}`,
+      etiqueta: 'Motivo',
+      aceptar: 'Anular venta',
+      valido: (m) => m.length <= 200,
+      error: 'Usá hasta 200 letras.',
+    });
     if (!motivo) return;
     try {
       const r = await api<{ devolucionPendiente: boolean }>(

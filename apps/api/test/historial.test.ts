@@ -125,4 +125,14 @@ describe('historial', () => {
     ])
       expect((await cajero.get(url)).statusCode, url).toBe(403);
   });
+
+  it('el cajero no abre ventas de turnos cerrados', async () => {
+    const { dueno, turnoId } = await comercioConMovimientos();
+    const venta = (await dueno.cliente.get(`/api/v1/ventas?turnoId=${turnoId}`)).json<
+      { id: string }[]
+    >()[0]!.id;
+    expect((await dueno.cliente.get(`/api/v1/ventas/${venta}`)).statusCode).toBe(200);
+    const { cajero } = await cajeroEnEquipo(dueno, e.app);
+    expect((await cajero.get(`/api/v1/ventas/${venta}`)).statusCode).toBe(404);
+  });
 });

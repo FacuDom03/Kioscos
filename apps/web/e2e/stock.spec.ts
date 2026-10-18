@@ -59,8 +59,12 @@ test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ pa
   await expect(page.getByRole('cell', { name: '$ 1.300' })).toBeVisible();
   await page.getByRole('button', { name: 'Aplicar aumento' }).click();
   await expect(page.getByText(/cambiaron 1 precios/)).toBeVisible();
-  page.once('dialog', (dlg) => void dlg.accept());
   await page.getByRole('button', { name: 'Deshacer' }).click();
+  // Con Escape se cancela; con el botón se confirma.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: '¿Deshacer el aumento?' })).toBeHidden();
+  await page.getByRole('button', { name: 'Deshacer' }).click();
+  await page.getByRole('button', { name: 'Deshacer aumento' }).click();
   await expect(page.getByText('Volvieron 1 precios a como estaban.')).toBeVisible();
   void info;
 });

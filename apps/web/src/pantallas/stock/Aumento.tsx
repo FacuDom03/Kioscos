@@ -5,6 +5,7 @@ import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { refrescarCatalogo, useCatalogo } from '../../nucleo/catalogo.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { confirmar } from '../../componentes/Dialogos.tsx';
 
 interface Cambio {
   producto_id: string;
@@ -70,7 +71,14 @@ export function AumentoPrecios() {
   }
 
   async function deshacer(id: string) {
-    if (!confirm('¿Volver los precios a como estaban antes de este aumento?')) return;
+    if (
+      !(await confirmar({
+        titulo: '¿Deshacer el aumento?',
+        texto: 'Los precios vuelven a como estaban antes.',
+        aceptar: 'Deshacer aumento',
+      }))
+    )
+      return;
     try {
       const r = await api<{ restaurados: number; saltados: number }>(
         'POST',

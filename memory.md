@@ -55,6 +55,15 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Plan de integraciones** en `docs/INTEGRACIONES.md` (orden: email y "olvidé mi contraseña",
+  webhooks salientes y entrantes —así llegan los leads de Facebook vía LeadConnector/Zapier/Make
+  sin pasar la revisión de Meta—, IA con Claude, suscripción con MP, Mercado Libre, Tiendanube,
+  ARCA, WhatsApp Business y Point). Ninguna empezada todavía.
+- **Diálogos propios** (`apps/web/src/componentes/Dialogos.tsx`: `confirmar`, `pedirTexto`,
+  `avisar`) en lugar de alert/confirm/prompt del navegador (el PIN del cajero ya no se ve al
+  escribirlo). Se agregó manejo de errores donde faltaba (desconectar MP, sacar producto, códigos
+  de recuperación). El cajero ya no abre el detalle de ventas de turnos cerrados.
+
 - **Secciones independientes** (pedido de la persona, no agrupar en "Historial"): la barra tiene
   Vender, Ventas, Compras, Stock, Caja, Tablero y Más (al cajero se le ocultan Compras y
   Tablero; prop `ocultas` de `Marco`). Ventas (`/ventas`, `?turno=`): ventas por período con

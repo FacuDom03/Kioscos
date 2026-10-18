@@ -106,11 +106,10 @@ test('no se puede cerrar sesión con ventas sin subir', async ({ page, context }
   await context.setOffline(true);
   await venderEnEfectivo(page, 'Alfajor');
   await page.getByRole('button', { name: 'Más' }).click();
-  page.once('dialog', async (dlg) => {
-    expect(dlg.message()).toContain('ventas sin subir');
-    await dlg.accept();
-  });
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
+  const aviso = page.getByRole('dialog', { name: 'Todavía no podés cerrar la sesión' });
+  await expect(aviso).toContainText('ventas sin subir');
+  await aviso.getByRole('button', { name: 'Entendido' }).click();
   await expect(page.getByRole('heading', { name: 'Más' })).toBeVisible();
   await context.setOffline(false);
   await expect.poll(() => ventasEnServidor(d.kioscoId), { timeout: 15_000 }).toBe(1);

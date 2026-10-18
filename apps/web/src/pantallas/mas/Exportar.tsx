@@ -4,6 +4,7 @@ import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { descargar, hoyArgentina as hoy } from '../../nucleo/descargar.ts';
 import { borrarDatosDelKiosco } from '../../nucleo/local.ts';
 import { useSesion, useSesionCompleta } from '../../nucleo/sesion.tsx';
+import { confirmar } from '../../componentes/Dialogos.tsx';
 
 const primeroDelMes = () => `${hoy().slice(0, 8)}01`;
 
@@ -28,9 +29,12 @@ export function Exportar({ alVolver }: { alVolver: () => void }) {
       password: string;
     };
     if (
-      !confirm(
-        'Esto borra todas las ventas, el stock y la caja del kiosco. No se puede deshacer. ¿Seguro?',
-      )
+      !(await confirmar({
+        titulo: '¿Borrar la cuenta?',
+        texto: 'Se borran todas las ventas, el stock y la caja. No se puede deshacer.',
+        aceptar: 'Borrar todo',
+        peligro: true,
+      }))
     )
       return;
     try {

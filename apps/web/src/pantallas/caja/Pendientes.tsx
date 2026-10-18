@@ -2,6 +2,7 @@ import { formatearPlata } from '@mostrador/shared';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { avisar } from '../../componentes/Dialogos.tsx';
 
 interface Pendiente {
   id: string;
@@ -23,7 +24,7 @@ export function Pendientes() {
       await api('POST', `/api/v1/ventas/${id}/resolver`, { accion });
       await recargar();
     } catch (e) {
-      alert(mensajeDeError(e));
+      await avisar('No se pudo resolver la venta', mensajeDeError(e));
     }
   };
   const devuelta = async (id: string) => {
@@ -31,7 +32,7 @@ export function Pendientes() {
       await api('POST', `/api/v1/ventas/${id}/devuelta`, {});
       await recargar();
     } catch (e) {
-      alert(mensajeDeError(e));
+      await avisar('No se pudo marcar como devuelta', mensajeDeError(e));
     }
   };
 

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { avisar, confirmar } from '../../componentes/Dialogos.tsx';
 
 interface Dispositivo {
   id: string;
@@ -27,14 +28,19 @@ export function Dispositivos({ alVolver }: { alVolver: () => void }) {
 
   async function quitar(d: Dispositivo) {
     if (
-      !confirm(`¿Quitar "${d.nombre}"? Los cajeros ya no van a poder entrar con PIN en ese equipo.`)
+      !(await confirmar({
+        titulo: `¿Quitar "${d.nombre}"?`,
+        texto: 'Los cajeros ya no van a poder entrar con PIN en ese equipo.',
+        aceptar: 'Quitar equipo',
+        peligro: true,
+      }))
     )
       return;
     try {
       await api('DELETE', `/api/v1/dispositivos/${d.id}`);
       await recargar();
     } catch (e) {
-      alert(mensajeDeError(e));
+      await avisar('No se pudo quitar el equipo', mensajeDeError(e));
     }
   }
 

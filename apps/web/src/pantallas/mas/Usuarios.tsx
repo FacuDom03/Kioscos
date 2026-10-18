@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
 import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { avisar, pedirTexto } from '../../componentes/Dialogos.tsx';
 
 interface Datos {
   personas: {
@@ -50,14 +51,22 @@ export function Usuarios({ alVolver }: { alVolver: () => void }) {
   }
 
   async function cambiarPin(id: string, nombre: string) {
-    const pin = prompt(`PIN nuevo para ${nombre} (4 a 6 números)`);
+    const pin = await pedirTexto({
+      titulo: `PIN nuevo para ${nombre}`,
+      etiqueta: 'PIN (4 a 6 números)',
+      aceptar: 'Cambiar PIN',
+      secreto: true,
+      numerico: true,
+      valido: (v) => /^\d{4,6}$/.test(v),
+      error: 'El PIN tiene que tener de 4 a 6 números.',
+    });
     if (!pin) return;
     try {
       await api('PUT', `/api/v1/usuarios/${id}/pin`, { pin });
-      alert('PIN cambiado.');
+      await avisar('PIN cambiado', `${nombre} ya puede entrar con el PIN nuevo.`);
       await recargar();
     } catch (e) {
-      alert(mensajeDeError(e));
+      await avisar('No se pudo cambiar el PIN', mensajeDeError(e));
     }
   }
 
@@ -66,7 +75,7 @@ export function Usuarios({ alVolver }: { alVolver: () => void }) {
       await api('PATCH', `/api/v1/usuarios/${id}`, { activa });
       await recargar();
     } catch (e) {
-      alert(mensajeDeError(e));
+      await avisar('No se pudo cambiar el acceso', mensajeDeError(e));
     }
   }
 

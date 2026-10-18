@@ -51,11 +51,13 @@ import { Promos } from './pantallas/promos/Promos.tsx';
 import { Cambios } from './pantallas/cambios/Cambios.tsx';
 import { GrupoVariantesPantalla, NuevoGrupo, Variantes } from './pantallas/stock/Variantes.tsx';
 import { Vencimientos } from './pantallas/stock/Vencimientos.tsx';
+import { Dialogos } from './componentes/Dialogos.tsx';
 
 export function App() {
   return (
     <ProveedorSesion>
       <Raiz />
+      <Dialogos />
     </ProveedorSesion>
   );
 }

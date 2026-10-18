@@ -16,6 +16,7 @@ import { navegar } from '../../nucleo/ruta.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 import { Etiquetas, imprimirEtiquetas, type Etiqueta } from './Etiquetas.tsx';
 import type { Proveedor } from './Proveedores.tsx';
+import { confirmar } from '../../componentes/Dialogos.tsx';
 
 interface Cambio {
   productoId: string;
@@ -240,9 +241,11 @@ export function ListaProveedor({ id }: { id: string }) {
     if (!vista || !lectura) return;
     const n = vista.resumen.cambian + crear.size;
     if (
-      !confirm(
-        `¿Aplicar la lista? Se cambian ${n} productos. Queda registrado y se puede deshacer.`,
-      )
+      !(await confirmar({
+        titulo: '¿Aplicar la lista?',
+        texto: `Se cambian ${n} productos. Queda registrado y se puede deshacer.`,
+        aceptar: 'Aplicar lista',
+      }))
     )
       return;
     setError(null);
@@ -285,7 +288,15 @@ export function ListaProveedor({ id }: { id: string }) {
   }
 
   async function deshacer() {
-    if (!hecho || !confirm('¿Volver a los precios de antes de esta lista?')) return;
+    if (
+      !hecho ||
+      !(await confirmar({
+        titulo: '¿Deshacer la lista?',
+        texto: 'Los precios vuelven a como estaban antes de esta lista.',
+        aceptar: 'Deshacer lista',
+      }))
+    )
+      return;
     try {
       const r = await api<{ restaurados: number; saltados: number }>(
         'POST',

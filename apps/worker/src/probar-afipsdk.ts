@@ -22,7 +22,10 @@ if (!token) {
 
 const cliente = new ClienteAfipSdk({ accessToken: token, produccion: false });
 const cuit = CUIT_PRUEBAS_AFIPSDK;
-const puntoDeVenta = 1;
+// El punto de venta 1 del CUIT de pruebas lo usa todo el mundo (y a veces queda trabado por
+// facturas con fecha futura). En pruebas ARCA acepta otros números: se usa uno al azar, o el que
+// se pase como argumento.
+const puntoDeVenta = Number(process.argv[2]) || 2000 + Math.floor(Math.random() * 7998);
 const tipo = 'factura_c' as const;
 
 function explicar(error: unknown): string {
@@ -35,6 +38,7 @@ function explicar(error: unknown): string {
 }
 
 try {
+  console.log(`Punto de venta de prueba: ${puntoDeVenta}`);
   console.log('1. Estado de ARCA (pruebas)…');
   const e = await cliente.estado();
   console.log(`   Aplicación: ${e.app} · Base: ${e.base} · Autenticación: ${e.autenticacion}`);
@@ -53,7 +57,7 @@ try {
     fecha = p.fechaMinima && p.fechaMinima > hoy ? p.fechaMinima : hoy;
     if (fecha > sumarDias(hoy, 5)) {
       console.log(
-        `\nEl último comprobante de pruebas tiene fecha ${diaCorto(fecha)}, más de 5 días adelante. Probá mañana.`,
+        `\nEl punto de venta ${puntoDeVenta} tiene una factura con fecha ${diaCorto(fecha)}, más de 5 días adelante. Volvé a correr la prueba: va a usar otro.`,
       );
       process.exit(1);
     }

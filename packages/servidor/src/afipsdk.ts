@@ -243,6 +243,25 @@ export class ClienteAfipSdk {
     };
   }
 
+  /**
+   * Próximo número y fecha mínima de un comprobante. ARCA exige que número y fecha vayan en
+   * orden: la fecha no puede ser anterior a la del último autorizado.
+   */
+  async proximo(
+    cuit: string,
+    puntoDeVenta: number,
+    tipo: number,
+  ): Promise<{ numero: number; fechaMinima: string | null }> {
+    const ultimo = await this.ultimoAutorizado(cuit, puntoDeVenta, tipo);
+    if (ultimo < 1) return { numero: 1, fechaMinima: null };
+    const previo = await this.consultar(cuit, puntoDeVenta, tipo, ultimo);
+    const f = String(previo?.['CbteFch'] ?? '');
+    return {
+      numero: ultimo + 1,
+      fechaMinima: /^\d{8}$/.test(f) ? `${f.slice(0, 4)}-${f.slice(4, 6)}-${f.slice(6, 8)}` : null,
+    };
+  }
+
   /** Un comprobante ya autorizado, o null si no existe (código 602 de ARCA). */
   async consultar(cuit: string, puntoDeVenta: number, tipo: number, numero: number) {
     try {

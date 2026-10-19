@@ -160,6 +160,20 @@ describe('cliente de Afip SDK', () => {
     ).rejects.toMatchObject({ tipo: 'red' });
   });
 
+  it('el próximo comprobante trae la fecha mínima (la del último autorizado)', async () => {
+    const { fetchFalso } = falso((p) => {
+      if (p.url.endsWith('v1/afip/auth')) return { json: PERMISO };
+      if (p.cuerpo['method'] === 'FECompUltimoAutorizado')
+        return { json: { FECompUltimoAutorizadoResult: { CbteNro: 16446 } } };
+      return { json: { FECompConsultarResult: { ResultGet: { CbteFch: '20261021' } } } };
+    });
+    const c = new ClienteAfipSdk({ accessToken: 'x', produccion: false, fetch: fetchFalso });
+    expect(await c.proximo('20409378472', 1, 11)).toEqual({
+      numero: 16447,
+      fechaMinima: '2026-10-21',
+    });
+  });
+
   it('un comprobante que no existe da null (código 602), sin error', async () => {
     const { fetchFalso } = falso((p) =>
       p.url.endsWith('v1/afip/auth')

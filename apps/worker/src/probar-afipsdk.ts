@@ -6,11 +6,13 @@
 import {
   camposDelComprobante,
   diaArgentino,
+  diaCorto,
   numeroVisible,
+  sumarDias,
   TIPO_COMPROBANTE,
   urlQrArca,
 } from '@mostrador/shared';
-import { ClienteAfipSdk, CUIT_PRUEBAS_AFIPSDK, ErrorAfip } from '@mostrador/servidor';
+import { ClienteAfipSdk, CUIT_PRUEBAS_AFIPSDK, ErrorAfip, type Cae } from '@mostrador/servidor';
 
 const token = process.env['AFIPSDK_TOKEN']?.trim();
 if (!token) {
@@ -37,25 +39,45 @@ try {
   const e = await cliente.estado();
   console.log(`   Aplicación: ${e.app} · Base: ${e.base} · Autenticación: ${e.autenticacion}`);
 
-  console.log('2. Último comprobante autorizado…');
-  const ultimo = await cliente.ultimoAutorizado(cuit, puntoDeVenta, TIPO_COMPROBANTE[tipo]);
-  console.log(`   Factura C ${numeroVisible(puntoDeVenta, ultimo)}`);
-
-  console.log('3. Factura C de prueba por $ 100 a consumidor final…');
-  const numero = ultimo + 1;
-  const fecha = diaArgentino();
-  const cae = await cliente.solicitarCae(
-    cuit,
-    camposDelComprobante({
-      emisor: 'monotributo',
-      tipo,
-      puntoDeVenta,
-      numero,
-      fecha,
-      comprador: { condicion: 'consumidor_final' },
-      lineas: [{ subtotal: 10000, alicuota: 21 }],
-    }),
-  );
+  // El CUIT de pruebas lo comparten todos los que usan Afip SDK: otro puede tomar el mismo
+  // número al mismo tiempo. Si ARCA dice que no es el próximo, se vuelve a leer y se reintenta
+  // (lo mismo que va a hacer la cola de facturas con los comercios).
+  let numero = 0;
+  let fecha = '';
+  let cae: Cae | null = null;
+  for (let intento = 1; !cae; intento++) {
+    console.log(intento === 1 ? '2. Próximo número y fecha…' : '   Volviendo a leer el próximo…');
+    const p = await cliente.proximo(cuit, puntoDeVenta, TIPO_COMPROBANTE[tipo]);
+    const hoy = diaArgentino();
+    numero = p.numero;
+    fecha = p.fechaMinima && p.fechaMinima > hoy ? p.fechaMinima : hoy;
+    if (fecha > sumarDias(hoy, 5)) {
+      console.log(
+        `\nEl último comprobante de pruebas tiene fecha ${diaCorto(fecha)}, más de 5 días adelante. Probá mañana.`,
+      );
+      process.exit(1);
+    }
+    console.log(`   Factura C ${numeroVisible(puntoDeVenta, numero)} con fecha ${diaCorto(fecha)}`);
+    if (intento === 1) console.log('3. Factura C de prueba por $ 100 a consumidor final…');
+    try {
+      cae = await cliente.solicitarCae(
+        cuit,
+        camposDelComprobante({
+          emisor: 'monotributo',
+          tipo,
+          puntoDeVenta,
+          numero,
+          fecha,
+          comprador: { condicion: 'consumidor_final' },
+          lineas: [{ subtotal: 10000, alicuota: 21 }],
+        }),
+      );
+    } catch (error) {
+      if (!(error instanceof ErrorAfip) || error.codigo !== 10016 || intento >= 5) throw error;
+      console.log('   Otro usuario del CUIT de pruebas tomó ese número. Reintentando…');
+      await new Promise((r) => setTimeout(r, 1000 * intento));
+    }
+  }
   console.log(`   Autorizada: Factura C ${numeroVisible(puntoDeVenta, numero)}`);
   console.log(`   CAE ${cae.cae}, vence el ${cae.vencimiento}`);
   for (const o of cae.observaciones)

@@ -83,7 +83,7 @@ describe('exportar', () => {
   it('compras en CSV', async () => {
     const { dueno } = await kioscoConVenta();
     const r = await dueno.cliente.get(`/api/v1/exportar/compras.csv?desde=${hoy}&hasta=${hoy}`);
-    expect(r.body).toContain(';10;700,00;7000,00;Proveedor X;');
+    expect(r.body).toContain(';10;700,00;7000,00;Sí;Proveedor X;');
   });
 
   it('el encargado no puede exportar', async () => {

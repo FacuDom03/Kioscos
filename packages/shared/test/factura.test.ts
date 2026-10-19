@@ -5,6 +5,7 @@ import {
   desgloseIva,
   hayQueIdentificar,
   importeArca,
+  normalizarNumeroComprobante,
   notaDeCredito,
   numeroVisible,
   tipoDeFactura,
@@ -56,6 +57,14 @@ describe('importes y números', () => {
   });
   it('número de comprobante como se imprime', () => {
     expect(numeroVisible(3, 124)).toBe('00003-00000124');
+  });
+  it('acepta el número de comprobante como lo escriba la persona', () => {
+    expect(normalizarNumeroComprobante('3-124')).toBe('00003-00000124');
+    expect(normalizarNumeroComprobante(' 0003-00000124 ')).toBe('00003-00000124');
+    expect(normalizarNumeroComprobante('00003 00000124')).toBe('00003-00000124');
+    expect(normalizarNumeroComprobante('124')).toBeNull();
+    expect(normalizarNumeroComprobante('0-124')).toBeNull();
+    expect(normalizarNumeroComprobante('A-0003-124')).toBeNull();
   });
   it('identificar al consumidor final desde $ 10.000.000', () => {
     expect(hayQueIdentificar(999_999_999, 'consumidor_final')).toBe(false);

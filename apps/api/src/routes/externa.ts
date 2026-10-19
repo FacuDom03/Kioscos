@@ -169,7 +169,19 @@ export async function rutasExterna(app: FastifyInstance): Promise<void> {
     return req.db(async (tx) => {
       let consulta = tx
         .selectFrom('compras as c')
-        .select(['c.id', 'c.created_at', 'c.total', 'c.nota'])
+        .leftJoin('proveedores as pr', (j) =>
+          j.onRef('pr.id', '=', 'c.proveedor_id').onRef('pr.kiosco_id', '=', 'c.kiosco_id'),
+        )
+        .select([
+          'c.id',
+          'c.created_at',
+          'c.fecha',
+          'c.comprobante',
+          'c.numero',
+          'pr.nombre as proveedor',
+          'c.total',
+          'c.nota',
+        ])
         .select((eb) =>
           eb
             .selectFrom('compra_items as i')
@@ -187,6 +199,10 @@ export async function rutasExterna(app: FastifyInstance): Promise<void> {
         datos: filas.map((c) => ({
           id: c.id,
           fecha: c.created_at.toISOString(),
+          fechaFactura: c.fecha,
+          proveedor: c.proveedor,
+          comprobante: c.comprobante,
+          numero: c.numero,
           total: c.total,
           nota: c.nota,
           productos: Number(c.productos ?? 0),

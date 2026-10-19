@@ -1,7 +1,10 @@
 import {
+  COMPROBANTES_COMPRA,
+  diaCorto,
   diferenciaEnPalabras,
   formatearCantidad,
   formatearPlata,
+  type ComprobanteCompra,
   type Unidad,
 } from '@mostrador/shared';
 import { useState, type ReactNode } from 'react';
@@ -184,7 +187,14 @@ export function ListaVentas({
   );
 }
 
-interface CompraFila {
+interface DatosFactura {
+  proveedor: string | null;
+  comprobante: ComprobanteCompra | null;
+  numero: string | null;
+  fecha: string | null;
+}
+
+interface CompraFila extends DatosFactura {
   id: string;
   total: number;
   nota: string | null;
@@ -192,6 +202,15 @@ interface CompraFila {
   nombre: string | null;
   productos: number;
 }
+
+/** "Distribuidora Sur · Factura A 00003-00001234" */
+const titulo = (c: DatosFactura) =>
+  [
+    c.proveedor,
+    c.comprobante && [COMPROBANTES_COMPRA[c.comprobante], c.numero].filter(Boolean).join(' '),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
 export function ListaCompras({ url, alAbrir }: { url: string; alAbrir: (id: string) => void }) {
   const { datos, error } = useDatos<CompraFila[]>(url);
@@ -208,9 +227,9 @@ export function ListaCompras({ url, alAbrir }: { url: string; alAbrir: (id: stri
             <button type="button" className="fila-historial" onClick={() => alAbrir(c.id)}>
               <span>
                 {fechaCorta(c.created_at)}
-                {c.nota && ` · ${c.nota}`}
+                {titulo(c) ? ` · ${titulo(c)}` : c.nota && ` · ${c.nota}`}
                 <span className="fila-historial__detalle">
-                  {c.productos} {c.productos === 1 ? 'producto' : 'productos'}
+                  {c.productos} {c.productos === 1 ? 'renglón' : 'renglones'}
                   {c.nombre && ` · Cargó ${c.nombre}`}
                 </span>
               </span>
@@ -360,14 +379,17 @@ interface VentaDetalle {
   devoluciones: { descripcion: string; cantidad: number; importe: number }[];
 }
 
-interface CompraDetalle {
+interface CompraDetalle extends DatosFactura {
   total: number;
   nota: string | null;
   created_at: string;
   nombre: string | null;
   items: {
     id: string;
+    producto_id: string | null;
     nombre: string | null;
+    descripcion: string | null;
+    suma_stock: boolean;
     unidad: Unidad | null;
     cantidad: number;
     costo_unitario: number;
@@ -542,8 +564,10 @@ function DetalleCompra({ url }: { url: string }) {
   if (!c) return <p aria-busy="true">Cargando…</p>;
   return (
     <>
+      {titulo(c) && <p>{titulo(c)}</p>}
       <p className="texto-suave">
-        {fechaCorta(c.created_at)}
+        {c.fecha && `Factura del ${diaCorto(c.fecha)} · `}
+        Cargada el {fechaCorta(c.created_at)}
         {c.nombre && ` · Cargó ${c.nombre}`}
         {c.nota && ` · ${c.nota}`}
       </p>
@@ -551,7 +575,7 @@ function DetalleCompra({ url }: { url: string }) {
         {c.items.map((i) => (
           <Linea
             key={i.id}
-            izq={`${formatearCantidad(i.cantidad, i.unidad ?? undefined)} × ${i.nombre ?? 'Producto borrado'} a ${formatearPlata(i.costo_unitario)}`}
+            izq={`${formatearCantidad(i.cantidad, i.unidad ?? undefined)} × ${i.nombre ?? i.descripcion ?? 'Producto borrado'} a ${formatearPlata(i.costo_unitario)}${i.producto_id && !i.suma_stock ? ' (no sumó stock)' : ''}`}
             der={formatearPlata(i.subtotal)}
           />
         ))}

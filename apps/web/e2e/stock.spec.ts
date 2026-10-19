@@ -38,7 +38,7 @@ test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ pa
   await page.getByLabel('Cantidad').fill('24');
   await page.getByLabel('Costo por unidad').fill('800');
   await page.getByLabel(/Margen/).fill('50');
-  await expect(page.getByText('$ 19.200')).toBeVisible();
+  await expect(page.locator('.total-linea')).toContainText('$ 19.200');
   await page.getByRole('button', { name: 'Guardar compra' }).click();
   // Vuelve a Compras, con la compra nueva en la lista; el stock subió.
   await expect(page.getByRole('heading', { name: 'Compras' })).toBeVisible();

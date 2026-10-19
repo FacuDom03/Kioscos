@@ -55,6 +55,17 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Compras como factura de compra** (estilo Odoo, pedido de la persona; migración compatible
+  `0015_factura_compra.sql`):
+  - Datos de la factura: proveedor (con "Nuevo" en el momento), comprobante (factura A/B/C,
+    remito, ticket, otro), número normalizado `00003-00001234` y fecha de la factura.
+  - Renglones con producto (con "Suma al stock" por renglón y "¿La mercadería entra ahora?"
+    para todos) o sin producto (flete, bolsas), que nunca mueven stock.
+  - Opción "sin IVA: sumar 21 %" y control contra el total de la factura.
+  - La misma factura del mismo proveedor no se carga dos veces (409).
+  - El costo se actualiza siempre, también el del proveedor si el producto está vinculado.
+  - El CSV de compras y la API externa traen los datos nuevos.
+
 - **API para los comercios y avisos automáticos** (pedido de la persona; OK: lectura + avisos,
   clientes con permiso aparte). Ver `docs/API.md`.
   - Más → API y automatizaciones (solo dueño, `/mas/api`).

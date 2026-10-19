@@ -26,6 +26,17 @@ export const TIPO_COMPROBANTE = {
 export type TipoComprobante = keyof typeof TIPO_COMPROBANTE;
 export type TipoFactura = 'factura_a' | 'factura_b' | 'factura_c';
 
+/** Comprobantes que se cargan en una compra, en palabras. */
+export const COMPROBANTES_COMPRA = {
+  factura_a: 'Factura A',
+  factura_b: 'Factura B',
+  factura_c: 'Factura C',
+  remito: 'Remito',
+  ticket: 'Ticket',
+  otro: 'Otro',
+} as const;
+export type ComprobanteCompra = keyof typeof COMPROBANTES_COMPRA;
+
 /** Códigos de documento de ARCA (`DocTipo`). */
 export const TIPO_DOCUMENTO = { cuit: 80, cuil: 86, dni: 96, sin_identificar: 99 } as const;
 export type TipoDocumento = keyof typeof TIPO_DOCUMENTO;
@@ -71,6 +82,16 @@ export function notaDeCredito(factura: TipoFactura): TipoComprobante {
 
 export function letraDe(tipo: TipoComprobante): 'A' | 'B' | 'C' {
   return tipo.slice(-1).toUpperCase() as 'A' | 'B' | 'C';
+}
+
+/**
+ * Número de comprobante como lo escribe la persona ("3-124", "0003-00000124", "00003 00000124")
+ * al formato de ARCA: `"00003-00000124"`. Null si no tiene la forma punto de venta-número.
+ */
+export function normalizarNumeroComprobante(texto: string): string | null {
+  const m = /^\s*(\d{1,5})\s*[-\s]\s*(\d{1,8})\s*$/.exec(texto);
+  if (!m?.[1] || !m[2] || Number(m[1]) < 1 || Number(m[2]) < 1) return null;
+  return numeroVisible(Number(m[1]), Number(m[2]));
 }
 
 /** `(3, 124)` → `"00003-00000124"`, como se imprime en el comprobante. */

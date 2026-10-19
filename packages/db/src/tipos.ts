@@ -256,12 +256,20 @@ export interface CodigosBarraTabla {
   created_at: FechaDefault;
 }
 
+export type ComprobanteCompra =
+  'factura_a' | 'factura_b' | 'factura_c' | 'remito' | 'ticket' | 'otro';
+
 export interface ComprasTabla {
   id: string;
   kiosco_id: string;
   usuario_id: string;
   total: number;
   nota: string | null;
+  proveedor_id: string | null;
+  comprobante: ComprobanteCompra | null;
+  numero: string | null;
+  /** Fecha de la factura (AAAA-MM-DD). */
+  fecha: Dia | null;
   created_at: FechaDefault;
 }
 
@@ -269,7 +277,10 @@ export interface CompraItemsTabla {
   id: string;
   kiosco_id: string;
   compra_id: string;
-  producto_id: string;
+  /** Null en un renglón sin producto (flete, bolsas, un servicio). */
+  producto_id: string | null;
+  descripcion: string | null;
+  suma_stock: Generated<boolean>;
   cantidad: Numerico;
   costo_unitario: number;
   subtotal: number;

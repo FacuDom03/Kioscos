@@ -1153,8 +1153,54 @@ fieldset.campo legend {
 
 @media (min-width: 600px) {
   .tarjeta--compra {
-    grid-template-columns: minmax(0, 1fr) 120px 170px 150px auto;
+    grid-template-columns: minmax(0, 1fr) 120px 170px 150px;
   }
+}
+
+.tarjeta--compra__pie {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tarjeta--compra__pie .m-plata {
+  margin-left: auto;
+  font-weight: 800;
+}
+
+.factura-compra__datos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px 16px;
+}
+
+@media (min-width: 720px) {
+  .factura-compra__datos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.factura-compra__proveedor {
+  display: flex;
+  gap: 8px;
+}
+
+.factura-compra__proveedor select {
+  flex: 1;
+  min-width: 0;
+}
+
+.factura-compra__iva {
+  grid-column: 1 / -1;
+}
+
+.factura-compra__totales {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .tarjeta--compra__nombre {

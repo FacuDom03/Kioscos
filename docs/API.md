@@ -43,16 +43,16 @@ Authorization: Bearer mst_…
   se pide la página siguiente con `despues=<ese ID>`. Cuando `siguiente` es `null`, no hay más.
 - **Parámetros:** un parámetro que no existe se rechaza con 400.
 
-| Ruta                       | Qué devuelve                                                                                          |
-| -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `/negocio`                 | Nombre, rubro y permisos de la clave. Sirve para probar la conexión                                   |
-| `/resumen?dia=`            | Ventas cobradas del día, total, ticket promedio, total por medio de pago y anuladas. Sin `dia`: hoy   |
-| `/ventas?desde=&hasta=`    | Ventas del período (sin fechas: los últimos 7 días; como mucho un año): fecha, estado, total y medios |
-| `/ventas/:id`              | Una venta con sus productos y pagos                                                                   |
-| `/productos?porReponer=si` | Productos activos: precio, costo, precio de gremio, categoría, stock, mínimo, unidad y códigos        |
-| `/productos/:id`           | Un producto (aunque esté archivado)                                                                   |
-| `/compras?desde=&hasta=`   | Compras del período: fecha, total, nota y cantidad de productos                                       |
-| `/clientes`                | Clientes de cuenta corriente: nombre, teléfono, límite y saldo. **Solo con permiso "clientes"**       |
+| Ruta                       | Qué devuelve                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `/negocio`                 | Nombre, rubro y permisos de la clave. Sirve para probar la conexión                                          |
+| `/resumen?dia=`            | Ventas cobradas del día, total, ticket promedio, total por medio de pago y anuladas. Sin `dia`: hoy          |
+| `/ventas?desde=&hasta=`    | Ventas del período (sin fechas: los últimos 7 días; como mucho un año): fecha, estado, total y medios        |
+| `/ventas/:id`              | Una venta con sus productos y pagos                                                                          |
+| `/productos?porReponer=si` | Productos activos: precio, costo, precio de gremio, categoría, stock, mínimo, unidad y códigos               |
+| `/productos/:id`           | Un producto (aunque esté archivado)                                                                          |
+| `/compras?desde=&hasta=`   | Compras del período: fecha de carga y de la factura, proveedor, comprobante, número, total, nota y renglones |
+| `/clientes`                | Clientes de cuenta corriente: nombre, teléfono, límite y saldo. **Solo con permiso "clientes"**              |
 
 Errores: el mismo formato que la app: `{ "error": "…", "codigo": "…", "id": "…" }`.
 

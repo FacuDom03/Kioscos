@@ -162,7 +162,9 @@ test('abrir la caja desde cero y vender; lo pendiente se sube al volver a abrir 
   await page.getByRole('button', { name: 'Abrir caja' }).click();
   await expect(page.locator('.mosaico', { hasText: 'Agua' })).toBeVisible();
   await page.reload();
-  await expect(page.locator('.mosaico', { hasText: 'Agua' })).toBeVisible();
+  // Al recargar se vuelve a levantar la app entera: con la corrida completa en paralelo puede
+  // tardar más de 5 segundos (ahí falló una vez sin ningún error de la app).
+  await expect(page.locator('.mosaico', { hasText: 'Agua' })).toBeVisible({ timeout: 15_000 });
   await page.goto('/caja');
   await expect(page.locator('.tarjeta-efectivo')).toContainText('$ 5.000');
 });

@@ -3,7 +3,13 @@
 import type { FastifyInstance } from 'fastify';
 import { sql } from '@mostrador/db';
 import { verificarPassword } from '@mostrador/servidor';
-import { armarCsv, escribirXlsx, planillaDeStock } from '@mostrador/shared';
+import {
+  armarCsv,
+  COMPROBANTES_COMPRA,
+  diaCorto,
+  escribirXlsx,
+  planillaDeStock,
+} from '@mostrador/shared';
 import { z } from 'zod';
 import { ErrorPublico } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
@@ -203,13 +209,22 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
         .innerJoin('compras as c', (j) =>
           j.onRef('c.id', '=', 'i.compra_id').onRef('c.kiosco_id', '=', 'i.kiosco_id'),
         )
-        .innerJoin('productos as p', (j) =>
+        .leftJoin('productos as p', (j) =>
           j.onRef('p.id', '=', 'i.producto_id').onRef('p.kiosco_id', '=', 'i.kiosco_id'),
+        )
+        .leftJoin('proveedores as pr', (j) =>
+          j.onRef('pr.id', '=', 'c.proveedor_id').onRef('pr.kiosco_id', '=', 'c.kiosco_id'),
         )
         .select([
           'c.created_at',
+          'c.fecha',
+          'c.comprobante',
+          'c.numero',
+          'pr.nombre as proveedor',
           'c.nota',
           'p.nombre',
+          'i.descripcion',
+          'i.suma_stock',
           'i.cantidad',
           'i.costo_unitario',
           'i.subtotal',
@@ -221,13 +236,31 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
         .execute();
       await auditar(tx, req.completa, 'exportacion.csv', { tipo: 'compras', desde, hasta }, req.ip);
       return armarCsv([
-        ['Fecha', 'Producto', 'Cantidad', 'Costo unitario', 'Subtotal', 'Nota', 'Compra'],
+        [
+          'Fecha',
+          'Fecha de la factura',
+          'Proveedor',
+          'Comprobante',
+          'Número',
+          'Producto',
+          'Cantidad',
+          'Costo unitario',
+          'Subtotal',
+          'Sumó stock',
+          'Nota',
+          'Compra',
+        ],
         ...filas.map((f) => [
           fechaAR(f.created_at),
-          f.nombre,
+          f.fecha ? diaCorto(f.fecha) : '',
+          f.proveedor ?? '',
+          f.comprobante ? COMPROBANTES_COMPRA[f.comprobante] : '',
+          f.numero ?? '',
+          f.nombre ?? f.descripcion ?? 'Producto borrado',
           String(Number(f.cantidad)).replace('.', ','),
           pesos(f.costo_unitario),
           pesos(f.subtotal),
+          f.suma_stock ? 'Sí' : 'No',
           f.nota ?? '',
           f.id,
         ]),

@@ -235,6 +235,14 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   caso('POST', '/api/v1/compras', 'no_encontrado', {
     cuerpo: { items: [{ productoId: '$B:productos', cantidad: 1, costoUnitario: 100 }] },
   }),
+  caso('POST', '/api/v1/compras', 'no_encontrado', {
+    cuerpo: {
+      proveedorId: '$B:proveedores',
+      comprobante: 'factura_a',
+      numero: '3-1234',
+      items: [{ descripcion: 'Flete', cantidad: 1, costoUnitario: 100 }],
+    },
+  }),
   caso('GET', '/api/v1/compras', 'sin_datos_de_b'),
   caso('POST', '/api/v1/precios/vista-previa', 'sin_datos_de_b', {
     cuerpo: { alcance: 'seleccion', productoIds: ['$B:productos'], porcentaje: 10, redondeo: 1000 },

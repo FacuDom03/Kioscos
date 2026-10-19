@@ -82,6 +82,7 @@ export {
   type ProductoParaPlanilla,
 } from './importar.ts';
 export {
+  COMPROBANTES_COMPRA,
   CONDICION_RECEPTOR,
   TIPO_COMPROBANTE,
   TIPO_DOCUMENTO,
@@ -93,6 +94,7 @@ export {
   hayQueIdentificar,
   importeArca,
   letraDe,
+  normalizarNumeroComprobante,
   notaDeCredito,
   numeroVisible,
   tipoDeFactura,
@@ -101,6 +103,7 @@ export {
   type CondicionEmisor,
   type CondicionReceptor,
   type Comprador,
+  type ComprobanteCompra,
   type DatosComprobante,
   type DatosQr,
   type Desglose,

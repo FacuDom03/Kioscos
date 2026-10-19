@@ -23,3 +23,11 @@ export {
   type ResultadoEnvio,
 } from './avisos.ts';
 export { destinosDeAviso, entregarAviso, FALLOS_PARA_PAUSAR, type Aviso } from './entregas.ts';
+export {
+  ClienteAfipSdk,
+  CUIT_PRUEBAS_AFIPSDK,
+  ErrorAfip,
+  type Cae,
+  type ConfigAfipSdk,
+  type DetalleComprobante,
+} from './afipsdk.ts';

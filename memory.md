@@ -71,8 +71,12 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
     no usar `createNextVoucher`, precios y preguntas a hacerles.
   - Qué hacer con ARCA caída: cola, reintentos, plazo de 5 días sin pasar del mes, CAEA como
     segunda etapa.
-  - Siguiente paso posible: fase 0 con el modo de desarrollo de Afip SDK, sin trámites. Para las
-    tablas de facturación falta su OK.
+  - La persona ya creó la cuenta gratis de Afip SDK.
+  - Cliente propio, sin la librería: `packages/servidor/src/afipsdk.ts`. Guarda el permiso de
+    ARCA unas 12 horas.
+  - Prueba de conexión: `apps/worker/src/probar-afipsdk.ts`, con el servicio `herramientas` y el
+    secreto `afipsdk_token`.
+  - Para las tablas de facturación falta su OK.
 
 - **Facturación ARCA, análisis** en `docs/FACTURACION.md`:
   - delegación, sin pedir nunca la clave fiscal;

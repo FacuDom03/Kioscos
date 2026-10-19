@@ -11,6 +11,7 @@
     "@mostrador/db": "workspace:*",
     "@mostrador/mp": "workspace:*",
     "@mostrador/servidor": "workspace:*",
+    "@mostrador/shared": "workspace:*",
     "bullmq": "5.81.5"
   }
 }

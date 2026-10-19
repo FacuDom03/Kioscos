@@ -29,6 +29,8 @@ nuevo redis_url "redis://:${RDS}@redis:6379"
 for s in mp_client_secret mp_webhook_secret; do
   [ -e "$DIR/$s" ] || { sudo touch "$DIR/$s"; echo "Creado $s (vacío: completalo cuando tengas la app de Mercado Pago)"; }
 done
+# Afip SDK (facturación): se completa con el token de la cuenta (puede quedar vacío).
+[ -e "$DIR/afipsdk_token" ] || { sudo touch "$DIR/afipsdk_token"; echo "Creado afipsdk_token (vacío)"; }
 
 # Los contenedores corren como el usuario "node" (uid 1000) y postgres (uid 70).
 sudo chown -R root:root "$DIR"

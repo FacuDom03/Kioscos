@@ -188,6 +188,9 @@ importers:
       '@mostrador/servidor':
         specifier: workspace:*
         version: link:../../packages/servidor
+      '@mostrador/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       bullmq:
         specifier: 5.81.5
         version: 5.81.5

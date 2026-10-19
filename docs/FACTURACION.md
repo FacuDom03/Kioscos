@@ -352,8 +352,15 @@ que suma el intermediario. Si llegara a repetirse, el plan B es la conexión dir
 ## Plan de pruebas
 
 1. **Fase 0, ya mismo, sin trámites:** Afip SDK en modo de desarrollo, con su CUIT de prueba 20409378472. Sirve para armar la cola, la numeración, los reintentos, el ticket con QR y la
-   nota de crédito. Hace falta crear la cuenta gratis de Afip SDK y cargar su `access_token` en
-   los secretos del servidor, nunca en el chat.
+   nota de crédito.
+   - El token de la cuenta gratis va en `/opt/mostrador/secretos/afipsdk_token`, cargado con
+     `read -rs`. Nunca se pega en el chat.
+   - La prueba de conexión es `apps/worker/src/probar-afipsdk.ts`. Se corre con el servicio
+     `herramientas`. Consulta el estado de ARCA y el último número, factura C por $ 100, la
+     consulta y muestra el QR.
+   - El cliente es `packages/servidor/src/afipsdk.ts`. No usa la librería de Afip SDK y guarda el
+     permiso de ARCA hasta que vence (unas 12 horas), así el certificado y la clave viajan una
+     vez por comercio cada 12 horas y no en cada factura.
 2. **Fase 0b, pruebas de ARCA (homologación) con tu CUIT:**
    - Necesita tu CUIT con clave nivel 3 y el certificado de pruebas de WSASS.
    - Se factura "de mentira" con tu propio CUIT: factura C, nota de crédito C, ARCA caída,

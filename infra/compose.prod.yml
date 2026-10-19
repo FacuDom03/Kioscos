@@ -91,7 +91,8 @@ services:
     environment:
       DATABASE_ADMIN_URL_ARCHIVO: /run/secrets/database_admin_url
       MOSTRADOR_CLAVES_ARCHIVO: /run/secrets/claves
-    secrets: [database_admin_url, claves]
+      AFIPSDK_TOKEN_ARCHIVO: /run/secrets/afipsdk_token
+    secrets: [database_admin_url, claves, afipsdk_token]
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -208,3 +209,4 @@ secrets:
   claves: { file: /opt/mostrador/secretos/claves.json }
   mp_client_secret: { file: /opt/mostrador/secretos/mp_client_secret }
   mp_webhook_secret: { file: /opt/mostrador/secretos/mp_webhook_secret }
+  afipsdk_token: { file: /opt/mostrador/secretos/afipsdk_token }

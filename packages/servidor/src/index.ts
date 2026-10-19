@@ -39,7 +39,9 @@ export {
   procesarComprobante,
   puntoDeVentaFiscal,
   revisarFacturacion,
+  usaCuitDePrueba,
   verificarFacturacion,
   type Facturador,
   type ResultadoFactura,
 } from './facturas.ts';
+export { facturacionDesdeEntorno, type FacturacionDelServidor } from './entorno-afip.ts';

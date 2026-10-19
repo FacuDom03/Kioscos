@@ -19,10 +19,10 @@ import {
   renovarTokens,
 } from '@mostrador/mp';
 import {
-  ClienteAfipSdk,
   crearCifrador,
   destinosDeAviso,
   entregarAviso,
+  facturacionDesdeEntorno,
   kioscosConFacturacion,
   leerClaves,
   procesarComprobante,
@@ -129,14 +129,9 @@ workerAvisos.on('failed', (job, err) =>
 );
 cerrables.push(workerAvisos, colaAvisos);
 
-const tokenAfip = process.env['AFIPSDK_TOKEN']?.trim();
-if (tokenAfip) {
-  // Sin AFIPSDK_PRODUCCION=1, modo de prueba: CUIT de pruebas de ARCA, no vale como factura.
-  const produccion = process.env['AFIPSDK_PRODUCCION'] === '1';
-  const facturador = {
-    cliente: new ClienteAfipSdk({ accessToken: tokenAfip, produccion }),
-    prueba: !produccion,
-  };
+const facturacion = facturacionDesdeEntorno();
+if (facturacion) {
+  const { facturador } = facturacion;
   const colaFacturas = new Queue('facturas', { connection: conexion });
   await colaFacturas.upsertJobScheduler('revisar', { every: 120_000 }, { name: 'revisar' });
   const workerFacturas = new Worker(
@@ -170,7 +165,7 @@ if (tokenAfip) {
     console.error(`Factura ${job?.name} falló (intento ${job?.attemptsMade}): ${err.message}`),
   );
   cerrables.push(workerFacturas, colaFacturas);
-  console.log(`Facturación con Afip SDK ${produccion ? 'en producción' : 'en modo de prueba'}.`);
+  console.log(`Facturación con Afip SDK ${facturacion.descripcion}.`);
 }
 
 const cerrar = async () => {

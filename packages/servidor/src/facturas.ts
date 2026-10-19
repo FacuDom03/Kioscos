@@ -15,8 +15,14 @@ import { CUIT_PRUEBAS_AFIPSDK, ErrorAfip, type ClienteAfipSdk } from './afipsdk.
 
 export interface Facturador {
   cliente: ClienteAfipSdk;
-  /** Modo de prueba: todo sale con el CUIT de pruebas de ARCA y no vale como factura. */
+  /** Ambiente de pruebas de ARCA (homologación): las facturas no valen. */
   prueba: boolean;
+  /**
+   * En pruebas, facturar con el CUIT del comercio (hace falta el certificado de pruebas de
+   * Mostrador autorizado para ese CUIT en WSASS). Si no, todo sale con el CUIT de pruebas de
+   * Afip SDK. En producción siempre es el CUIT del comercio.
+   */
+  cuitPropio?: boolean;
   /** Hoy en la Argentina (en pruebas, otro día). */
   hoy?: () => string;
 }
@@ -31,8 +37,13 @@ export type ResultadoFactura =
 const AUTORIZACION = /no autorizado|not authorized|notauthorized|coe\.notauthorized/i;
 const recortar = (texto: string) => texto.slice(0, 300);
 
-/** El CUIT con el que se factura: el del comercio, o el de pruebas en modo de prueba. */
-const cuitEmisor = (cuit: string, f: Facturador) => (f.prueba ? CUIT_PRUEBAS_AFIPSDK : cuit);
+/** ¿Se factura con el CUIT de pruebas compartido de Afip SDK? */
+export const usaCuitDePrueba = (f: Pick<Facturador, 'prueba' | 'cuitPropio'>) =>
+  f.prueba && !f.cuitPropio;
+
+/** El CUIT con el que se factura: el del comercio, o el de pruebas compartido. */
+const cuitEmisor = (cuit: string, f: Facturador) =>
+  usaCuitDePrueba(f) ? CUIT_PRUEBAS_AFIPSDK : cuit;
 
 /** Explica con palabras por qué no se pudo hablar con ARCA. */
 export function explicarErrorAfip(error: unknown): string {
@@ -94,13 +105,13 @@ export async function verificarFacturacion(
   return { activa: activa && c.estado !== 'pausada', mensaje };
 }
 
-/** Punto de venta con el que factura el comercio (en prueba, uno propio del CUIT de pruebas). */
+/** Punto de venta con el que factura el comercio (con el CUIT de pruebas, uno propio). */
 export function puntoDeVentaFiscal(
   c: { punto_venta: number },
   kioscoId: string,
-  f: Pick<Facturador, 'prueba'>,
+  f: Pick<Facturador, 'prueba' | 'cuitPropio'>,
 ): number {
-  return f.prueba ? puntoDeVentaDePrueba(kioscoId) : c.punto_venta;
+  return usaCuitDePrueba(f) ? puntoDeVentaDePrueba(kioscoId) : c.punto_venta;
 }
 
 /** Pide el CAE de un comprobante pendiente. */

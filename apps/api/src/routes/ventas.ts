@@ -34,6 +34,7 @@ const operacion = z.discriminatedUnion('tipo', [
 ]);
 
 export async function rutasVentas(app: FastifyInstance): Promise<void> {
+  const modoFacturacion = () => app.facturacion?.facturador ?? { prueba: true };
   // Lote de operaciones del equipo. Cada una va en su propio savepoint: si una falla, las demás
   // se guardan igual. Reenviar el mismo lote responde "ya_existia" y no duplica nada.
   app.post(
@@ -79,12 +80,7 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
             }
           }
         }
-        const facturas = await facturasDeVentas(
-          tx,
-          s.kioscoId,
-          ventasNuevas,
-          app.facturacion?.facturador.prueba ?? true,
-        );
+        const facturas = await facturasDeVentas(tx, s.kioscoId, ventasNuevas, modoFacturacion());
         return { avisos: await avisosDeVentas(tx, ventasNuevas), facturas };
       });
       await app.avisar(s.kioscoId, avisos.avisos);
@@ -223,7 +219,7 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
           pagos,
           descuentos,
           devoluciones: devoluciones.map((d) => ({ ...d, cantidad: Number(d.cantidad) })),
-          comprobantes: await comprobantesDeVenta(tx, id),
+          comprobantes: await comprobantesDeVenta(tx, id, modoFacturacion()),
         };
       });
     },

@@ -26,6 +26,8 @@ interface Config {
 interface Estado {
   disponible: boolean;
   prueba: boolean;
+  /** En pruebas, con el CUIT del comercio (ambiente de pruebas de ARCA). */
+  cuitPropio: boolean;
   cuitMostrador: string;
   activo: boolean;
   config: Config | null;
@@ -147,8 +149,9 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
       )}
       {datos.disponible && datos.prueba && (
         <Aviso tipo="info">
-          Modo de prueba: las facturas salen con el CUIT de pruebas de ARCA y no valen. Sirve para
-          ver cómo funciona antes de facturar de verdad.
+          {datos.cuitPropio
+            ? 'Ambiente de pruebas de ARCA: las facturas salen con tu CUIT pero no valen. Sirve para probar todo antes de facturar de verdad.'
+            : 'Modo de prueba: las facturas salen con el CUIT de pruebas de ARCA y no valen. Sirve para ver cómo funciona antes de facturar de verdad.'}
         </Aviso>
       )}
 
@@ -283,7 +286,7 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
           )}
 
           {(!conDatos || editando || c?.estado === 'pendiente') && (
-            <Guia cuitMostrador={datos.cuitMostrador} prueba={datos.prueba} />
+            <Guia cuitMostrador={datos.cuitMostrador} prueba={datos.prueba && !datos.cuitPropio} />
           )}
 
           {dueno && (!conDatos || editando) && (

@@ -3,7 +3,15 @@
 // les pide el CAE después, así cobrar nunca espera a ARCA.
 import type { TxKiosco } from '@mostrador/db';
 import { notaDeCredito, urlQrArca, uuidv7, type TipoFactura } from '@mostrador/shared';
-import { CUIT_PRUEBAS_AFIPSDK, puntoDeVentaFiscal } from '@mostrador/servidor';
+import {
+  CUIT_PRUEBAS_AFIPSDK,
+  puntoDeVentaFiscal,
+  usaCuitDePrueba,
+  type Facturador,
+} from '@mostrador/servidor';
+
+/** Cómo factura este servidor (sin facturación: como en modo de prueba). */
+export type Modo = Pick<Facturador, 'prueba' | 'cuitPropio'>;
 
 /** Datos fiscales si el comercio tiene la función prendida y la facturación activa. */
 export async function facturacionActiva(tx: TxKiosco) {
@@ -18,7 +26,7 @@ export async function facturasDeVentas(
   tx: TxKiosco,
   kioscoId: string,
   ventaIds: string[],
-  prueba: boolean,
+  modo: Modo,
 ): Promise<string[]> {
   if (!ventaIds.length) return [];
   const c = await facturacionActiva(tx);
@@ -42,9 +50,9 @@ export async function facturasDeVentas(
         kiosco_id: kioscoId,
         venta_id: v.id,
         tipo: 'factura_c',
-        punto_venta: puntoDeVentaFiscal(c, kioscoId, { prueba }),
+        punto_venta: puntoDeVentaFiscal(c, kioscoId, modo),
         total: v.total,
-        prueba,
+        prueba: modo.prueba,
       })
       .execute();
     ids.push(id);
@@ -96,7 +104,7 @@ export async function alAnularVenta(tx: TxKiosco, kioscoId: string, ventaId: str
 }
 
 /** La factura (y su nota de crédito, si hay) de una venta, para mostrar. */
-export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string) {
+export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string, modo: Modo) {
   const filas = await tx
     .selectFrom('comprobantes')
     .select([
@@ -135,7 +143,7 @@ export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string) {
       c.estado === 'autorizado' && c.cae && c.numero && c.fecha && (cuit || c.prueba)
         ? urlQrArca({
             fecha: c.fecha,
-            cuitEmisor: c.prueba ? CUIT_PRUEBAS_AFIPSDK : (cuit ?? ''),
+            cuitEmisor: c.prueba && usaCuitDePrueba(modo) ? CUIT_PRUEBAS_AFIPSDK : (cuit ?? ''),
             puntoDeVenta: c.punto_venta,
             tipo: c.tipo,
             numero: c.numero,

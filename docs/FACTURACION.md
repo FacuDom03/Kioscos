@@ -72,8 +72,12 @@ hacemos**, ni siquiera si va directo al proveedor: el comercio se acostumbraría
   especificación).
 - **Pausar, reanudar y dejar de facturar.** Lo pendiente de una pausa espera y, al dejar de
   facturar, se cancela.
-- **Modo de prueba:** sin `AFIPSDK_PRODUCCION=1`, todo sale con el CUIT de pruebas de ARCA. Cada
-  comercio usa un punto de venta de prueba propio y las facturas se marcan "de prueba, no vale".
+- **Modo de prueba:** sin `AFIPSDK_PRODUCCION=1`, las facturas van al ambiente de pruebas de ARCA
+  y se marcan "de prueba, no vale".
+  - Sin certificado, salen con el CUIT de pruebas de Afip SDK y cada comercio usa un punto de
+    venta de prueba propio.
+  - Con el certificado de pruebas de Mostrador (WSASS), salen con el CUIT y el punto de venta del
+    comercio. Así probás con tu monotributo (ver "Probar con tu CUIT").
 
 **Para facturar de verdad falta:**
 
@@ -119,6 +123,65 @@ hacemos**, ni siquiera si va directo al proveedor: el comercio se acostumbraría
    - acepta que lo suspendamos si hay abuso;
    - acepta que colaboremos con ARCA si lo pide.
 6. **Datos de Mostrador para la guía:** el CUIT de Mostrador que el comercio copia en ARCA.
+
+## Probar con tu CUIT (ambiente de pruebas de ARCA)
+
+Con tu monotributo y clave fiscal nivel 3 se factura "de mentira" con tu propio CUIT: nada vale,
+pero es exactamente lo que va a pasar en producción. La configuración la leen la API, el worker y
+la prueba de conexión del mismo lugar (`packages/servidor/src/entorno-afip.ts`):
+
+| Qué                    | Dónde                                                 | Para qué                                                                    |
+| ---------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------- |
+| Token de Afip SDK      | `/opt/mostrador/secretos/afipsdk_token`               | Sin él, no hay facturación                                                  |
+| Certificado y clave    | `/opt/mostrador/secretos/afip/cert.pem` y `clave.pem` | Con ellos se factura con el CUIT del comercio; sin ellos, con el de pruebas |
+| `MOSTRADOR_CUIT`       | `/opt/mostrador/config.env`                           | El CUIT de Mostrador (por ahora, el tuyo)                                   |
+| `AFIPSDK_PRODUCCION=1` | `/opt/mostrador/config.env`                           | Producción. Sin certificado, la facturación queda apagada                   |
+
+Pasos, una sola vez (el CUIT se escribe solo en la terminal del servidor y la clave privada no sale
+de ahí):
+
+1. **En ARCA, adherí el servicio WSASS:** Administrador de Relaciones de Clave Fiscal → Adherir
+   servicio → ARCA → Servicios interactivos → "WSASS - Autoservicio de Acceso a APIs de
+   Homologación". Si no aparece en "Mis servicios", cerrá sesión y volvé a entrar.
+2. **En el servidor, la clave y el pedido de certificado:**
+
+   ```sh
+   mkdir -p /opt/mostrador/secretos/afip && cd /opt/mostrador/secretos/afip
+   read -r CUIT   # escribí tu CUIT sin guiones y Enter
+   openssl genrsa -out clave.pem 2048
+   openssl req -new -key clave.pem -subj "/C=AR/O=Mostrador/CN=mostrador/serialNumber=CUIT $CUIT" -out pedido.csr
+   cat pedido.csr
+   ```
+
+3. **En WSASS, "Nuevo certificado":** nombre `mostrador` y, en "Solicitud de certificado en formato
+   PKCS#10", pegá todo lo que mostró `cat pedido.csr` (desde `-----BEGIN` hasta `REQUEST-----`).
+   WSASS muestra el certificado: copialo entero y guardalo en el servidor:
+
+   ```sh
+   cat > /opt/mostrador/secretos/afip/cert.pem   # pegá el certificado, Enter y Ctrl+D
+   ```
+
+4. **En WSASS, "Crear autorización a servicio":** el certificado `mostrador`, tu CUIT como
+   representado y el servicio `wsfe` (Facturación electrónica).
+5. **Permisos y configuración:**
+
+   ```sh
+   cd /opt/mostrador/secretos/afip && rm pedido.csr
+   chown -R 1000:1000 . && chmod 700 . && chmod 600 clave.pem cert.pem
+   sed -i '/^MOSTRADOR_CUIT=/d' /opt/mostrador/config.env
+   echo "MOSTRADOR_CUIT=$CUIT" >> /opt/mostrador/config.env
+   ```
+
+   `AFIPSDK_PRODUCCION` queda sin poner (o en 0).
+
+6. **Actualizar el servidor y probar la conexión:** la prueba factura C por $ 100 con tu CUIT en el
+   punto de venta 1 (en el ambiente de pruebas no hace falta darlo de alta) y la consulta.
+7. **En la app:** prendé "Facturación ARCA" en tu negocio de prueba, cargá tu CUIT, condición
+   monotributo y punto de venta 1. Cada venta sale con factura C de prueba con tu CUIT; anulala para
+   ver la nota de crédito.
+
+El certificado de pruebas vence a los dos años. Para producción se repite con el de "Administración
+de Certificados Digitales" (otro certificado, otra clave).
 
 ## Lo que hace cada comercio (alta, unos 10 minutos)
 
@@ -408,7 +471,8 @@ que suma el intermediario. Si llegara a repetirse, el plan B es la conexión dir
      permiso de ARCA hasta que vence (unas 12 horas), así el certificado y la clave viajan una
      vez por comercio cada 12 horas y no en cada factura.
 2. **Fase 0b, pruebas de ARCA (homologación) con tu CUIT:**
-   - Necesita tu CUIT con clave nivel 3 y el certificado de pruebas de WSASS.
+   - Necesita tu CUIT con clave nivel 3 y el certificado de pruebas de WSASS (pasos en "Probar con
+     tu CUIT"). El código ya está: con el certificado cargado, todo sale con tu CUIT.
    - Se factura "de mentira" con tu propio CUIT: factura C, nota de crédito C, ARCA caída,
      respuesta perdida y numeración con dos cajas a la vez.
    - No hace falta ningún comercio.

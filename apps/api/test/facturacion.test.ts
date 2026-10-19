@@ -18,6 +18,12 @@ const enPrueba: Facturador = {
   cliente: new ClienteAfipSdk({ accessToken: 'x', produccion: false, fetch: afip.fetch }),
   prueba: true,
 };
+/** Ambiente de pruebas de ARCA con el certificado de Mostrador: factura con el CUIT del comercio. */
+const conCuitPropio: Facturador = {
+  cliente: new ClienteAfipSdk({ accessToken: 'x', produccion: false, fetch: afip.fetch }),
+  prueba: true,
+  cuitPropio: true,
+};
 const enProduccion: Facturador = {
   cliente: new ClienteAfipSdk({ accessToken: 'x', produccion: true, fetch: afip.fetch }),
   prueba: false,
@@ -27,6 +33,7 @@ const encolados: { kioscoId: string; comprobanteId: string }[] = [];
 
 let e: Entorno; // modo de prueba
 let p: Entorno; // producción
+let h: Entorno; // pruebas con el CUIT del comercio
 beforeAll(async () => {
   const encolarFactura = async (t: { kioscoId: string; comprobanteId: string }) => {
     encolados.push(t);
@@ -39,10 +46,15 @@ beforeAll(async () => {
     facturacion: { facturador: enProduccion, cuitMostrador: '20409378472' },
     encolarFactura,
   });
+  h = await crearEntorno({
+    facturacion: { facturador: conCuitPropio, cuitMostrador: '27301234568' },
+    encolarFactura,
+  });
 });
 afterAll(async () => {
   await e.cerrar();
   await p.cerrar();
+  await h.cerrar();
 });
 
 const datos = {
@@ -289,6 +301,37 @@ describe('facturas', () => {
     await dueno.cliente.post('/api/v1/facturacion/estado', { estado: 'baja' });
     expect(await comprobantes(e, otra)).toMatchObject([{ estado: 'cancelado' }]);
     expect(await procesarCola(e, kioscoId, enPrueba)).toMatchObject([{ estado: 'omitido' }]);
+  });
+
+  it('en pruebas con el CUIT del comercio, la factura sale con su CUIT y su punto de venta', async () => {
+    const CUIT_PROPIO = '27301234568';
+    const { dueno, kioscoId, producto } = await comercio(h);
+    expect((await dueno.cliente.get('/api/v1/facturacion')).json()).toMatchObject({
+      prueba: true,
+      cuitPropio: true,
+    });
+    // Sin la autorización del certificado para ese CUIT, no se activa.
+    const sinAutorizar = (
+      await dueno.cliente.post('/api/v1/facturacion/config', { ...datos, cuit: CUIT_PROPIO })
+    ).json();
+    expect(sinAutorizar).toMatchObject({ activa: false });
+    afip.autorizados.add(CUIT_PROPIO);
+    expect((await dueno.cliente.post('/api/v1/facturacion/verificar', {})).json()).toEqual({
+      activa: true,
+      mensaje: null,
+    });
+
+    const venta = await vender(dueno, producto);
+    expect(await procesarCola(h, kioscoId, conCuitPropio)).toMatchObject([
+      { estado: 'autorizado', numero: 1 },
+    ]);
+    expect(afip.emitidos.get(`${CUIT_PROPIO}-3-11`)?.length).toBe(1);
+    const [c] = (await dueno.cliente.get(`/api/v1/ventas/${venta}`)).json<{
+      comprobantes: { puntoDeVenta: number; prueba: boolean; qr: string }[];
+    }>().comprobantes;
+    expect(c).toMatchObject({ puntoDeVenta: 3, prueba: true });
+    const qr = JSON.parse(atob(new URL(c!.qr).searchParams.get('p') ?? '')) as { cuit: number };
+    expect(qr.cuit).toBe(Number(CUIT_PROPIO));
   });
 
   it('el encargado ve el estado pero no configura', async () => {

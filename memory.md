@@ -55,6 +55,14 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Pruebas de ARCA con el CUIT de la persona** (se hizo un monotributo para probar). La
+  configuración sale de `packages/servidor/src/entorno-afip.ts` (API, worker y prueba de
+  conexión): con `cert.pem` y `clave.pem` en `/opt/mostrador/secretos/afip` (montado en
+  `/run/afip`) se factura en homologación con el CUIT y punto de venta del comercio; sin ellos,
+  con el CUIT de pruebas de Afip SDK. `MOSTRADOR_CUIT` en `config.env`. Pasos de WSASS en
+  `docs/FACTURACION.md`, "Probar con tu CUIT". Se le pasaron los pasos; falta que los haga y
+  pruebe. Después: producción con una factura real chica y su nota de crédito.
+
 - **Facturación ARCA en la app, en modo de prueba** (OK de la persona: tablas y datos del
   comprador; es un módulo que se prende). Ver "Estado de la implementación" en
   `docs/FACTURACION.md`.

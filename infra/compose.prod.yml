@@ -92,7 +92,10 @@ services:
       DATABASE_ADMIN_URL_ARCHIVO: /run/secrets/database_admin_url
       MOSTRADOR_CLAVES_ARCHIVO: /run/secrets/claves
       AFIPSDK_TOKEN_ARCHIVO: /run/secrets/afipsdk_token
+      AFIPSDK_PRODUCCION: ${AFIPSDK_PRODUCCION:-0}
+      MOSTRADOR_CUIT: ${MOSTRADOR_CUIT:-}
     secrets: [database_admin_url, claves, afipsdk_token]
+    volumes: ['/opt/mostrador/secretos/afip:/run/afip:ro']
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -116,6 +119,8 @@ services:
       AFIPSDK_PRODUCCION: ${AFIPSDK_PRODUCCION:-0}
       MOSTRADOR_CUIT: ${MOSTRADOR_CUIT:-}
     secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret, afipsdk_token]
+    # Certificado de Mostrador para ARCA (cert.pem y clave.pem), si está.
+    volumes: ['/opt/mostrador/secretos/afip:/run/afip:ro']
     depends_on:
       migrar: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
@@ -145,7 +150,9 @@ services:
       MP_PRUEBAS: ${MP_PRUEBAS:-0}
       AFIPSDK_TOKEN_ARCHIVO: /run/secrets/afipsdk_token
       AFIPSDK_PRODUCCION: ${AFIPSDK_PRODUCCION:-0}
+      MOSTRADOR_CUIT: ${MOSTRADOR_CUIT:-}
     secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret, afipsdk_token]
+    volumes: ['/opt/mostrador/secretos/afip:/run/afip:ro']
     # Manda los avisos automáticos de los comercios y, si está configurado, los trabajos de
     # Mercado Pago. Necesita salir a internet (los avisos van a n8n, Make, Zapier…).
     restart: unless-stopped

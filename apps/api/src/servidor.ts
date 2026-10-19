@@ -3,7 +3,7 @@ import { construirApp } from './app.ts';
 import { configDesdeEntorno } from './config.ts';
 import { configMpDesdeEntorno } from '@mostrador/mp';
 import { crearColaAvisos, crearColaFacturas, crearColaMp } from './cola.ts';
-import { ClienteAfipSdk } from '@mostrador/servidor';
+import { facturacionDesdeEntorno } from '@mostrador/servidor';
 
 const url = process.env['DATABASE_URL'];
 if (!url) throw new Error('Falta la variable de entorno DATABASE_URL');
@@ -13,10 +13,9 @@ const config = configDesdeEntorno();
 const cola = await crearColaMp(process.env['REDIS_URL']);
 const colaAvisos = await crearColaAvisos(process.env['REDIS_URL']);
 const colaFacturas = await crearColaFacturas(process.env['REDIS_URL']);
-// Facturación: con el token de Afip SDK. Sin AFIPSDK_PRODUCCION=1, todo sale en modo de prueba
-// (CUIT de pruebas de ARCA, no vale como factura).
-const tokenAfip = process.env['AFIPSDK_TOKEN']?.trim();
-const produccion = process.env['AFIPSDK_PRODUCCION'] === '1';
+// Facturación: token de Afip SDK, ambiente y certificado (ver entorno-afip.ts).
+const facturacion = facturacionDesdeEntorno();
+if (facturacion) console.log(`Facturación con Afip SDK ${facturacion.descripcion}.`);
 const app = await construirApp({
   base,
   config,
@@ -25,15 +24,7 @@ const app = await construirApp({
   ...(cola ? { encolarOrdenMp: cola.encolar } : {}),
   ...(colaAvisos ? { encolarAviso: colaAvisos.encolar } : {}),
   ...(colaFacturas ? { encolarFactura: colaFacturas.encolar } : {}),
-  facturacion: tokenAfip
-    ? {
-        facturador: {
-          cliente: new ClienteAfipSdk({ accessToken: tokenAfip, produccion }),
-          prueba: !produccion,
-        },
-        cuitMostrador: process.env['MOSTRADOR_CUIT']?.trim() ?? '',
-      }
-    : null,
+  facturacion,
 });
 
 const cerrar = async () => {

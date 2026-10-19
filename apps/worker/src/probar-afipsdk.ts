@@ -1,5 +1,8 @@
-// Prueba de conexión con Afip SDK en su modo de desarrollo (docs/FACTURACION.md, fase 0). Usa el
-// CUIT de pruebas de Afip SDK, sin certificado: no toca la base ni factura a nombre de nadie.
+// Prueba de conexión con Afip SDK (docs/FACTURACION.md). No toca la base.
+// - Sin certificado: con el CUIT de pruebas de Afip SDK y un punto de venta al azar.
+// - Con el certificado de pruebas de Mostrador (WSASS) y MOSTRADOR_CUIT: con ese CUIT, en el
+//   ambiente de pruebas de ARCA (punto de venta 1, o el que se pase como argumento).
+// En producción no corre, para no emitir una factura real.
 // En el servidor:
 //   docker compose -f compose.prod.yml -f compose.traefik.yml --env-file /opt/mostrador/config.env \
 //     --profile herramientas run --rm herramientas node apps/worker/src/probar-afipsdk.ts
@@ -12,20 +15,35 @@ import {
   TIPO_COMPROBANTE,
   urlQrArca,
 } from '@mostrador/shared';
-import { ClienteAfipSdk, CUIT_PRUEBAS_AFIPSDK, ErrorAfip, type Cae } from '@mostrador/servidor';
+import {
+  CUIT_PRUEBAS_AFIPSDK,
+  ErrorAfip,
+  facturacionDesdeEntorno,
+  type Cae,
+} from '@mostrador/servidor';
 
-const token = process.env['AFIPSDK_TOKEN']?.trim();
-if (!token) {
+const config = facturacionDesdeEntorno();
+if (!config) {
   console.log('Falta el token de Afip SDK. Cargalo en /opt/mostrador/secretos/afipsdk_token.');
   process.exit(1);
 }
-
-const cliente = new ClienteAfipSdk({ accessToken: token, produccion: false });
-const cuit = CUIT_PRUEBAS_AFIPSDK;
+if (!config.facturador.prueba) {
+  console.log(
+    'Estás en producción (AFIPSDK_PRODUCCION=1): la prueba no corre para no emitir una factura real.',
+  );
+  process.exit(1);
+}
+const cliente = config.facturador.cliente;
+const conCuitPropio = !!config.facturador.cuitPropio;
+if (conCuitPropio && !config.cuitMostrador) {
+  console.log('Hay certificado pero falta MOSTRADOR_CUIT en /opt/mostrador/config.env.');
+  process.exit(1);
+}
+const cuit = conCuitPropio ? config.cuitMostrador : CUIT_PRUEBAS_AFIPSDK;
 // El punto de venta 1 del CUIT de pruebas lo usa todo el mundo (y a veces queda trabado por
-// facturas con fecha futura). En pruebas ARCA acepta otros números: se usa uno al azar, o el que
-// se pase como argumento.
-const puntoDeVenta = Number(process.argv[2]) || 2000 + Math.floor(Math.random() * 7998);
+// facturas con fecha futura): con ese CUIT se usa uno al azar. Con el CUIT propio, el 1.
+const puntoDeVenta =
+  Number(process.argv[2]) || (conCuitPropio ? 1 : 2000 + Math.floor(Math.random() * 7998));
 const tipo = 'factura_c' as const;
 
 function explicar(error: unknown): string {
@@ -38,7 +56,11 @@ function explicar(error: unknown): string {
 }
 
 try {
-  console.log(`Punto de venta de prueba: ${puntoDeVenta}`);
+  console.log(
+    conCuitPropio
+      ? `Con tu CUIT, en el ambiente de pruebas de ARCA. Punto de venta ${puntoDeVenta}.`
+      : `Con el CUIT de pruebas de Afip SDK. Punto de venta ${puntoDeVenta}.`,
+  );
   console.log('1. Estado de ARCA (pruebas)…');
   const e = await cliente.estado();
   console.log(`   Aplicación: ${e.app} · Base: ${e.base} · Autenticación: ${e.autenticacion}`);

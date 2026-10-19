@@ -35,6 +35,7 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
       return {
         disponible: !!f,
         prueba: f?.facturador.prueba ?? true,
+        cuitPropio: !!f?.facturador.cuitPropio,
         cuitMostrador: f?.cuitMostrador ?? '',
         activo: k.modulos.includes('facturacion'),
         config: c

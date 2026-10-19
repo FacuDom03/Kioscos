@@ -69,3 +69,28 @@ export async function crearColaAvisos(url: string | undefined): Promise<ColaAvis
     cerrar: () => cola.close(),
   };
 }
+
+export const COLA_FACTURAS = 'facturas';
+
+export interface ColaFacturas {
+  encolar(trabajo: { kioscoId: string; comprobanteId: string }): Promise<void>;
+  cerrar(): Promise<void>;
+}
+
+export async function crearColaFacturas(url: string | undefined): Promise<ColaFacturas | null> {
+  if (!url) return null;
+  const cola = new Queue(COLA_FACTURAS, { connection: conexionRedis(url) });
+  return {
+    async encolar(trabajo) {
+      // El worker procesa de a uno (la numeración tiene que ir en orden) y reintenta.
+      await cola.add('factura', trabajo, {
+        jobId: `factura-${trabajo.comprobanteId}-${Date.now()}`,
+        attempts: 8,
+        backoff: { type: 'exponential', delay: 30_000 },
+        removeOnComplete: 1000,
+        removeOnFail: 5000,
+      });
+    },
+    cerrar: () => cola.close(),
+  };
+}

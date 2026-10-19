@@ -241,6 +241,16 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
     [uuidv7(), k.id, dueno, `hash-state-${k.id}`],
   );
   await q(
+    `insert into config_fiscal (id, kiosco_id, cuit, razon_social, condicion, punto_venta, domicilio, estado)
+     values ($1, $2, '20409378472', $3, 'monotributo', 3, 'Calle Falsa 123', 'pausada')`,
+    [uuidv7(), k.id, k.nombre],
+  );
+  await q(
+    `insert into comprobantes (id, kiosco_id, venta_id, tipo, punto_venta, total, prueba)
+     values ($1, $2, $3, 'factura_c', 3, 100, true)`,
+    [uuidv7(), k.id, venta],
+  );
+  await q(
     `insert into claves_api (id, kiosco_id, nombre, prefijo, token_hash, creada_por)
      values ($1, $2, 'n8n de prueba', 'mst_semill', $3, $4)`,
     [uuidv7(), k.id, `hash-clave-api-${k.id}`, dueno],

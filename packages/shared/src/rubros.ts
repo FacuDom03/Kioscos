@@ -24,6 +24,7 @@ export const MODULOS = [
   'promos',
   'regalo',
   'vencimientos',
+  'facturacion',
 ] as const;
 export type Modulo = (typeof MODULOS)[number];
 
@@ -111,6 +112,12 @@ export const DATOS_MODULOS: Record<Modulo, DatosModulo> = {
     descripcion: 'Aviso de lo que vence pronto.',
     disponible: true,
   },
+  facturacion: {
+    id: 'facturacion',
+    nombre: 'Facturación electrónica ARCA',
+    descripcion: 'Cada venta sale con factura. Hay que autorizar a Mostrador en ARCA.',
+    disponible: true,
+  },
 };
 
 export interface DatosRubro {
@@ -146,7 +153,7 @@ export const DATOS_RUBROS: Record<Rubro, DatosRubro> = {
     tema: 'noche',
     categorias: cat(['Golosinas', 'Bebidas', 'Cigarrillos', 'Galletitas'], ['Lácteos', 'Varios']),
     modulos: [],
-    ofrecidos: ['cuenta_corriente', 'vencimientos'],
+    ofrecidos: ['cuenta_corriente', 'vencimientos', 'facturacion'],
   },
   almacen: {
     id: 'almacen',
@@ -160,7 +167,13 @@ export const DATOS_RUBROS: Record<Rubro, DatosRubro> = {
       ['Panadería', 'Verdulería'],
     ),
     modulos: ['venta_fraccionada', 'cuenta_corriente'],
-    ofrecidos: ['venta_fraccionada', 'cuenta_corriente', 'vencimientos', 'listas_precios'],
+    ofrecidos: [
+      'venta_fraccionada',
+      'cuenta_corriente',
+      'vencimientos',
+      'listas_precios',
+      'facturacion',
+    ],
     nombres: { cuenta_corriente: 'Fiado' },
   },
   ferreteria: {
@@ -188,6 +201,7 @@ export const DATOS_RUBROS: Record<Rubro, DatosRubro> = {
       'listas_precios',
       'ubicaciones',
       'cuenta_corriente',
+      'facturacion',
     ],
   },
   perfumeria: {
@@ -202,7 +216,7 @@ export const DATOS_RUBROS: Record<Rubro, DatosRubro> = {
       ['Regalería', 'Accesorios'],
     ),
     modulos: ['variantes', 'promos', 'regalo', 'vencimientos'],
-    ofrecidos: ['variantes', 'promos', 'regalo', 'vencimientos', 'cuenta_corriente'],
+    ofrecidos: ['variantes', 'promos', 'regalo', 'vencimientos', 'cuenta_corriente', 'facturacion'],
   },
   libreria: {
     id: 'libreria',
@@ -216,7 +230,7 @@ export const DATOS_RUBROS: Record<Rubro, DatosRubro> = {
       ['Juguetería', 'Mochilas'],
     ),
     modulos: [],
-    ofrecidos: ['presupuestos', 'cuenta_corriente', 'variantes'],
+    ofrecidos: ['presupuestos', 'cuenta_corriente', 'variantes', 'facturacion'],
   },
   otro: {
     id: 'otro',

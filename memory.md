@@ -55,6 +55,21 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Facturación ARCA en la app, en modo de prueba** (OK de la persona: tablas y datos del
+  comprador; es un módulo que se prende). Ver "Estado de la implementación" en
+  `docs/FACTURACION.md`.
+  - Migración `0016_facturacion.sql`: tablas `config_fiscal` y `comprobantes`, y la función
+    `fact_kioscos_a_revisar`.
+  - Motor en `packages/servidor/src/facturas.ts`: `procesarComprobante`, `verificarFacturacion`,
+    `revisarFacturacion`.
+  - API en `routes/facturacion.ts` y `servicios/facturacion.ts`. Ganchos en sync y anular.
+  - Worker: cola `facturas` (de a una) y revisión cada 2 minutos.
+  - Pantalla Más → Facturación ARCA. En Ventas se ve la factura y se puede reintentar.
+  - Para probar: `AfipFalso` en `apps/api/test/afip-falso.ts` y en el servidor de e2e.
+  - Producción: `AFIPSDK_PRODUCCION=1`, `MOSTRADOR_CUIT` y el certificado.
+  - Falta: ticket con QR (librería nueva, consultar), protecciones en el panel (suspender, tope,
+    alertas), términos, responsables inscriptos.
+
 - **Compras como factura de compra** (estilo Odoo, pedido de la persona; migración compatible
   `0015_factura_compra.sql`):
   - Datos de la factura: proveedor (con "Nuevo" en el momento), comprobante (factura A/B/C,

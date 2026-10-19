@@ -39,6 +39,8 @@ export async function crearEntorno(
     encolarOrdenMp?: (id: string) => Promise<void>;
     encolarAviso?: OpcionesApp['encolarAviso'];
     opcionesEnvio?: OpcionesApp['opcionesEnvio'];
+    facturacion?: OpcionesApp['facturacion'];
+    encolarFactura?: OpcionesApp['encolarFactura'];
   } = {},
 ): Promise<Entorno> {
   const base = crearBaseApp(inject('appUrl'), 4);
@@ -49,6 +51,8 @@ export async function crearEntorno(
     ...(opciones.encolarOrdenMp ? { encolarOrdenMp: opciones.encolarOrdenMp } : {}),
     ...(opciones.encolarAviso ? { encolarAviso: opciones.encolarAviso } : {}),
     ...(opciones.opcionesEnvio ? { opcionesEnvio: opciones.opcionesEnvio } : {}),
+    ...(opciones.facturacion ? { facturacion: opciones.facturacion } : {}),
+    ...(opciones.encolarFactura ? { encolarFactura: opciones.encolarFactura } : {}),
     mp: opciones.mpUrl
       ? {
           clientId: 'app-id',

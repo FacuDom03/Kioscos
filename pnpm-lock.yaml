@@ -235,6 +235,9 @@ importers:
       '@mostrador/db':
         specifier: workspace:*
         version: link:../db
+      '@mostrador/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@node-rs/argon2':
         specifier: 2.2.2
         version: 2.2.2

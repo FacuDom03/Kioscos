@@ -47,6 +47,17 @@ export type TipoDocumento = keyof typeof TIPO_DOCUMENTO;
  */
 export const TOPE_IDENTIFICAR_CONSUMIDOR = 1_000_000_000;
 
+/**
+ * En modo de prueba todos los comercios facturan con el CUIT de pruebas de Afip SDK. Para no
+ * chocar con el resto de sus usuarios (el punto de venta 1 está siempre ocupado), cada comercio
+ * usa un punto de venta propio, fijo, sacado de su ID.
+ */
+export function puntoDeVentaDePrueba(kioscoId: string): number {
+  let h = 0;
+  for (const c of kioscoId) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return 2000 + (h % 7998);
+}
+
 /** Dirección del QR según la especificación de ARCA (verificar si pasa a arca.gob.ar). */
 export const URL_QR_ARCA = 'https://www.afip.gob.ar/fe/qr/';
 

@@ -12,7 +12,9 @@ import {
   crearCifrador,
   destinosDeAviso,
   entregarAviso,
+  procesarComprobante,
   type Cifrador,
+  type Facturador,
   type OpcionesEnvio,
 } from '@mostrador/servidor';
 import type { TrabajoAviso } from './cola.ts';
@@ -39,6 +41,10 @@ declare module 'fastify' {
     avisar: (kioscoId: string, avisos: AvisoPendiente[]) => Promise<void>;
     /** Cómo se conecta con los webhooks (en pruebas, un servidor local). */
     opcionesEnvio: OpcionesEnvio;
+    /** Facturación con Afip SDK. Null: este servidor no tiene el token cargado. */
+    facturacion: { facturador: Facturador; cuitMostrador: string } | null;
+    /** Pone en la cola de facturas los comprobantes recién creados (después de confirmar). */
+    encolarFacturas: (kioscoId: string, ids: string[]) => Promise<void>;
   }
 }
 
@@ -75,6 +81,9 @@ export interface OpcionesApp {
   /** Encola un aviso automático. Por defecto se manda en este proceso, sin reintentos. */
   encolarAviso?: (trabajo: TrabajoAviso) => Promise<void>;
   opcionesEnvio?: OpcionesEnvio;
+  facturacion?: { facturador: Facturador; cuitMostrador: string } | null;
+  /** Encola un comprobante. Por defecto se procesa en este proceso, de a uno. */
+  encolarFactura?: (trabajo: { kioscoId: string; comprobanteId: string }) => Promise<void>;
 }
 
 const METODOS_SEGUROS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -89,6 +98,8 @@ export async function construirApp({
   encolarOrdenMp,
   encolarAviso,
   opcionesEnvio = {},
+  facturacion = null,
+  encolarFactura,
 }: OpcionesApp): Promise<FastifyInstance> {
   const app = Fastify({
     logger: logger === true ? { redact: REDACTAR } : logger,
@@ -151,6 +162,29 @@ export async function construirApp({
         app.log.error({ err, evento: a.evento }, 'No se pudo encolar el aviso'),
       );
     }
+  });
+
+  app.decorate('facturacion', facturacion);
+  // Sin cola (desarrollo y pruebas): de a un comprobante por vez, en este proceso.
+  let cadena = Promise.resolve();
+  const encolarComprobante =
+    encolarFactura ??
+    (async ({ kioscoId, comprobanteId }: { kioscoId: string; comprobanteId: string }) => {
+      const f = facturacion?.facturador;
+      if (!f) return;
+      cadena = cadena
+        .then(async () => {
+          const r = await procesarComprobante(base, kioscoId, comprobanteId, f);
+          if (r.estado === 'reintentar')
+            await procesarComprobante(base, kioscoId, comprobanteId, f);
+        })
+        .catch((err: unknown) => app.log.error({ err }, 'No se pudo procesar el comprobante'));
+    });
+  app.decorate('encolarFacturas', async (kioscoId: string, ids: string[]) => {
+    for (const comprobanteId of ids)
+      await encolarComprobante({ kioscoId, comprobanteId }).catch((err: unknown) =>
+        app.log.error({ err }, 'No se pudo encolar el comprobante'),
+      );
   });
 
   const rutasRegistradas: string[] = [];

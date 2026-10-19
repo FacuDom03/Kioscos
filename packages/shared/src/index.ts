@@ -97,6 +97,7 @@ export {
   normalizarNumeroComprobante,
   notaDeCredito,
   numeroVisible,
+  puntoDeVentaDePrueba,
   tipoDeFactura,
   urlQrArca,
   type Alicuota,

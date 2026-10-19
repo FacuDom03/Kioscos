@@ -112,7 +112,10 @@ services:
       MP_CLIENT_SECRET_ARCHIVO: /run/secrets/mp_client_secret
       MP_WEBHOOK_SECRET_ARCHIVO: /run/secrets/mp_webhook_secret
       MP_PRUEBAS: ${MP_PRUEBAS:-0}
-    secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret]
+      AFIPSDK_TOKEN_ARCHIVO: /run/secrets/afipsdk_token
+      AFIPSDK_PRODUCCION: ${AFIPSDK_PRODUCCION:-0}
+      MOSTRADOR_CUIT: ${MOSTRADOR_CUIT:-}
+    secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret, afipsdk_token]
     depends_on:
       migrar: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
@@ -140,7 +143,9 @@ services:
       MP_CLIENT_SECRET_ARCHIVO: /run/secrets/mp_client_secret
       MP_WEBHOOK_SECRET_ARCHIVO: /run/secrets/mp_webhook_secret
       MP_PRUEBAS: ${MP_PRUEBAS:-0}
-    secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret]
+      AFIPSDK_TOKEN_ARCHIVO: /run/secrets/afipsdk_token
+      AFIPSDK_PRODUCCION: ${AFIPSDK_PRODUCCION:-0}
+    secrets: [database_url, redis_url, claves, mp_client_secret, mp_webhook_secret, afipsdk_token]
     # Manda los avisos automáticos de los comercios y, si está configurado, los trabajos de
     # Mercado Pago. Necesita salir a internet (los avisos van a n8n, Make, Zapier…).
     restart: unless-stopped

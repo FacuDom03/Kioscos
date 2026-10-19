@@ -10,6 +10,7 @@ import {
   eventosEsperados,
   type AvisoPendiente,
 } from '../servicios/avisos.ts';
+import { alAnularVenta, comprobantesDeVenta, facturasDeVentas } from '../servicios/facturacion.ts';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { moverStock } from '../servicios/stock.ts';
@@ -78,9 +79,16 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
             }
           }
         }
-        return avisosDeVentas(tx, ventasNuevas);
+        const facturas = await facturasDeVentas(
+          tx,
+          s.kioscoId,
+          ventasNuevas,
+          app.facturacion?.facturador.prueba ?? true,
+        );
+        return { avisos: await avisosDeVentas(tx, ventasNuevas), facturas };
       });
-      await app.avisar(s.kioscoId, avisos);
+      await app.avisar(s.kioscoId, avisos.avisos);
+      await app.encolarFacturas(s.kioscoId, avisos.facturas);
       return { resultados };
     },
   );
@@ -149,10 +157,24 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
               .where('venta_id', 'in', ids)
               .execute()
           : [];
-        return ventas.map((v) => ({
-          ...v,
-          medios: [...new Set(pagos.filter((p) => p.venta_id === v.id).map((p) => p.medio))],
-        }));
+        const facturas = ids.length
+          ? await tx
+              .selectFrom('comprobantes')
+              .select(['venta_id', 'tipo', 'punto_venta', 'numero', 'estado'])
+              .where('venta_id', 'in', ids)
+              .where('anula_id', 'is', null)
+              .execute()
+          : [];
+        return ventas.map((v) => {
+          const f = facturas.find((x) => x.venta_id === v.id);
+          return {
+            ...v,
+            medios: [...new Set(pagos.filter((p) => p.venta_id === v.id).map((p) => p.medio))],
+            factura: f
+              ? { tipo: f.tipo, puntoDeVenta: f.punto_venta, numero: f.numero, estado: f.estado }
+              : null,
+          };
+        });
       });
     },
   );
@@ -201,6 +223,7 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
           pagos,
           descuentos,
           devoluciones: devoluciones.map((d) => ({ ...d, cantidad: Number(d.cantidad) })),
+          comprobantes: await comprobantesDeVenta(tx, id),
         };
       });
     },
@@ -335,9 +358,12 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
           const datos = await datosDeVenta(tx, id);
           if (datos) avisos.push({ evento: 'venta.anulada', datos });
         }
-        return { ok: true, devolucionPendiente: !!qr, avisos };
+        // Si tenía factura, sale la nota de crédito (o se cancela si todavía no había salido).
+        const nota = await alAnularVenta(tx, s.kioscoId, id);
+        return { ok: true, devolucionPendiente: !!qr, avisos, nota };
       });
       await app.avisar(s.kioscoId, r.avisos);
+      if (r.nota) await app.encolarFacturas(s.kioscoId, [r.nota]);
       return { ok: r.ok, devolucionPendiente: r.devolucionPendiente };
     },
   );

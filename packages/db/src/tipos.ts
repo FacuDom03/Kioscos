@@ -482,6 +482,54 @@ export interface WebhooksTabla {
   updated_at: FechaDefault;
 }
 
+export type CondicionFiscal = 'monotributo' | 'exento' | 'responsable_inscripto';
+export type EstadoFacturacion =
+  'pendiente' | 'activa' | 'pausada' | 'desconectada' | 'suspendida' | 'baja';
+
+export interface ConfigFiscalTabla {
+  id: string;
+  kiosco_id: string;
+  cuit: string;
+  razon_social: string;
+  condicion: CondicionFiscal;
+  punto_venta: number;
+  domicilio: string;
+  iibb: string | null;
+  inicio_actividades: Dia | null;
+  estado: Generated<EstadoFacturacion>;
+  ultimo_error: string | null;
+  verificada_en: Fecha | null;
+  activada_en: Fecha | null;
+  created_at: FechaDefault;
+  updated_at: FechaDefault;
+}
+
+export type TipoComprobanteFiscal =
+  'factura_a' | 'factura_b' | 'factura_c' | 'nota_credito_a' | 'nota_credito_b' | 'nota_credito_c';
+
+export interface ComprobantesTabla {
+  id: string;
+  kiosco_id: string;
+  venta_id: string;
+  tipo: TipoComprobanteFiscal;
+  punto_venta: number;
+  numero: number | null;
+  fecha: Dia | null;
+  total: number;
+  estado: Generated<'pendiente' | 'autorizado' | 'rechazado' | 'cancelado'>;
+  cae: string | null;
+  cae_vence: Dia | null;
+  intentos: Generated<number>;
+  ultimo_error: string | null;
+  anula_id: string | null;
+  receptor_condicion: Generated<'consumidor_final' | CondicionFiscal>;
+  receptor_doc_tipo: 'cuit' | 'cuil' | 'dni' | null;
+  receptor_doc_nro: string | null;
+  prueba: Generated<boolean>;
+  created_at: FechaDefault;
+  autorizado_en: Fecha | null;
+}
+
 export interface EventosWebhookTabla {
   id: string;
   proveedor: 'mercadopago';
@@ -529,6 +577,8 @@ export interface Database {
   lotes: LotesTabla;
   claves_api: ClavesApiTabla;
   webhooks: WebhooksTabla;
+  config_fiscal: ConfigFiscalTabla;
+  comprobantes: ComprobantesTabla;
 }
 
 /** Tablas que pertenecen a un kiosco (todas salvo las globales). */
@@ -569,6 +619,8 @@ export const TABLAS_DE_KIOSCO = [
   'lotes',
   'claves_api',
   'webhooks',
+  'config_fiscal',
+  'comprobantes',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

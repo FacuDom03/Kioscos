@@ -45,6 +45,52 @@ Comercio (una vez, en ARCA)          Mostrador (por cada comercio)        Cada v
 Algunos proveedores ofrecen hacer todo "automático" pidiendo la clave fiscal una vez. **No lo
 hacemos**, ni siquiera si va directo al proveedor: el comercio se acostumbraría a entregarla.
 
+## Estado de la implementación (octubre de 2026)
+
+**Hecho, en modo de prueba** (migración `0016_facturacion.sql`):
+
+- **Función "Facturación ARCA"** (módulo `facturacion`): se prende en Tu negocio o en
+  Conexiones. Sin prenderla, no aparece nada.
+- **Alta guiada** en Más → Facturación ARCA:
+  - los pasos en ARCA, con el CUIT de Mostrador para copiar;
+  - CUIT con dígito verificador, razón social, condición, punto de venta y domicilio;
+  - al guardar se prueba en el momento.
+  - En producción, además, revisa que el punto de venta exista como Web Services y que ARCA
+    tenga la autorización. Si falta algo, queda "Esperando a ARCA" y se vuelve a probar sola
+    cada 15 minutos.
+- **Cada venta cobrada crea su factura C pendiente** en la misma transacción. La cola de
+  facturas (worker, de a una) le pide el CAE:
+  - **Número y fecha:** se lee el próximo número y la fecha mínima; ARCA acepta la fecha real
+    hasta 5 días después y, si se pasó, la factura queda rechazada sin inventar otra fecha.
+  - **Respuesta perdida:** se consulta antes de reintentar.
+  - **Error 10016:** se vuelve a leer el número.
+  - **ARCA caída:** reintenta y corta para no insistir.
+  - **Rechazo de ARCA:** queda en palabras, con "Reintentar".
+- **Ventas cobradas con QR:** la revisión periódica factura las que falten.
+- **Anular una venta facturada** crea la nota de crédito. Si todavía no había salido, se cancela.
+- **Ventas** muestra el estado de cada factura, el CAE y "Ver en ARCA" (el QR de la
+  especificación).
+- **Pausar, reanudar y dejar de facturar.** Lo pendiente de una pausa espera y, al dejar de
+  facturar, se cancela.
+- **Modo de prueba:** sin `AFIPSDK_PRODUCCION=1`, todo sale con el CUIT de pruebas de ARCA. Cada
+  comercio usa un punto de venta de prueba propio y las facturas se marcan "de prueba, no vale".
+
+**Para facturar de verdad falta:**
+
+1. Tu CUIT con clave fiscal nivel 3, y el certificado de producción de Mostrador cargado como
+   secreto. En `/opt/mostrador/config.env`:
+   - `AFIPSDK_PRODUCCION=1`;
+   - `MOSTRADOR_CUIT=` con tu CUIT.
+2. El ticket impreso con CAE y QR. Hace falta una librería chica para dibujar el QR: es una
+   dependencia nueva y se consulta antes.
+3. Las protecciones de la decisión 010 en el panel:
+   - suspender un comercio;
+   - lista de autorizaciones por aceptar;
+   - tope diario y alertas.
+4. Términos y condiciones firmados.
+5. Después: responsables inscriptos (A y B), factura a nombre del cliente (y documento desde
+   $10.000.000) y CAEA.
+
 ## Lo que tenés que hacer vos (Mostrador), una sola vez
 
 1. **CUIT y clave fiscal nivel 3** a tu nombre o, mejor, a nombre de una empresa (por ejemplo, una

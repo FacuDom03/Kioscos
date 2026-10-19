@@ -65,6 +65,15 @@ export function Mas() {
         ...(negocio.tiene('regalo')
           ? [{ ruta: '/cambios', nombre: 'Cambios', detalle: 'Con o sin ticket de cambio' }]
           : []),
+        ...(encargado && negocio.tiene('facturacion')
+          ? [
+              {
+                ruta: '/mas/facturacion',
+                nombre: 'Facturación ARCA',
+                detalle: 'Factura electrónica de cada venta',
+              },
+            ]
+          : []),
         ...(encargado
           ? [
               {

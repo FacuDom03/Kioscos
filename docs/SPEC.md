@@ -845,7 +845,7 @@ Por lo que se vio en la calle, antes de los pilotos se adelanta el soporte para 
 - No usar Permanent Marker ni elementos torcidos fuera del cartel del total (y nunca en el estilo sobrio).
 - No cargar fuentes, scripts ni imágenes de terceros en la app (salvo lo que exija Mercado Pago, que hoy no es nada en el cliente).
 - No mostrar datos de un kiosco al soporte sin el permiso activo del dueño.
-- No crear tablas de consentimientos ni comprobantes fiscales en la V1. (Clientes de cuenta corriente: adelantados en la etapa I5 con OK del dueño del proyecto, decisión 009.)
+- No crear tablas de consentimientos ni comprobantes fiscales en la V1. (Clientes de cuenta corriente: adelantados en la etapa I5 con OK del dueño del proyecto, decisión 009. Comprobantes fiscales: adelantados en octubre de 2026 con OK del dueño del proyecto, decisión 010 y `docs/FACTURACION.md`.)
 - No recargar la app sola con un ticket abierto.
 - No usar números autoincrementales visibles como ID en URLs.
 

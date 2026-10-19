@@ -23,6 +23,7 @@ import { rutasSalud } from './salud.ts';
 import { rutasUsuarios } from './usuarios.ts';
 import { rutasApiNegocio } from './api-negocio.ts';
 import { rutasExterna } from './externa.ts';
+import { rutasFacturacion } from './facturacion.ts';
 
 export async function registrarRutas(app: FastifyInstance): Promise<void> {
   await app.register(rutasSalud);
@@ -49,4 +50,5 @@ export async function registrarRutas(app: FastifyInstance): Promise<void> {
   await app.register(rutasExportar);
   await app.register(rutasApiNegocio);
   await app.register(rutasExterna);
+  await app.register(rutasFacturacion);
 }

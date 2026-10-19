@@ -31,3 +31,15 @@ export {
   type ConfigAfipSdk,
   type DetalleComprobante,
 } from './afipsdk.ts';
+export {
+  comprobantesPendientes,
+  crearComprobantesFaltantes,
+  explicarErrorAfip,
+  kioscosConFacturacion,
+  procesarComprobante,
+  puntoDeVentaFiscal,
+  revisarFacturacion,
+  verificarFacturacion,
+  type Facturador,
+  type ResultadoFactura,
+} from './facturas.ts';

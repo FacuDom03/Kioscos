@@ -6,6 +6,9 @@
 // Avisos automáticos de los comercios (docs/API.md):
 // - "aviso": lo reparte en una entrega por cada webhook que lo espera.
 // - "entrega": lo manda a un webhook; si falla, reintenta con espera creciente.
+// Facturas (docs/FACTURACION.md), solo con el token de Afip SDK, de a una por vez:
+// - "factura": pide el CAE de un comprobante; si ARCA no responde, reintenta.
+// - "revisar": cada dos minutos, lo pendiente de cada comercio y las autorizaciones a confirmar.
 import { cerrarBaseApp, crearBaseApp } from '@mostrador/db';
 import {
   ClienteMp,
@@ -16,10 +19,14 @@ import {
   renovarTokens,
 } from '@mostrador/mp';
 import {
+  ClienteAfipSdk,
   crearCifrador,
   destinosDeAviso,
   entregarAviso,
+  kioscosConFacturacion,
   leerClaves,
+  procesarComprobante,
+  revisarFacturacion,
   type Aviso,
 } from '@mostrador/servidor';
 import { Queue, Worker } from 'bullmq';
@@ -121,6 +128,50 @@ workerAvisos.on('failed', (job, err) =>
   console.error(`Aviso ${job?.name} falló (intento ${job?.attemptsMade}): ${err.message}`),
 );
 cerrables.push(workerAvisos, colaAvisos);
+
+const tokenAfip = process.env['AFIPSDK_TOKEN']?.trim();
+if (tokenAfip) {
+  // Sin AFIPSDK_PRODUCCION=1, modo de prueba: CUIT de pruebas de ARCA, no vale como factura.
+  const produccion = process.env['AFIPSDK_PRODUCCION'] === '1';
+  const facturador = {
+    cliente: new ClienteAfipSdk({ accessToken: tokenAfip, produccion }),
+    prueba: !produccion,
+  };
+  const colaFacturas = new Queue('facturas', { connection: conexion });
+  await colaFacturas.upsertJobScheduler('revisar', { every: 120_000 }, { name: 'revisar' });
+  const workerFacturas = new Worker(
+    'facturas',
+    async (job) => {
+      if (job.name === 'factura') {
+        const { kioscoId, comprobanteId } = job.data as { kioscoId: string; comprobanteId: string };
+        const r = await procesarComprobante(base, kioscoId, comprobanteId, facturador);
+        if (r.estado === 'reintentar') throw new Error(r.motivo);
+        return r;
+      }
+      if (job.name === 'revisar') {
+        let autorizados = 0;
+        for (const k of await kioscosConFacturacion(base)) {
+          const r = await revisarFacturacion(base, k.kiosco_id, k.estado, facturador).catch(
+            (err: unknown) => {
+              console.error(`Revisión de facturas falló: ${(err as Error).message}`);
+              return { autorizados: 0 };
+            },
+          );
+          autorizados += r.autorizados;
+        }
+        return { autorizados };
+      }
+      return null;
+    },
+    // De a uno: la numeración de cada punto de venta tiene que ir en orden.
+    { connection: conexion, concurrency: 1 },
+  );
+  workerFacturas.on('failed', (job, err) =>
+    console.error(`Factura ${job?.name} falló (intento ${job?.attemptsMade}): ${err.message}`),
+  );
+  cerrables.push(workerFacturas, colaFacturas);
+  console.log(`Facturación con Afip SDK ${produccion ? 'en producción' : 'en modo de prueba'}.`);
+}
 
 const cerrar = async () => {
   for (const c of cerrables) await c.close();

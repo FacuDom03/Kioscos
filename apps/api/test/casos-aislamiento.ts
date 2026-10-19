@@ -374,6 +374,24 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   caso('DELETE', '/api/v1/avisos/:id', 'no_encontrado', { tabla: 'webhooks' }),
   caso('POST', '/api/v1/avisos/:id/probar', 'no_encontrado', { tabla: 'webhooks' }),
 
+  // Facturación ARCA
+  caso('GET', '/api/v1/facturacion', 'sin_datos_de_b'),
+  caso('PUT', '/api/v1/facturacion/modulo', 'escribe_solo_lo_propio', { cuerpo: { activo: true } }),
+  caso('POST', '/api/v1/facturacion/config', 'escribe_solo_lo_propio', {
+    cuerpo: {
+      cuit: '20409378472',
+      razonSocial: 'Intrusa',
+      condicion: 'monotributo',
+      puntoVenta: 3,
+      domicilio: 'Calle 1',
+    },
+  }),
+  caso('POST', '/api/v1/facturacion/verificar', 'escribe_solo_lo_propio'),
+  caso('POST', '/api/v1/facturacion/estado', 'escribe_solo_lo_propio', {
+    cuerpo: { estado: 'baja' },
+  }),
+  caso('POST', '/api/v1/comprobantes/:id/reintentar', 'no_encontrado', { tabla: 'comprobantes' }),
+
   // API para los comercios (con la clave de A)
   caso('GET', '/api/externa/v1/negocio', 'sin_datos_de_b', { conClave: true }),
   caso('GET', '/api/externa/v1/productos', 'sin_datos_de_b', { conClave: true }),

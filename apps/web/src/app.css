@@ -3367,3 +3367,36 @@ details summary {
   padding-top: 8px;
   border-top: var(--line-w) solid var(--line);
 }
+
+/* ---------------------------------------------------------------------------
+ * Facturación
+ * ------------------------------------------------------------------------- */
+
+.datos-fiscales {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.datos-fiscales dt {
+  color: var(--text-soft);
+}
+
+.datos-fiscales dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.comprobante {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+}
+
+.comprobante p {
+  margin: 0;
+}

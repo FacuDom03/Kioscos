@@ -6,6 +6,8 @@ import { crearBaseApp } from '../../../packages/db/src/con-kiosco.ts';
 import { prepararBaseDePrueba } from '../../../packages/db/src/pruebas.ts';
 import { construirApp } from '../../api/src/app.ts';
 import { MpFalso } from '../../api/test/mp-falso.ts';
+import { AfipFalso } from '../../api/test/afip-falso.ts';
+import { ClienteAfipSdk } from '../../../packages/servidor/src/afipsdk.ts';
 
 const ORIGEN = 'http://127.0.0.1:4173';
 const base = await prepararBaseDePrueba('mostrador_e2e');
@@ -17,6 +19,9 @@ writeFileSync(
   new URL('./.datos.json', import.meta.url),
   JSON.stringify({ adminUrl: base.adminUrl, claves, origen: ORIGEN, mpUrl: mp.url }),
 );
+
+// Afip SDK + ARCA falsos: la facturación anda en modo de prueba sin salir a internet.
+const afip = new AfipFalso();
 
 const app = await construirApp({
   base: crearBaseApp(base.appUrl, 10),
@@ -37,6 +42,13 @@ const app = await construirApp({
     apiBase: mp.url,
     authUrl: `${mp.url}/authorization`,
     pruebas: true,
+  },
+  facturacion: {
+    facturador: {
+      cliente: new ClienteAfipSdk({ accessToken: 'e2e', produccion: false, fetch: afip.fetch }),
+      prueba: true,
+    },
+    cuitMostrador: '20409378472',
   },
 });
 await app.listen({ host: '127.0.0.1', port: 3100 });

@@ -1,10 +1,13 @@
 import {
   COMPROBANTES_COMPRA,
   diaCorto,
+  letraDe,
+  numeroVisible,
   diferenciaEnPalabras,
   formatearCantidad,
   formatearPlata,
   type ComprobanteCompra,
+  type TipoComprobante,
   type Unidad,
 } from '@mostrador/shared';
 import { useState, type ReactNode } from 'react';
@@ -110,6 +113,8 @@ function Vacio({ texto }: { texto: string }) {
   return <p className="vacio">{texto}</p>;
 }
 
+type TipoFiscal = TipoComprobante;
+
 interface VentaFila {
   id: string;
   total: number;
@@ -118,6 +123,24 @@ interface VentaFila {
   creada_en_dispositivo: string;
   nombre: string | null;
   medios: string[];
+  factura: {
+    tipo: TipoFiscal;
+    puntoDeVenta: number;
+    numero: number | null;
+    estado: string;
+  } | null;
+}
+
+/** "Factura C 00003-00000124" */
+const nombreComprobante = (tipo: TipoFiscal, puntoDeVenta: number, numero: number | null) =>
+  `${tipo.startsWith('nota') ? 'Nota de crédito' : 'Factura'} ${letraDe(tipo)}${numero ? ` ${numeroVisible(puntoDeVenta, numero)}` : ''}`;
+
+/** La factura de una venta, en palabras cortas para la lista. */
+function textoFactura(f: NonNullable<VentaFila['factura']>): string | null {
+  if (f.estado === 'autorizado') return nombreComprobante(f.tipo, f.puntoDeVenta, f.numero);
+  if (f.estado === 'pendiente') return 'Facturando…';
+  if (f.estado === 'rechazado') return 'Sin factura: revisar';
+  return null;
 }
 
 export function ListaVentas({
@@ -165,7 +188,11 @@ export function ListaVentas({
               <span>
                 {fechaCorta(v.creada_en_dispositivo)}
                 <span className="fila-historial__detalle">
-                  {[v.nombre, v.medios.map((m) => MEDIO[m] ?? m).join(' y ')]
+                  {[
+                    v.nombre,
+                    v.medios.map((m) => MEDIO[m] ?? m).join(' y '),
+                    v.factura && textoFactura(v.factura),
+                  ]
                     .filter(Boolean)
                     .join(' · ')}
                 </span>
@@ -377,6 +404,85 @@ interface VentaDetalle {
   }[];
   descuentos: { descripcion: string; monto: number }[];
   devoluciones: { descripcion: string; cantidad: number; importe: number }[];
+  comprobantes?: Comprobante[];
+}
+
+interface Comprobante {
+  id: string;
+  tipo: TipoFiscal;
+  puntoDeVenta: number;
+  numero: number | null;
+  fecha: string | null;
+  estado: 'pendiente' | 'autorizado' | 'rechazado' | 'cancelado';
+  cae: string | null;
+  caeVence: string | null;
+  error: string | null;
+  prueba: boolean;
+  qr: string | null;
+}
+
+/** La factura (y la nota de crédito) de una venta, con lo que se puede hacer. */
+function Comprobantes({
+  lista,
+  puedeReintentar,
+  alCambiar,
+}: {
+  lista: Comprobante[];
+  puedeReintentar: boolean;
+  alCambiar: () => Promise<void>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  async function reintentar(id: string) {
+    try {
+      await api('POST', `/api/v1/comprobantes/${id}/reintentar`, {});
+      await alCambiar();
+    } catch (e) {
+      setError(mensajeDeError(e));
+    }
+  }
+  return (
+    <section className="comprobantes" aria-label="Factura">
+      {lista.map((c) => (
+        <div key={c.id} className="comprobante">
+          <p>
+            <strong>{nombreComprobante(c.tipo, c.puntoDeVenta, c.numero)}</strong>
+            {c.prueba && ' (de prueba, no vale)'}
+          </p>
+          {c.estado === 'autorizado' && (
+            <p className="texto-suave">
+              CAE {c.cae}
+              {c.caeVence && ` · vence el ${diaCorto(c.caeVence)}`}
+              {c.qr && (
+                <>
+                  {' · '}
+                  <a href={c.qr} target="_blank" rel="noopener noreferrer">
+                    Ver en ARCA
+                  </a>
+                </>
+              )}
+            </p>
+          )}
+          {c.estado === 'pendiente' && (
+            <p className="texto-suave">
+              Facturando: sale apenas ARCA responda.{c.error && ` ${c.error}`}
+            </p>
+          )}
+          {c.estado === 'rechazado' && (
+            <>
+              <p className="texto-peligro">No se pudo facturar. {c.error}</p>
+              {puedeReintentar && (
+                <button type="button" className="m-boton" onClick={() => void reintentar(c.id)}>
+                  Reintentar
+                </button>
+              )}
+            </>
+          )}
+          {c.estado === 'cancelado' && <p className="texto-suave">No salió: {c.error}</p>}
+        </div>
+      ))}
+      {error && <Aviso>{error}</Aviso>}
+    </section>
+  );
 }
 
 interface CompraDetalle extends DatosFactura {
@@ -548,6 +654,13 @@ function DetalleVenta({ url, alCambiar }: { url: string; alCambiar?: (() => void
           />
         ))}
       </dl>
+      {v.comprobantes && v.comprobantes.length > 0 && (
+        <Comprobantes
+          lista={v.comprobantes}
+          puedeReintentar={s.rol !== 'cajero'}
+          alCambiar={recargar}
+        />
+      )}
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
       {s.rol !== 'cajero' && v.estado === 'cobrada' && (
         <button type="button" className="m-boton" onClick={() => void anular()}>

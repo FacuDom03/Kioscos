@@ -4,6 +4,8 @@ import { api, mensajeDeError } from '../../nucleo/api.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
 import { TarjetaMp } from './TarjetaMp.tsx';
 import { useBandeja } from '../../nucleo/bandeja.ts';
+import { useNegocio } from '../../nucleo/rubro.ts';
+import { navegar } from '../../nucleo/ruta.ts';
 
 interface Kiosco {
   soporte_hasta: string | null;
@@ -20,6 +22,7 @@ export function Conexiones({
   const [error, setError] = useState<string | null>(null);
   const soporte = !!datos?.soporte_hasta;
   const bandeja = useBandeja();
+  const negocio = useNegocio();
   const [ahora] = useState(() => Date.now());
   const hace = bandeja.ultimaSubida
     ? Math.max(0, Math.round((ahora - new Date(bandeja.ultimaSubida).getTime()) / 60_000))
@@ -87,9 +90,16 @@ export function Conexiones({
         )}
       </section>
 
-      <section className="conexion conexion--proximamente">
-        <h2 className="subtitulo">Facturación ARCA</h2>
-        <p className="texto-suave">Próximamente.</p>
+      <section className="conexion">
+        <div className="conexion__cabeza">
+          <h2 className="subtitulo">Facturación ARCA</h2>
+          <button type="button" className="m-boton" onClick={() => navegar('/mas/facturacion')}>
+            {negocio.tiene('facturacion') ? 'Ver' : 'Activar'}
+          </button>
+        </div>
+        <p className="texto-suave">
+          Cada venta sale con factura electrónica. Sin darnos tu clave fiscal.
+        </p>
       </section>
 
       <button type="button" className="fila" onClick={alAbrirApariencia}>

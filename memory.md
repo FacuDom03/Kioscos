@@ -61,7 +61,8 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
   pie (200 letras) y marca de agua en presupuestos. La versión del logo y el pie viajan con la
   sesión (`kiosco.marca`); la imagen se pide con `?v=N` y caché inmutable para imprimir sin
   internet. Sale en ticket, factura, remito, ticket de cambio y presupuesto.
-- **Contabilidad, IVA y retenciones:** análisis en `docs/CONTABILIDAD.md` (dos versiones, fases).
+- **Contabilidad, IVA y retenciones:** análisis en `docs/CONTABILIDAD.md` (dos versiones, fases)
+  y modelo de Odoo para replicar en `docs/MODELO-IMPUESTOS.md`.
   Falta que la persona elija por dónde empezar.
 
 - **Factura impresa, términos y panel de facturación** (OK de la persona: librería de QR `uqr`,

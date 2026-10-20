@@ -225,7 +225,7 @@ facturación prendida tu negocio. Lo pendiente de las pruebas se cancela solo y 
 
    Y actualizar el servidor (el comando de siempre).
 
-6. **En la app:** Facturación ARCA → "Probar de nuevo". Revisa que el punto de venta sea de Web
+6. **En la app:** Facturación ARCA → "Probar ahora". Revisa que el punto de venta sea de Web
    Services y que la autorización esté. Después, una venta chica y su anulación: tienen que
    aparecer la factura C y la nota de crédito C en ARCA → "Mis Comprobantes" → Emitidos.
 

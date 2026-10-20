@@ -10,6 +10,7 @@ import {
 } from '@mostrador/shared';
 import { encode } from 'uqr';
 import { createPortal } from 'react-dom';
+import { LogoImpreso, PieImpreso } from './Marca.tsx';
 
 export interface ComprobanteVenta {
   id: string;
@@ -110,6 +111,7 @@ export function FacturaImpresa({
   const nota = c.tipo.startsWith('nota');
   return createPortal(
     <div className="impreso factura-impresa" aria-hidden="true">
+      <LogoImpreso />
       <p className="impreso__kiosco">{emisor.razonSocial}</p>
       <p>CUIT {cuitConGuiones(emisor.cuit)}</p>
       <p>{emisor.domicilio}</p>
@@ -166,6 +168,7 @@ export function FacturaImpresa({
         </div>
       )}
       <p className="impreso__legal">Comprobante autorizado por ARCA</p>
+      <PieImpreso />
       {c.prueba && <p className="impreso__legal">DE PRUEBA: NO VÁLIDO COMO FACTURA</p>}
     </div>,
     document.body,

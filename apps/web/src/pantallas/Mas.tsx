@@ -91,6 +91,11 @@ export function Mas() {
                 detalle: `${DATOS_RUBROS[rubroDe(s.kiosco.rubro)].nombre}, categorías y funciones`,
               },
               {
+                ruta: '/mas/marca',
+                nombre: 'Logo y tickets',
+                detalle: 'Tu logo y un texto al pie en lo que imprimís',
+              },
+              {
                 ruta: '/mas/conexiones',
                 nombre: 'Conexiones',
                 detalle: 'Mercado Pago, copia en la nube y soporte',

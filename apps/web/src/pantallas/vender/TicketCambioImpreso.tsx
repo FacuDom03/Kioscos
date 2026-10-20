@@ -1,3 +1,4 @@
+import { LogoImpreso } from '../../componentes/Marca.tsx';
 import { diaArgentino, diaCorto, formatearCantidad, sumarDias } from '@mostrador/shared';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { DIAS_CAMBIO, codigoDeCambio } from '../../nucleo/cambios.ts';
@@ -20,6 +21,7 @@ export function TicketCambioImpreso({ venta, kiosco }: { venta: VentaHecha; kios
   const dia = diaArgentino(venta.creadaEn);
   return (
     <div className="impreso cambio-impreso" aria-hidden="true">
+      <LogoImpreso />
       <p className="impreso__kiosco">{kiosco}</p>
       <p>TICKET DE CAMBIO · {diaCorto(dia)}</p>
       <hr />

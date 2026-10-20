@@ -12,6 +12,7 @@ import {
   type RegistrationResponseJSON,
 } from '@simplewebauthn/server';
 import { z } from 'zod';
+import { marcaDelNegocio } from './personalizacion.ts';
 import { credencialesInvalidas, datosInvalidos, ErrorPublico, noEncontrado } from '../errores.ts';
 import { hashPassword, verificarPassword } from '@mostrador/servidor';
 import { hashToken } from '@mostrador/servidor';
@@ -87,12 +88,14 @@ async function estadoDeSesion(app: FastifyInstance, s: Sesion) {
     };
   }
   const kiosco = s.kioscoId
-    ? await withKiosco(app.base, s.kioscoId, (tx) =>
-        tx
+    ? await withKiosco(app.base, s.kioscoId, async (tx) => {
+        const k = await tx
           .selectFrom('kioscos')
           .select(['id', 'nombre', 'plan', 'rubro', 'modulos', 'configurado'])
-          .executeTakeFirst(),
-      )
+          .executeTakeFirst();
+        // Logo y pie del ticket: viajan con la sesión para imprimir sin internet.
+        return k ? { ...k, marca: await marcaDelNegocio(tx) } : undefined;
+      })
     : null;
   const kioscos = s.esSoporte
     ? []

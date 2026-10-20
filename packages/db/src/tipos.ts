@@ -509,6 +509,18 @@ export interface ConfigFiscalTabla {
   updated_at: FechaDefault;
 }
 
+export interface PersonalizacionTabla {
+  id: string;
+  kiosco_id: string;
+  logo: Buffer | null;
+  logo_tipo: 'image/png' | 'image/jpeg' | null;
+  logo_version: Generated<number>;
+  logo_en_ticket: Generated<boolean>;
+  marca_agua: Generated<boolean>;
+  pie: string | null;
+  updated_at: FechaDefault;
+}
+
 export type TipoComprobanteFiscal =
   'factura_a' | 'factura_b' | 'factura_c' | 'nota_credito_a' | 'nota_credito_b' | 'nota_credito_c';
 
@@ -584,6 +596,7 @@ export interface Database {
   webhooks: WebhooksTabla;
   config_fiscal: ConfigFiscalTabla;
   comprobantes: ComprobantesTabla;
+  personalizacion: PersonalizacionTabla;
 }
 
 /** Tablas que pertenecen a un kiosco (todas salvo las globales). */
@@ -626,6 +639,7 @@ export const TABLAS_DE_KIOSCO = [
   'webhooks',
   'config_fiscal',
   'comprobantes',
+  'personalizacion',
 ] as const satisfies readonly (keyof Database)[];
 
 /** Tablas sin kiosco: no tienen RLS y no guardan datos de negocio. */

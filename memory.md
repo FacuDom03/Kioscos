@@ -55,6 +55,15 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Logo y tickets** (pedido de la persona): migración `0018_personalizacion.sql` (tabla
+  `personalizacion`, RLS como las demás). Más → "Logo y tickets": logo PNG/JPG achicado en el
+  equipo a 384×192 (máximo 150 KB, el servidor revisa los primeros bytes; nunca SVG), texto al
+  pie (200 letras) y marca de agua en presupuestos. La versión del logo y el pie viajan con la
+  sesión (`kiosco.marca`); la imagen se pide con `?v=N` y caché inmutable para imprimir sin
+  internet. Sale en ticket, factura, remito, ticket de cambio y presupuesto.
+- **Contabilidad, IVA y retenciones:** análisis en `docs/CONTABILIDAD.md` (dos versiones, fases).
+  Falta que la persona elija por dónde empezar.
+
 - **Factura impresa, términos y panel de facturación** (OK de la persona: librería de QR `uqr`,
   panel y términos). Migración `0017_facturacion_panel.sql`: columnas de términos y
   `tope_diario` en `config_fiscal`, funciones `panel_listar_facturacion`,

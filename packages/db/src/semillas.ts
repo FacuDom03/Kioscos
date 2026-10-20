@@ -250,6 +250,11 @@ async function cargarKiosco(c: pg.Client | pg.PoolClient, k: DatosKiosco): Promi
      values ($1, $2, $3, 'factura_c', 3, 100, true)`,
     [uuidv7(), k.id, venta],
   );
+  await q(`insert into personalizacion (id, kiosco_id, pie) values ($1, $2, $3)`, [
+    uuidv7(),
+    k.id,
+    `Gracias por comprar en ${k.nombre}`,
+  ]);
   await q(
     `insert into claves_api (id, kiosco_id, nombre, prefijo, token_hash, creada_por)
      values ($1, $2, 'n8n de prueba', 'mst_semill', $3, $4)`,

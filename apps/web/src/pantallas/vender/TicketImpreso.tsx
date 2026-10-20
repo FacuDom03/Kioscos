@@ -1,6 +1,7 @@
 import { formatearPlata } from '@mostrador/shared';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { cantidadEnTicket } from '../../nucleo/ticket.ts';
+import { LogoImpreso, PieImpreso } from '../../componentes/Marca.tsx';
 
 const MEDIOS = {
   efectivo: 'Efectivo',
@@ -14,6 +15,7 @@ export function TicketImpreso({ venta, kiosco }: { venta: VentaHecha; kiosco: st
   const f = new Date(venta.creadaEn);
   return (
     <div className="impreso" aria-hidden="true">
+      <LogoImpreso />
       <p className="impreso__kiosco">{kiosco}</p>
       <p>
         {f.toLocaleDateString('es-AR')}{' '}
@@ -57,6 +59,7 @@ export function TicketImpreso({ venta, kiosco }: { venta: VentaHecha; kiosco: st
         </p>
       )}
       <hr />
+      <PieImpreso />
       <p className="impreso__legal">Documento no válido como factura</p>
     </div>
   );

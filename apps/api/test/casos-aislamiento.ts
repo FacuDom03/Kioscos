@@ -398,6 +398,21 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
   }),
   caso('POST', '/api/v1/comprobantes/:id/reintentar', 'no_encontrado', { tabla: 'comprobantes' }),
 
+  // Personalización
+  caso('GET', '/api/v1/personalizacion', 'sin_datos_de_b'),
+  caso('PUT', '/api/v1/personalizacion', 'escribe_solo_lo_propio', {
+    cuerpo: { pie: 'Intrusa', logoEnTicket: true, marcaAgua: true },
+  }),
+  caso('PUT', '/api/v1/personalizacion/logo', 'escribe_solo_lo_propio', {
+    cuerpo: {
+      datos:
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    },
+  }),
+  caso('DELETE', '/api/v1/personalizacion/logo', 'escribe_solo_lo_propio'),
+  // Corre después del PUT del logo (los DELETE van al final): trae el logo de A.
+  caso('GET', '/api/v1/personalizacion/logo', 'sin_datos_de_b'),
+
   // API para los comercios (con la clave de A)
   caso('GET', '/api/externa/v1/negocio', 'sin_datos_de_b', { conClave: true }),
   caso('GET', '/api/externa/v1/productos', 'sin_datos_de_b', { conClave: true }),

@@ -1,3 +1,4 @@
+import { LogoImpreso } from '../../componentes/Marca.tsx';
 import { formatearCantidad } from '@mostrador/shared';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 
@@ -16,6 +17,7 @@ export function RemitoImpreso({ venta, kiosco }: { venta: VentaHecha; kiosco: st
   const f = new Date(venta.creadaEn);
   return (
     <div className="impreso remito-impreso" aria-hidden="true">
+      <LogoImpreso />
       <p className="impreso__kiosco">{kiosco}</p>
       <p>REMITO · {f.toLocaleDateString('es-AR')}</p>
       <hr />

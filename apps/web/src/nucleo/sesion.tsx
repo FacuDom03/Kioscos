@@ -6,6 +6,8 @@ import { borrarClave, guardarClave, leerClave } from './local.ts';
 
 export type Rol = 'dueno' | 'encargado' | 'cajero' | 'soporte';
 
+import type { Marca } from '../componentes/Marca.tsx';
+
 export interface SesionCompleta {
   tipo: 'completa';
   usuario: { id: string; nombre: string };
@@ -18,6 +20,8 @@ export interface SesionCompleta {
     rubro?: Rubro;
     modulos?: Modulo[];
     configurado?: boolean;
+    /** Logo y pie de los tickets. Falta en sesiones de versiones anteriores. */
+    marca?: Marca;
   };
   kioscos: { id: string; nombre: string; rol: Rol }[];
   esSoporte: boolean;

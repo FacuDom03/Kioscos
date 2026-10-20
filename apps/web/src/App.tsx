@@ -16,6 +16,7 @@ import { Auditoria } from './pantallas/mas/Auditoria.tsx';
 import { Conexiones } from './pantallas/mas/Conexiones.tsx';
 import { Dispositivos } from './pantallas/mas/Dispositivos.tsx';
 import { ApiNegocio } from './pantallas/mas/ApiNegocio.tsx';
+import { Marca } from './pantallas/mas/Marca.tsx';
 import { Facturacion } from './pantallas/mas/Facturacion.tsx';
 import { Seguridad } from './pantallas/mas/Seguridad.tsx';
 import { Usuarios } from './pantallas/mas/Usuarios.tsx';
@@ -275,6 +276,9 @@ function AppConSesion({ ruta }: { ruta: string }) {
       break;
     case '/mas/api':
       pantalla = <ApiNegocio alVolver={volverAMas} />;
+      break;
+    case '/mas/marca':
+      pantalla = <Marca alVolver={volverAMas} />;
       break;
     case '/mas/conexiones':
       pantalla = (

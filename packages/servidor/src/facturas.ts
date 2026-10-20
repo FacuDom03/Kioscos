@@ -149,6 +149,21 @@ export async function procesarComprobante(
   if (comp.estado !== 'pendiente') return { estado: 'omitido', motivo: 'Ya no está pendiente.' };
   if (!config || config.estado !== 'activa')
     return { estado: 'omitido', motivo: 'La facturación no está activa.' };
+  // Lo que quedó pendiente de las pruebas no se manda a ARCA de verdad (ni al revés).
+  if (comp.prueba !== f.prueba) {
+    const motivo = comp.prueba
+      ? 'Quedó del modo de prueba: no se factura.'
+      : 'Es de producción: no se manda al ambiente de pruebas.';
+    await withKiosco(base, kioscoId, (tx) =>
+      tx
+        .updateTable('comprobantes')
+        .set({ estado: 'cancelado', ultimo_error: motivo })
+        .where('id', '=', comp.id)
+        .where('estado', '=', 'pendiente')
+        .execute(),
+    );
+    return { estado: 'omitido', motivo };
+  }
 
   const cuit = cuitEmisor(config.cuit, f);
   const tipo = TIPO_COMPROBANTE[comp.tipo];

@@ -183,6 +183,55 @@ de ahí):
 El certificado de pruebas vence a los dos años. Para producción se repite con el de "Administración
 de Certificados Digitales" (otro certificado, otra clave).
 
+## Pasar a producción (facturas que valen)
+
+Después de probar con tu CUIT. Producción es para todo el servidor: solo tiene que tener la
+facturación prendida tu negocio. Lo pendiente de las pruebas se cancela solo y nunca llega a ARCA.
+
+1. **Punto de venta:** en "Administración de puntos de venta y domicilios", uno del sistema
+   "Factura Electrónica – Monotributo – Web Services".
+2. **Clave y pedido nuevos, en otra carpeta:**
+
+   ```sh
+   mkdir -p /opt/mostrador/secretos/afip-produccion && cd /opt/mostrador/secretos/afip-produccion
+   read -r CUIT   # tu CUIT sin guiones y Enter
+   openssl genrsa -out clave.pem 2048
+   openssl req -new -key clave.pem -subj "/C=AR/O=Mostrador/CN=mostrador/serialNumber=CUIT $CUIT" -out pedido.csr
+   cat pedido.csr
+   ```
+
+3. **"Administración de Certificados Digitales"** (adherirlo si no está): pide el pedido como
+   archivo. Copiá el texto en el Bloc de notas y guardalo como `pedido.csr` (tipo "Todos los
+   archivos"). Alias `mostrador`, seleccionar el archivo y "Agregar alias". Después, en el alias,
+   descargá el certificado, abrilo con el Bloc de notas y guardalo en el servidor:
+
+   ```sh
+   cat > /opt/mostrador/secretos/afip-produccion/cert.pem   # pegar, Enter y Ctrl+D
+   cd /opt/mostrador/secretos/afip-produccion
+   [ "$(openssl x509 -noout -modulus -in cert.pem)" = "$(openssl rsa -noout -modulus -in clave.pem)" ] && echo "Coinciden" || echo "NO coinciden"
+   ```
+
+4. **Autorizar el certificado:** Administrador de Relaciones → "Nueva relación" → ARCA →
+   WebServices → Facturación Electrónica → Representante: computador fiscal `mostrador`.
+5. **Cambiar de certificado y pasar a producción** (el de pruebas queda guardado en
+   `afip-pruebas`):
+
+   ```sh
+   cd /opt/mostrador/secretos && mv afip afip-pruebas && mv afip-produccion afip
+   cd afip && rm -f pedido.csr && chown -R 1000:1000 . && chmod 700 . && chmod 600 clave.pem cert.pem
+   sed -i '/^AFIPSDK_PRODUCCION=/d' /opt/mostrador/config.env
+   echo "AFIPSDK_PRODUCCION=1" >> /opt/mostrador/config.env
+   ```
+
+   Y actualizar el servidor (el comando de siempre).
+
+6. **En la app:** Facturación ARCA → "Probar de nuevo". Revisa que el punto de venta sea de Web
+   Services y que la autorización esté. Después, una venta chica y su anulación: tienen que
+   aparecer la factura C y la nota de crédito C en ARCA → "Mis Comprobantes" → Emitidos.
+
+Para volver a las pruebas: `mv afip afip-produccion && mv afip-pruebas afip`, borrar la línea
+`AFIPSDK_PRODUCCION=1` y actualizar.
+
 ## Lo que hace cada comercio (alta, unos 10 minutos)
 
 La app lo guía en Más → Conexiones → Facturación, con capturas y botones para copiar:

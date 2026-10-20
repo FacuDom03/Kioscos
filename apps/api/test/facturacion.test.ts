@@ -289,6 +289,18 @@ describe('facturas', () => {
     expect(await comprobantes(e, venta)).toMatchObject([{ estado: 'rechazado', numero: null }]);
   });
 
+  it('al pasar a producción, lo pendiente de las pruebas se cancela y no llega a ARCA', async () => {
+    const { dueno, kioscoId, producto } = await comercio(e);
+    await dueno.cliente.post('/api/v1/facturacion/config', datos);
+    const venta = await vender(dueno, producto);
+    const antes = afip.emitidos.size;
+    expect(await procesarCola(e, kioscoId, enProduccion)).toMatchObject([
+      { estado: 'omitido', motivo: expect.stringContaining('modo de prueba') },
+    ]);
+    expect(await comprobantes(e, venta)).toMatchObject([{ estado: 'cancelado', prueba: true }]);
+    expect(afip.emitidos.size).toBe(antes);
+  });
+
   it('en pausa no se generan facturas; al dejar de facturar se cancela lo pendiente', async () => {
     const { dueno, kioscoId, producto } = await comercio(e);
     await dueno.cliente.post('/api/v1/facturacion/config', datos);

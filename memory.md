@@ -60,8 +60,9 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
   conexión): con `cert.pem` y `clave.pem` en `/opt/mostrador/secretos/afip` (montado en
   `/run/afip`) se factura en homologación con el CUIT y punto de venta del comercio; sin ellos,
   con el CUIT de pruebas de Afip SDK. `MOSTRADOR_CUIT` en `config.env`. Pasos de WSASS en
-  `docs/FACTURACION.md`, "Probar con tu CUIT". Se le pasaron los pasos; falta que los haga y
-  pruebe. Después: producción con una factura real chica y su nota de crédito.
+  `docs/FACTURACION.md`, "Probar con tu CUIT". **Hecho el 20/10/2026:** certificado de WSASS
+  cargado y la prueba de conexión autorizó la factura C 00001-00000001 con su CUIT. Falta probar en
+  la app (venta y anulación). Después: producción con una factura real chica y su nota de crédito.
 
 - **Facturación ARCA en la app, en modo de prueba** (OK de la persona: tablas y datos del
   comprador; es un módulo que se prende). Ver "Estado de la implementación" en

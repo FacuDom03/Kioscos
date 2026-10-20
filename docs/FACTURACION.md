@@ -79,20 +79,30 @@ hacemos**, ni siquiera si va directo al proveedor: el comercio se acostumbraría
   - Con el certificado de pruebas de Mostrador (WSASS), salen con el CUIT y el punto de venta del
     comercio. Así probás con tu monotributo (ver "Probar con tu CUIT").
 
+- **Factura impresa** (migración `0017_facturacion_panel.sql`): en Cobrado, "Imprimir factura"
+  espera el CAE (hasta 30 segundos) y la imprime en la impresora de tickets; desde Ventas se
+  imprime cualquier factura o nota de crédito autorizada. Lleva razón social, CUIT, domicilio,
+  condición, ingresos brutos, tipo y código, número, fecha, total, CAE, vencimiento y el QR de
+  ARCA (dibujado con la librería `uqr`, sin dependencias).
+- **Términos y condiciones** (`packages/shared/src/terminos.ts`): hay que aceptarlos para activar
+  la facturación. Se guarda la versión, cuándo y quién, y queda en la auditoría. Si cambia la
+  versión, la app los vuelve a pedir y no se activa hasta aceptarlos. **Es un borrador: falta que
+  lo revise un abogado.**
+- **Panel de administración → Facturación ARCA:**
+  - primero los comercios que esperan que aceptes la autorización, con "Ya lo acepté" (prueba en
+    la próxima revisión, a los 2 minutos como mucho);
+  - suspender y reactivar (al reactivar vuelve a probar con ARCA);
+  - tope diario por comercio ($ 5.000.000 de entrada): lo que lo pasa queda pendiente hasta subir
+    el tope o hasta el día siguiente;
+  - alertas en palabras: cerca del tope, muchas anulaciones, el mismo importe alto muchas veces,
+    rechazos y autorizaciones por aceptar;
+  - todo queda en la auditoría.
+
 **Para facturar de verdad falta:**
 
-1. Tu CUIT con clave fiscal nivel 3, y el certificado de producción de Mostrador cargado como
-   secreto. En `/opt/mostrador/config.env`:
-   - `AFIPSDK_PRODUCCION=1`;
-   - `MOSTRADOR_CUIT=` con tu CUIT.
-2. El ticket impreso con CAE y QR. Hace falta una librería chica para dibujar el QR: es una
-   dependencia nueva y se consulta antes.
-3. Las protecciones de la decisión 010 en el panel:
-   - suspender un comercio;
-   - lista de autorizaciones por aceptar;
-   - tope diario y alertas.
-4. Términos y condiciones firmados.
-5. Después: responsables inscriptos (A y B), factura a nombre del cliente (y documento desde
+1. El certificado de producción y `AFIPSDK_PRODUCCION=1` (ver "Pasar a producción").
+2. Que un abogado revise los términos.
+3. Después: responsables inscriptos (A y B), factura a nombre del cliente (y documento desde
    $10.000.000) y CAEA.
 
 ## Lo que tenés que hacer vos (Mostrador), una sola vez
@@ -266,9 +276,9 @@ autorización no queda activa hasta que el representante:
 2. **La asigna al certificado:** en el Administrador de Relaciones, la relación del comercio se
    vincula con el computador fiscal `mostrador`.
 
-El panel de administración te muestra la lista "Comercios esperando aceptación", con el CUIT y la
-razón social. Cuando lo hacés, tocás "Ya lo acepté" y la app prueba sola. Si te olvidás, la app
-igual reintenta la prueba cada 15 minutos y te recuerda las pendientes.
+El panel de administración (sección "Facturación ARCA") muestra primero los comercios que esperan,
+con el CUIT y la razón social. Cuando lo hacés, tocás "Ya lo acepté" y la app prueba sola en la
+próxima revisión. Si te olvidás, igual reintenta la prueba cada 15 minutos.
 
 **¿Se puede automatizar?** Sí, pero solo con tu clave fiscal en un robot que maneje la página de
 ARCA, o dándosela a un proveedor (Afip SDK lo ofrece). Al principio conviene hacerlo a mano: son 2

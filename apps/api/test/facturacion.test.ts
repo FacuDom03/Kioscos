@@ -1,6 +1,6 @@
 // Facturación electrónica ARCA (docs/FACTURACION.md) contra un Afip SDK + ARCA falsos.
 import { ClienteAfipSdk, procesarComprobante, type Facturador } from '@mostrador/servidor';
-import { puntoDeVentaDePrueba, uuidv7 } from '@mostrador/shared';
+import { TERMINOS_FACTURACION, puntoDeVentaDePrueba, uuidv7 } from '@mostrador/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AfipFalso } from './afip-falso.ts';
 import {
@@ -63,6 +63,7 @@ const datos = {
   condicion: 'monotributo',
   puntoVenta: 3,
   domicilio: 'Av. Siempreviva 742',
+  aceptaTerminos: true,
 };
 
 async function comercio(ent: Entorno, prender = true) {
@@ -162,7 +163,55 @@ describe('alta de la facturación', () => {
     expect(rows.map((x: { accion: string }) => x.accion)).toEqual([
       'facturacion.prendida',
       'facturacion.datos',
+      'facturacion.terminos',
     ]);
+  });
+
+  it('sin aceptar los términos no se activa; quedan guardados con versión, fecha y quién', async () => {
+    const { dueno, kioscoId } = await comercio(e);
+    const sinTerminos = { ...datos, aceptaTerminos: undefined };
+    const r = await dueno.cliente.post('/api/v1/facturacion/config', sinTerminos);
+    expect(r.statusCode).toBe(409);
+    expect(r.json()).toMatchObject({ codigo: 'terminos' });
+    await dueno.cliente.post('/api/v1/facturacion/config', datos);
+    const estado = (await dueno.cliente.get('/api/v1/facturacion')).json<{
+      terminos: { vigente: string; aceptada: string; aceptadosEn: string };
+    }>();
+    expect(estado.terminos.aceptada).toBe(TERMINOS_FACTURACION.version);
+    const { rows } = await e.admin.query(
+      `select (u.email = $2) as por_el_dueno, (select count(*) from auditoria a where a.kiosco_id = c.kiosco_id and a.accion = 'facturacion.terminos') as n
+       from config_fiscal c join usuarios u on u.id = c.terminos_aceptados_por where c.kiosco_id = $1`,
+      [kioscoId, dueno.email],
+    );
+    expect(rows[0]).toMatchObject({ por_el_dueno: true, n: 1 });
+    // Editar los datos no los vuelve a pedir.
+    expect((await dueno.cliente.post('/api/v1/facturacion/config', sinTerminos)).statusCode).toBe(
+      200,
+    );
+
+    // Si cambian los términos, no se activa hasta aceptarlos de nuevo.
+    await e.admin.query(
+      `update config_fiscal set terminos_version = 'vieja', estado = 'pendiente' where kiosco_id = $1`,
+      [kioscoId],
+    );
+    expect((await dueno.cliente.post('/api/v1/facturacion/verificar', {})).json()).toMatchObject({
+      activa: false,
+      mensaje: expect.stringContaining('términos'),
+    });
+    expect(
+      (await dueno.cliente.post('/api/v1/facturacion/terminos', { version: 'vieja' })).statusCode,
+    ).toBe(409);
+    expect(
+      (
+        await dueno.cliente.post('/api/v1/facturacion/terminos', {
+          version: TERMINOS_FACTURACION.version,
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect((await dueno.cliente.post('/api/v1/facturacion/verificar', {})).json()).toEqual({
+      activa: true,
+      mensaje: null,
+    });
   });
 
   it('rechaza un CUIT mal escrito y, por ahora, al responsable inscripto', async () => {
@@ -344,6 +393,48 @@ describe('facturas', () => {
     expect(c).toMatchObject({ puntoDeVenta: 3, prueba: true });
     const qr = JSON.parse(atob(new URL(c!.qr).searchParams.get('p') ?? '')) as { cuit: number };
     expect(qr.cuit).toBe(Number(CUIT_PROPIO));
+  });
+
+  it('lo que pasa el tope diario espera; al subir el tope, sale', async () => {
+    const { dueno, kioscoId, producto } = await comercio(e);
+    await dueno.cliente.post('/api/v1/facturacion/config', datos);
+    await e.admin.query(`update config_fiscal set tope_diario = 500000 where kiosco_id = $1`, [
+      kioscoId,
+    ]);
+    await vender(dueno, producto); // $ 3.000: entra
+    const segunda = await vender(dueno, producto); // $ 6.000 en el día: pasa el tope de $ 5.000
+    const r = await procesarCola(e, kioscoId, enPrueba);
+    expect(r.map((x) => x.estado).sort()).toEqual(['autorizado', 'omitido']);
+    expect(await comprobantes(e, segunda)).toMatchObject([
+      { estado: 'pendiente', ultimo_error: expect.stringContaining('tope diario') },
+    ]);
+    await e.admin.query(`update config_fiscal set tope_diario = 1000000 where kiosco_id = $1`, [
+      kioscoId,
+    ]);
+    const [c] = await comprobantes(e, segunda);
+    expect(await procesarComprobante(e.base, kioscoId, c!.id, enPrueba)).toMatchObject({
+      estado: 'autorizado',
+    });
+  });
+
+  it('la venta trae los datos del comercio para imprimir la factura', async () => {
+    const { dueno, kioscoId, producto } = await comercio(e);
+    await dueno.cliente.post('/api/v1/facturacion/config', { ...datos, iibb: '901-123456-7' });
+    const venta = await vender(dueno, producto);
+    await procesarCola(e, kioscoId, enPrueba);
+    const detalle = (await dueno.cliente.get(`/api/v1/ventas/${venta}`)).json<{
+      emisor: unknown;
+      comprobantes: { anulaId: string | null }[];
+    }>();
+    expect(detalle.emisor).toEqual({
+      cuit: CUIT_COMERCIO,
+      razonSocial: 'Kiosco Anita',
+      condicion: 'monotributo',
+      domicilio: 'Av. Siempreviva 742',
+      iibb: '901-123456-7',
+      inicioActividades: null,
+    });
+    expect(detalle.comprobantes).toMatchObject([{ anulaId: null }]);
   });
 
   it('el encargado ve el estado pero no configura', async () => {

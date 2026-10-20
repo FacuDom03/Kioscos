@@ -55,6 +55,14 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Factura impresa, términos y panel de facturación** (OK de la persona: librería de QR `uqr`,
+  panel y términos). Migración `0017_facturacion_panel.sql`: columnas de términos y
+  `tope_diario` en `config_fiscal`, funciones `panel_listar_facturacion`,
+  `panel_facturacion_accion` y `panel_facturacion_tope`. Factura impresa en
+  `apps/web/src/componentes/FacturaImpresa.tsx` (Cobrado y Ventas). Términos en
+  `packages/shared/src/terminos.ts` (borrador, falta abogado). Tope diario en
+  `procesarComprobante`. Lo pendiente de pruebas se cancela al pasar a producción.
+
 - **Pruebas de ARCA con el CUIT de la persona** (se hizo un monotributo para probar). La
   configuración sale de `packages/servidor/src/entorno-afip.ts` (API, worker y prueba de
   conexión): con `cert.pem` y `clave.pem` en `/opt/mostrador/secretos/afip` (montado en
@@ -76,8 +84,7 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
   - Pantalla Más → Facturación ARCA. En Ventas se ve la factura y se puede reintentar.
   - Para probar: `AfipFalso` en `apps/api/test/afip-falso.ts` y en el servidor de e2e.
   - Producción: `AFIPSDK_PRODUCCION=1`, `MOSTRADOR_CUIT` y el certificado.
-  - Falta: ticket con QR (librería nueva, consultar), protecciones en el panel (suspender, tope,
-    alertas), términos, responsables inscriptos.
+  - Falta: responsables inscriptos, factura a nombre del cliente, CAEA.
 
 - **Compras como factura de compra** (estilo Odoo, pedido de la persona; migración compatible
   `0015_factura_compra.sql`):

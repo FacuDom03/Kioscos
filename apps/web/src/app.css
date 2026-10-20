@@ -2611,7 +2611,8 @@ details summary {
 }
 
 .remito-impreso,
-.cambio-impreso {
+.cambio-impreso,
+.factura-impresa {
   display: none;
 }
 
@@ -2625,11 +2626,25 @@ details summary {
   html.imprimiendo-remito .impreso:not(.remito-impreso),
   html:not(.imprimiendo-cambio) .cambio-impreso,
   html.imprimiendo-cambio .impreso:not(.cambio-impreso),
-  html.imprimiendo-presupuesto .impreso {
+  html.imprimiendo-presupuesto .impreso,
+  html:not(.imprimiendo-factura) .factura-impresa,
+  html.imprimiendo-factura .impreso:not(.factura-impresa) {
     display: none !important;
   }
-  html.imprimiendo-cambio .cambio-impreso {
+  html.imprimiendo-cambio .cambio-impreso,
+  html.imprimiendo-factura .factura-impresa {
     display: block;
+  }
+  .impreso__tipo {
+    font-weight: 700;
+    font-size: 15px;
+    text-align: center;
+    margin-bottom: 0;
+  }
+  .impreso__qr {
+    display: flex;
+    justify-content: center;
+    margin: 2mm 0;
   }
   html.imprimiendo-remito .remito-impreso {
     display: block;
@@ -3386,6 +3401,33 @@ details summary {
 .datos-fiscales dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.terminos {
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.terminos summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.terminos h3 {
+  font-size: 17px;
+  margin: 12px 0 4px;
+}
+
+.terminos h4 {
+  font-size: 15px;
+  margin: 10px 0 2px;
+}
+
+.terminos p {
+  margin: 0 0 6px;
+  max-width: 70ch;
 }
 
 .comprobante {

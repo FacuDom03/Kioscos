@@ -6,6 +6,8 @@
 //
 // En los cuerpos, "$B:<tabla>" se reemplaza por un ID de esa tabla del kiosco B.
 
+import { TERMINOS_FACTURACION } from '@mostrador/shared';
+
 export const RUTAS_PUBLICAS: readonly string[] = [
   'GET /health',
   'POST /api/v1/auth/login',
@@ -384,7 +386,11 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
       condicion: 'monotributo',
       puntoVenta: 3,
       domicilio: 'Calle 1',
+      aceptaTerminos: true,
     },
+  }),
+  caso('POST', '/api/v1/facturacion/terminos', 'escribe_solo_lo_propio', {
+    cuerpo: { version: TERMINOS_FACTURACION.version },
   }),
   caso('POST', '/api/v1/facturacion/verificar', 'escribe_solo_lo_propio'),
   caso('POST', '/api/v1/facturacion/estado', 'escribe_solo_lo_propio', {

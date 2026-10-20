@@ -500,6 +500,11 @@ export interface ConfigFiscalTabla {
   ultimo_error: string | null;
   verificada_en: Fecha | null;
   activada_en: Fecha | null;
+  terminos_version: string | null;
+  terminos_aceptados_en: Fecha | null;
+  terminos_aceptados_por: string | null;
+  /** Tope de lo facturado por día, en centavos. */
+  tope_diario: Generated<number>;
   created_at: FechaDefault;
   updated_at: FechaDefault;
 }

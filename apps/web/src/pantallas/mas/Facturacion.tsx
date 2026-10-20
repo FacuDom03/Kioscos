@@ -1,4 +1,4 @@
-import { cuitValido } from '@mostrador/shared';
+import { TERMINOS_FACTURACION, cuitValido, diaCorto } from '@mostrador/shared';
 import { useState, type FormEvent } from 'react';
 import { avisar, confirmar } from '../../componentes/Dialogos.tsx';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
@@ -33,6 +33,7 @@ interface Estado {
   config: Config | null;
   pendientes: number;
   rechazados: number;
+  terminos: { vigente: string; aceptada: string | null; aceptadosEn: string | null };
 }
 
 const ESTADOS: Record<Config['estado'], { texto: string; detalle: string; ok: boolean }> = {
@@ -95,6 +96,15 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
     }
   }
 
+  async function aceptarTerminos() {
+    try {
+      await api('POST', '/api/v1/facturacion/terminos', { version: TERMINOS_FACTURACION.version });
+      await probar();
+    } catch (e) {
+      setAviso({ tipo: 'error', texto: mensajeDeError(e) });
+    }
+  }
+
   async function cambiarEstado(estado: 'pausada' | 'activa' | 'baja') {
     if (
       estado === 'baja' &&
@@ -136,6 +146,7 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
   const c = datos.config;
   const conDatos = c && c.estado !== 'baja';
   const estado = c ? ESTADOS[c.estado] : null;
+  const terminosAlDia = datos.terminos.aceptada === datos.terminos.vigente;
 
   return (
     <div className="pantalla facturacion">
@@ -252,6 +263,29 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
             </section>
           )}
 
+          {conDatos && !editando && !terminosAlDia && c.estado !== 'suspendida' && (
+            <section className="conexion" aria-labelledby="titulo-terminos">
+              <h2 id="titulo-terminos" className="subtitulo">
+                Términos de la facturación
+              </h2>
+              <Aviso tipo="info">
+                Para seguir facturando, leé y aceptá los términos de la facturación.
+              </Aviso>
+              <Terminos />
+              {dueno ? (
+                <button
+                  type="button"
+                  className="m-boton m-boton--principal"
+                  onClick={() => void aceptarTerminos()}
+                >
+                  Leí y acepto los términos
+                </button>
+              ) : (
+                <p className="texto-suave">Los acepta el dueño.</p>
+              )}
+            </section>
+          )}
+
           {conDatos && !editando && (
             <section className="conexion" aria-labelledby="titulo-datos">
               <div className="conexion__cabeza">
@@ -281,6 +315,12 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
                     <dd>{c.iibb}</dd>
                   </>
                 )}
+                {terminosAlDia && datos.terminos.aceptadosEn && (
+                  <>
+                    <dt>Términos</dt>
+                    <dd>Aceptados el {diaCorto(datos.terminos.aceptadosEn)}</dd>
+                  </>
+                )}
               </dl>
             </section>
           )}
@@ -292,6 +332,7 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
           {dueno && (!conDatos || editando) && (
             <FormularioFiscal
               inicial={c}
+              pideTerminos={!terminosAlDia}
               alCancelar={conDatos ? () => setEditando(false) : undefined}
               alGuardar={async (r) => {
                 setEditando(false);
@@ -361,12 +402,31 @@ function Guia({ cuitMostrador, prueba }: { cuitMostrador: string; prueba: boolea
   );
 }
 
+/** El texto completo de los términos, desplegable. */
+function Terminos() {
+  return (
+    <details className="terminos">
+      <summary>Leer los términos y condiciones</summary>
+      <h3>{TERMINOS_FACTURACION.titulo}</h3>
+      {TERMINOS_FACTURACION.secciones.map((x) => (
+        <section key={x.titulo}>
+          <h4>{x.titulo}</h4>
+          <p>{x.texto}</p>
+        </section>
+      ))}
+      <p className="texto-suave">Versión {diaCorto(TERMINOS_FACTURACION.version)}</p>
+    </details>
+  );
+}
+
 function FormularioFiscal({
   inicial,
+  pideTerminos,
   alGuardar,
   alCancelar,
 }: {
   inicial: Config | null;
+  pideTerminos: boolean;
   alGuardar: (r: { activa: boolean; mensaje: string | null }) => Promise<void>;
   alCancelar: (() => void) | undefined;
 }) {
@@ -399,6 +459,7 @@ function FormularioFiscal({
           domicilio: texto('domicilio'),
           ...(texto('iibb') ? { iibb: texto('iibb') } : {}),
           ...(texto('inicio') ? { inicioActividades: texto('inicio') } : {}),
+          ...(pideTerminos ? { aceptaTerminos: true } : {}),
         },
       );
       await alGuardar(r);
@@ -472,6 +533,15 @@ function FormularioFiscal({
         type="date"
         defaultValue={inicial?.inicioActividades ?? ''}
       />
+      {pideTerminos && (
+        <div className="campo">
+          <Terminos />
+          <label className="opcion opcion--check">
+            <input type="checkbox" name="aceptaTerminos" required /> Leí y acepto los términos y
+            condiciones de la facturación
+          </label>
+        </div>
+      )}
       {error && <Aviso>{error}</Aviso>}
       <div className="acciones">
         <button className="m-boton m-boton--principal" disabled={guardando}>

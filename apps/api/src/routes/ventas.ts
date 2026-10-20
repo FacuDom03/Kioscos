@@ -10,7 +10,12 @@ import {
   eventosEsperados,
   type AvisoPendiente,
 } from '../servicios/avisos.ts';
-import { alAnularVenta, comprobantesDeVenta, facturasDeVentas } from '../servicios/facturacion.ts';
+import {
+  alAnularVenta,
+  comprobantesDeVenta,
+  emisorFiscal,
+  facturasDeVentas,
+} from '../servicios/facturacion.ts';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { moverStock } from '../servicios/stock.ts';
@@ -213,13 +218,16 @@ export async function rutasVentas(app: FastifyInstance): Promise<void> {
           .select(['venta_item_id', 'producto_id', 'descripcion', 'cantidad', 'importe'])
           .where('venta_id', '=', id)
           .execute();
+        const comprobantes = await comprobantesDeVenta(tx, id, modoFacturacion());
         return {
           ...v,
           items: items.map((i) => ({ ...i, cantidad: Number(i.cantidad) })),
           pagos,
           descuentos,
           devoluciones: devoluciones.map((d) => ({ ...d, cantidad: Number(d.cantidad) })),
-          comprobantes: await comprobantesDeVenta(tx, id, modoFacturacion()),
+          comprobantes,
+          // Para imprimir la factura.
+          emisor: comprobantes.length ? await emisorFiscal(tx) : null,
         };
       });
     },

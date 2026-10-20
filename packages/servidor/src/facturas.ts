@@ -8,6 +8,7 @@ import {
   puntoDeVentaDePrueba,
   sumarDias,
   TIPO_COMPROBANTE,
+  TERMINOS_FACTURACION,
   uuidv7,
   type TipoFactura,
 } from '@mostrador/shared';
@@ -68,6 +69,8 @@ export async function verificarFacturacion(
     tx.selectFrom('config_fiscal').selectAll().executeTakeFirst(),
   );
   if (!c) return { activa: false, mensaje: 'Falta cargar los datos de facturación.' };
+  if (c.terminos_version !== TERMINOS_FACTURACION.version)
+    return { activa: false, mensaje: 'Falta aceptar los términos de la facturación.' };
   let mensaje: string | null = null;
   try {
     const cuit = cuitEmisor(c.cuit, f);
@@ -194,6 +197,25 @@ export async function procesarComprobante(
         .where('estado', '=', 'pendiente')
         .execute(),
     );
+
+  // Tope diario (decisión 010): lo que lo pase espera a que Mostrador lo revise en el panel.
+  // Las notas de crédito no cuentan, y un intento que ya tomó número se termina.
+  if (!comp.anula_id && !comp.numero) {
+    const hecho = await withKiosco(base, kioscoId, (tx) =>
+      tx
+        .selectFrom('comprobantes')
+        .select((eb) => eb.fn.sum<string>('total').as('suma'))
+        .where('estado', '=', 'autorizado')
+        .where('anula_id', 'is', null)
+        .where('fecha', '=', hoy)
+        .executeTakeFirst(),
+    );
+    if (Number(hecho?.suma ?? 0) + comp.total > config.tope_diario) {
+      const motivo = 'Se llegó al tope diario de facturación: Mostrador lo revisa y sale después.';
+      await guardar({ ultimo_error: motivo });
+      return { estado: 'omitido', motivo };
+    }
+  }
 
   try {
     // Un intento anterior ya tomó un número: si ARCA lo autorizó y se perdió la respuesta, se

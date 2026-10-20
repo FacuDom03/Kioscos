@@ -248,5 +248,68 @@ export async function construirPanel(
     return { enlace: `${config.origenApp}/soporte#${token}` };
   });
 
+  // Facturación de los comercios (decisión 010): autorizaciones por aceptar, alertas, tope y
+  // suspensión.
+  app.get('/panel/api/facturacion', async () => {
+    const { rows } = await q(sql<FilaFacturacion>`select * from panel_listar_facturacion()`);
+    return rows.map((r) => ({ ...r, alertas: alertasFacturacion(r) }));
+  });
+
+  app.post('/panel/api/facturacion/:id/accion', async (req) => {
+    const { id } = validar(z.strictObject({ id: z.uuid() }), req.params);
+    const { accion } = validar(
+      z.strictObject({ accion: z.enum(['aceptada', 'suspender', 'reactivar']) }),
+      req.body,
+    );
+    const { rows } = await q(
+      sql<{
+        ok: boolean;
+      }>`select panel_facturacion_accion(${id}, ${accion}, ${admin(req).admin_id}) as ok`,
+    );
+    if (!rows[0]?.ok) throw new ErrorPanel(409, 'No se puede hacer eso con esta facturación.');
+    return { ok: true };
+  });
+
+  app.put('/panel/api/facturacion/:id/tope', async (req) => {
+    const { id } = validar(z.strictObject({ id: z.uuid() }), req.params);
+    // En pesos enteros, de $ 1.000 a $ 1.000.000.000.
+    const { pesos } = validar(
+      z.strictObject({ pesos: z.number().int().min(1000).max(1_000_000_000) }),
+      req.body,
+    );
+    const { rows } = await q(
+      sql<{
+        ok: boolean;
+      }>`select panel_facturacion_tope(${id}, ${pesos * 100}, ${admin(req).admin_id}) as ok`,
+    );
+    if (!rows[0]?.ok) throw new ErrorPanel(404, 'Ese comercio no tiene facturación.');
+    return { ok: true };
+  });
+
   return app;
+}
+
+interface FilaFacturacion {
+  estado: string;
+  tope_diario: string | number;
+  facturado_hoy: string | number;
+  facturas_hoy: string | number;
+  notas_hoy: string | number;
+  rechazados: string | number;
+  mayor_repeticion_hoy: string | number;
+}
+
+/** Lo que conviene mirar a mano (decisión 010, alertas), en palabras. */
+export function alertasFacturacion(r: FilaFacturacion): string[] {
+  const n = (v: string | number) => Number(v);
+  const alertas: string[] = [];
+  if (r.estado === 'pendiente') alertas.push('Espera que aceptes la autorización en ARCA');
+  if (r.estado === 'desconectada') alertas.push('ARCA no tiene la autorización');
+  // Lo que pasa el tope queda pendiente hasta subirlo (o hasta mañana).
+  if (n(r.facturado_hoy) >= n(r.tope_diario) * 0.9) alertas.push('En el tope diario o cerca');
+  if (n(r.notas_hoy) >= 5 && n(r.notas_hoy) * 5 >= n(r.facturas_hoy))
+    alertas.push('Muchas anulaciones hoy');
+  if (n(r.mayor_repeticion_hoy) >= 5) alertas.push('El mismo importe alto, muchas veces');
+  if (n(r.rechazados) > 0) alertas.push('Facturas rechazadas por ARCA');
+  return alertas;
 }

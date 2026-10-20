@@ -123,6 +123,109 @@ async function cargarKioscos() {
   }
 }
 
+const ESTADOS_FACTURACION = {
+  pendiente: 'Esperando que aceptes',
+  activa: 'Activa',
+  pausada: 'En pausa (la pausó el comercio)',
+  desconectada: 'Desconectada en ARCA',
+  suspendida: 'Suspendida por Mostrador',
+};
+
+const pesos = (centavos) => `$ ${Math.round(Number(centavos) / 100).toLocaleString('es-AR')}`;
+const cuitConGuiones = (c) => `${c.slice(0, 2)}-${c.slice(2, 10)}-${c.slice(10)}`;
+
+async function accionFacturacion(kioscoId, accion) {
+  try {
+    await api('POST', `/panel/api/facturacion/${kioscoId}/accion`, { accion });
+    await cargarFacturacion();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function cargarFacturacion() {
+  const filas = $('#filas-facturacion');
+  const lista = await api('GET', '/panel/api/facturacion');
+  filas.replaceChildren();
+  $('#sin-facturacion').hidden = lista.length > 0;
+  for (const f of lista) {
+    const acciones = el('td', {});
+    if (f.estado === 'pendiente' || f.estado === 'desconectada')
+      acciones.append(
+        el('button', {
+          type: 'button',
+          texto: 'Ya lo acepté',
+          onclick: () => accionFacturacion(f.kiosco_id, 'aceptada'),
+        }),
+      );
+    if (f.estado === 'suspendida')
+      acciones.append(
+        el('button', {
+          type: 'button',
+          texto: 'Reactivar',
+          onclick: () => accionFacturacion(f.kiosco_id, 'reactivar'),
+        }),
+      );
+    else
+      acciones.append(
+        el('button', {
+          type: 'button',
+          texto: 'Suspender',
+          onclick: () => {
+            if (confirm(`¿Suspender la facturación de ${f.comercio}? Corta en el momento.`))
+              accionFacturacion(f.kiosco_id, 'suspender');
+          },
+        }),
+      );
+    acciones.append(
+      el('button', {
+        type: 'button',
+        texto: 'Cambiar tope',
+        onclick: async () => {
+          const texto = prompt(
+            'Tope diario en pesos (sin puntos)',
+            String(Math.round(Number(f.tope_diario) / 100)),
+          );
+          if (!texto) return;
+          try {
+            await api('PUT', `/panel/api/facturacion/${f.kiosco_id}/tope`, {
+              pesos: Number(texto.replace(/\D/g, '')),
+            });
+            await cargarFacturacion();
+          } catch (e) {
+            alert(e.message);
+          }
+        },
+      }),
+    );
+    const alertas = el('td', {});
+    if (f.alertas.length === 0) alertas.append(el('span', { texto: '—' }));
+    for (const a of f.alertas) alertas.append(el('span', { class: 'alerta', texto: a }));
+    filas.append(
+      el(
+        'tr',
+        {},
+        el('td', { texto: f.comercio }),
+        el('td', { texto: `${cuitConGuiones(f.cuit)} · ${f.razon_social}` }),
+        el('td', { texto: String(f.punto_venta) }),
+        el('td', {
+          texto: `${ESTADOS_FACTURACION[f.estado] ?? f.estado}${f.ultimo_error && f.estado !== 'activa' ? ` — ${f.ultimo_error}` : ''}`,
+        }),
+        el('td', {
+          texto: `${pesos(f.facturado_hoy)} de ${pesos(f.tope_diario)} · ${f.facturas_hoy} facturas, ${f.notas_hoy} notas de crédito · ${f.pendientes} por salir`,
+        }),
+        alertas,
+        el('td', {
+          texto: f.terminos_aceptados_en
+            ? `Versión ${f.terminos_version}, ${fecha(f.terminos_aceptados_en)}`
+            : 'Sin aceptar',
+        }),
+        acciones,
+      ),
+    );
+  }
+}
+
 async function iniciar() {
   try {
     const yo = await api('GET', '/panel/api/yo');
@@ -130,6 +233,7 @@ async function iniciar() {
     $('#login').hidden = true;
     $('#kioscos').hidden = false;
     await cargarKioscos();
+    await cargarFacturacion();
   } catch {
     $('#login').hidden = false;
     $('#kioscos').hidden = true;

@@ -26,6 +26,10 @@ test('se activa la facturación, se cargan los datos y cada venta sale con factu
   await page.getByLabel('Razón social o nombre').fill('Kiosco Anita');
   await page.getByLabel('Punto de venta (Web Services)').fill('3');
   await page.getByLabel('Domicilio comercial').fill('Av. Siempreviva 742');
+  // Los términos: se leen desplegándolos y hay que aceptarlos para seguir.
+  await page.getByText('Leer los términos y condiciones').click();
+  await expect(page.getByRole('heading', { name: 'Lo que es responsabilidad tuya' })).toBeVisible();
+  await page.getByLabel(/Leí y acepto los términos/).check();
   await page.getByRole('button', { name: 'Guardar y probar' }).click();
   await expect(page.getByText(/Revisá el CUIT/)).toBeVisible();
   await page.getByLabel('CUIT').fill('20-12345678-6');
@@ -49,6 +53,29 @@ test('se activa la facturación, se cargan los datos y cada venta sale con factu
   await page.getByRole('button', { name: 'Cobrar en efectivo' }).click();
   await expect(page.getByRole('heading', { name: 'Cobrado' })).toBeVisible();
 
+  // Imprimir factura: espera el CAE y sale con los datos del comercio y el QR de ARCA.
+  await page.evaluate(() => {
+    window.print = () => undefined;
+  });
+  await page.getByRole('button', { name: 'Imprimir factura' }).click();
+  const factura = page.locator('.factura-impresa');
+  await expect(factura).toBeAttached({ timeout: 15_000 });
+  await page.evaluate(() => document.documentElement.classList.add('imprimiendo-factura'));
+  await page.emulateMedia({ media: 'print' });
+  await expect(factura).toBeVisible();
+  const texto = await factura.innerText();
+  expect(texto).toContain('Kiosco Anita');
+  expect(texto).toContain('CUIT 20-12345678-6');
+  expect(texto).toContain('Responsable Monotributo');
+  expect(texto).toMatch(/FACTURA C/);
+  expect(texto).toMatch(/N° \d{5}-00000001/);
+  expect(texto).toMatch(/CAE: \d{14}/);
+  expect(texto).toContain('DE PRUEBA');
+  await expect(factura.locator('svg.qr')).toBeVisible();
+  await expect(page.locator('.impreso:not(.factura-impresa)').first()).toBeHidden();
+  await page.emulateMedia({ media: null });
+  await page.evaluate(() => document.documentElement.classList.remove('imprimiendo-factura'));
+
   await page.goto('/ventas');
   const fila = page.getByRole('button', { name: /Factura C \d{5}-00000001/ });
   await expect(async () => {
@@ -59,6 +86,7 @@ test('se activa la facturación, se cargan los datos y cada venta sale con factu
   const detalle = page.getByRole('dialog', { name: 'Venta' });
   await expect(detalle.getByText(/^CAE \d{14}/)).toBeVisible();
   await expect(detalle.getByText('(de prueba, no vale)')).toBeVisible();
+  await expect(detalle.getByRole('button', { name: 'Imprimir factura' })).toBeVisible();
   await expect(detalle.getByRole('link', { name: 'Ver en ARCA' })).toHaveAttribute(
     'href',
     /^https:\/\/www\.afip\.gob\.ar\/fe\/qr\/\?p=/,

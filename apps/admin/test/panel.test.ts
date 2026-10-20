@@ -12,7 +12,7 @@ import type { FastifyInstance } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { construirPanel } from '../src/app.ts';
+import { alertasFacturacion, construirPanel } from '../src/app.ts';
 
 const ORIGEN = 'http://panel.test';
 let base: BaseApp;
@@ -24,7 +24,7 @@ const email = 'yo@mostrador.test';
 let cookie = '';
 
 async function pedir(
-  metodo: 'GET' | 'POST' | 'PATCH',
+  metodo: 'GET' | 'POST' | 'PATCH' | 'PUT',
   url: string,
   cuerpo?: unknown,
   origen = ORIGEN,
@@ -159,6 +159,89 @@ describe('panel admin', () => {
     const r = await pedir('POST', `/panel/api/kioscos/${k.id}/soporte`, {});
     expect(r.statusCode).toBe(200);
     expect(r.json().enlace).toMatch(/^https:\/\/app\.test\/soporte#/);
+  });
+
+  it('facturación: acepta la autorización, suspende, reactiva y cambia el tope', async () => {
+    const lista = (await pedir('GET', '/panel/api/kioscos')).json<
+      { id: string; nombre: string }[]
+    >();
+    const k = lista.find((x) => x.nombre === 'Kiosco Nuevo')!;
+    await admin.query(
+      `insert into config_fiscal (id, kiosco_id, cuit, razon_social, condicion, punto_venta, domicilio, verificada_en)
+       values ($1, $2, '20123456786', 'Ana Pérez', 'monotributo', 4, 'Calle 1', now())`,
+      [uuidv7(), k.id],
+    );
+    const fila = async () =>
+      (await pedir('GET', '/panel/api/facturacion'))
+        .json<{ kiosco_id: string; estado: string; tope_diario: string; alertas: string[] }[]>()
+        .find((f) => f.kiosco_id === k.id)!;
+    expect(await fila()).toMatchObject({
+      estado: 'pendiente',
+      alertas: ['Espera que aceptes la autorización en ARCA'],
+    });
+    const accion = (a: string) =>
+      pedir('POST', `/panel/api/facturacion/${k.id}/accion`, { accion: a });
+    // "Ya lo acepté": la próxima revisión del worker prueba en el momento.
+    expect((await accion('aceptada')).statusCode).toBe(200);
+    const { rows: r1 } = await admin.query(
+      `select verificada_en from config_fiscal where kiosco_id = $1`,
+      [k.id],
+    );
+    expect(r1[0].verificada_en).toBeNull();
+
+    expect((await accion('suspender')).statusCode).toBe(200);
+    expect((await fila()).estado).toBe('suspendida');
+    expect((await accion('suspender')).statusCode).toBe(409);
+    expect((await accion('reactivar')).statusCode).toBe(200);
+    expect((await fila()).estado).toBe('pendiente');
+    expect((await accion('borrar')).statusCode).toBe(400);
+
+    expect(
+      (await pedir('PUT', `/panel/api/facturacion/${k.id}/tope`, { pesos: 800000 })).statusCode,
+    ).toBe(200);
+    expect(Number((await fila()).tope_diario)).toBe(80_000_000);
+    expect(
+      (await pedir('PUT', `/panel/api/facturacion/${k.id}/tope`, { pesos: 10 })).statusCode,
+    ).toBe(400);
+
+    const { rows: aud } = await admin.query(
+      `select accion from auditoria where kiosco_id = $1 and accion like 'facturacion.panel.%' order by created_at`,
+      [k.id],
+    );
+    expect(aud.map((a) => a.accion)).toEqual([
+      'facturacion.panel.aceptada',
+      'facturacion.panel.suspender',
+      'facturacion.panel.reactivar',
+      'facturacion.panel.tope',
+    ]);
+  });
+
+  it('alertas de facturación en palabras', () => {
+    const base = {
+      estado: 'activa',
+      tope_diario: '100000',
+      facturado_hoy: '0',
+      facturas_hoy: '0',
+      notas_hoy: '0',
+      rechazados: '0',
+      mayor_repeticion_hoy: '0',
+    };
+    expect(alertasFacturacion(base)).toEqual([]);
+    expect(
+      alertasFacturacion({
+        ...base,
+        facturado_hoy: '95000',
+        facturas_hoy: '10',
+        notas_hoy: '6',
+        mayor_repeticion_hoy: '5',
+        rechazados: '1',
+      }),
+    ).toEqual([
+      'En el tope diario o cerca',
+      'Muchas anulaciones hoy',
+      'El mismo importe alto, muchas veces',
+      'Facturas rechazadas por ARCA',
+    ]);
   });
 
   it('rechaza pedidos de otro origen', async () => {

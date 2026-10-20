@@ -1,7 +1,9 @@
 # 010. Facturación electrónica ARCA: delegación, sin guardar claves fiscales (borrador)
 
 **Estado:** en marcha (octubre de 2026). Módulo de facturación en modo de prueba, con tablas
-(migración 0016), cola de facturas y alta guiada. Ver "Estado de la implementación" en
+(migración 0016), cola de facturas y alta guiada. Probado con el CUIT del dueño en el ambiente de
+pruebas de ARCA. Hechas las protecciones 5, 6, 7 y 10 (migración 0017: alertas, tope diario,
+suspensión desde el panel y términos aceptados). Ver "Estado de la implementación" en
 `docs/FACTURACION.md`. Lo que sigue de este documento era el borrador original.
 Es un acuerdo de diseño con el dueño del proyecto, no una decisión cerrada: lo marcado como
 "verificar" se confirma con la documentación vigente antes de programar. Nada de esto es

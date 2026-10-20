@@ -1,6 +1,15 @@
 import { formatearPlata } from '@mostrador/shared';
 import { Ticket } from '@mostrador/ui';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { api } from '../../nucleo/api.ts';
+import { sincronizar } from '../../nucleo/bandeja.ts';
+import {
+  FacturaImpresa,
+  imprimirFactura,
+  type ComprobanteVenta,
+  type Emisor,
+  type VentaFacturada,
+} from '../../componentes/FacturaImpresa.tsx';
 import type { VentaHecha } from '../../nucleo/cobrar.ts';
 import { cantidadEnTicket } from '../../nucleo/ticket.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
@@ -11,6 +20,82 @@ import { useNegocio } from '../../nucleo/rubro.ts';
 import { enPalabras, enlaceWhatsAppCliente, textoCuenta } from '../../nucleo/clientes.ts';
 import { configEquipo } from '../../nucleo/equipo.ts';
 
+type DetalleFacturado = VentaFacturada & {
+  comprobantes?: ComprobanteVenta[];
+  emisor?: Emisor | null;
+};
+
+/** Espera el CAE de la venta recién cobrada y la imprime como factura. */
+function BotonFactura({ ventaId }: { ventaId: string }) {
+  const [esperando, setEsperando] = useState(false);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [lista, setLista] = useState<{
+    venta: DetalleFacturado;
+    factura: ComprobanteVenta;
+    emisor: Emisor;
+  } | null>(null);
+  const montado = useRef(true);
+  useEffect(
+    () => () => {
+      montado.current = false;
+    },
+    [],
+  );
+
+  async function pedir() {
+    if (lista) return imprimirFactura();
+    setEsperando(true);
+    setMensaje('Esperando que ARCA autorice la factura…');
+    const hasta = Date.now() + 30_000;
+    while (montado.current && Date.now() < hasta) {
+      await sincronizar().catch(() => false);
+      const v = await api<DetalleFacturado>('GET', `/api/v1/ventas/${ventaId}`).catch(() => null);
+      const f = v?.comprobantes?.find((c) => !c.anulaId);
+      if (v && !f) {
+        setMensaje('Esta venta no se factura: la facturación no está activa.');
+        return setEsperando(false);
+      }
+      if (v && f?.estado === 'autorizado' && v.emisor) {
+        setLista({ venta: v, factura: f, emisor: v.emisor });
+        setMensaje(null);
+        setEsperando(false);
+        setTimeout(imprimirFactura, 50);
+        return;
+      }
+      if (f && (f.estado === 'rechazado' || f.estado === 'cancelado')) {
+        setMensaje(`No se pudo facturar. ${f.error ?? ''} Revisalo en Ventas.`);
+        return setEsperando(false);
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    if (!montado.current) return;
+    setMensaje('La factura todavía no salió. La podés imprimir después desde Ventas.');
+    setEsperando(false);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="m-boton"
+        onClick={() => void pedir()}
+        disabled={esperando}
+        aria-busy={esperando}
+      >
+        Imprimir factura
+      </button>
+      {mensaje && (
+        <p className="texto-suave" role="status">
+          {mensaje}
+        </p>
+      )}
+      {lista && (
+        <FacturaImpresa comprobante={lista.factura} emisor={lista.emisor} venta={lista.venta} />
+      )}
+    </>
+  );
+}
+
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
@@ -19,6 +104,7 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
   const negocio = useNegocio();
   const conRemito = negocio.tiene('presupuestos');
   const conCambio = negocio.tiene('regalo');
+  const conFactura = negocio.tiene('facturacion') && venta.total > 0;
   const boton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (configEquipo().imprimirAlCobrar) setTimeout(() => window.print(), 300);
@@ -116,6 +202,7 @@ export function Cobrado({ venta, alNuevaVenta }: { venta: VentaHecha; alNuevaVen
             Imprimir ticket de cambio (para regalo)
           </button>
         )}
+        {conFactura && <BotonFactura ventaId={venta.id} />}
         <button type="button" className="m-boton" onClick={() => window.print()}>
           Imprimir ticket
         </button>

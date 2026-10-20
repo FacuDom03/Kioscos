@@ -1,8 +1,6 @@
 import {
   COMPROBANTES_COMPRA,
   diaCorto,
-  letraDe,
-  numeroVisible,
   diferenciaEnPalabras,
   formatearCantidad,
   formatearPlata,
@@ -17,6 +15,13 @@ import { hoyArgentina } from '../nucleo/descargar.ts';
 import { useSesionCompleta } from '../nucleo/sesion.tsx';
 import { useDatos } from '../nucleo/usar-datos.ts';
 import { pedirTexto } from './Dialogos.tsx';
+import {
+  FacturaImpresa,
+  imprimirFactura,
+  nombreComprobante,
+  type ComprobanteVenta,
+  type Emisor,
+} from './FacturaImpresa.tsx';
 
 // Piezas del historial que usan las secciones Ventas, Compras, Caja y Stock: listas por período
 // y el detalle de cada venta, compra o cierre al tocarlo.
@@ -130,10 +135,6 @@ interface VentaFila {
     estado: string;
   } | null;
 }
-
-/** "Factura C 00003-00000124" */
-const nombreComprobante = (tipo: TipoFiscal, puntoDeVenta: number, numero: number | null) =>
-  `${tipo.startsWith('nota') ? 'Nota de crédito' : 'Factura'} ${letraDe(tipo)}${numero ? ` ${numeroVisible(puntoDeVenta, numero)}` : ''}`;
 
 /** La factura de una venta, en palabras cortas para la lista. */
 function textoFactura(f: NonNullable<VentaFila['factura']>): string | null {
@@ -404,34 +405,28 @@ interface VentaDetalle {
   }[];
   descuentos: { descripcion: string; monto: number }[];
   devoluciones: { descripcion: string; cantidad: number; importe: number }[];
-  comprobantes?: Comprobante[];
-}
-
-interface Comprobante {
-  id: string;
-  tipo: TipoFiscal;
-  puntoDeVenta: number;
-  numero: number | null;
-  fecha: string | null;
-  estado: 'pendiente' | 'autorizado' | 'rechazado' | 'cancelado';
-  cae: string | null;
-  caeVence: string | null;
-  error: string | null;
-  prueba: boolean;
-  qr: string | null;
+  comprobantes?: ComprobanteVenta[];
+  emisor?: Emisor | null;
 }
 
 /** La factura (y la nota de crédito) de una venta, con lo que se puede hacer. */
 function Comprobantes({
-  lista,
+  venta,
   puedeReintentar,
   alCambiar,
 }: {
-  lista: Comprobante[];
+  venta: VentaDetalle;
   puedeReintentar: boolean;
   alCambiar: () => Promise<void>;
 }) {
+  const lista = venta.comprobantes ?? [];
   const [error, setError] = useState<string | null>(null);
+  const [aImprimir, setAImprimir] = useState<ComprobanteVenta | null>(null);
+  const imprimir = (c: ComprobanteVenta) => {
+    setAImprimir(c);
+    // Que React monte la factura antes de abrir la impresión.
+    setTimeout(imprimirFactura, 50);
+  };
   async function reintentar(id: string) {
     try {
       await api('POST', `/api/v1/comprobantes/${id}/reintentar`, {});
@@ -462,6 +457,11 @@ function Comprobantes({
               )}
             </p>
           )}
+          {c.estado === 'autorizado' && venta.emisor && (
+            <button type="button" className="m-boton" onClick={() => imprimir(c)}>
+              Imprimir {c.tipo.startsWith('nota') ? 'nota de crédito' : 'factura'}
+            </button>
+          )}
           {c.estado === 'pendiente' && (
             <p className="texto-suave">
               Facturando: sale apenas ARCA responda.{c.error && ` ${c.error}`}
@@ -481,6 +481,14 @@ function Comprobantes({
         </div>
       ))}
       {error && <Aviso>{error}</Aviso>}
+      {aImprimir && venta.emisor && (
+        <FacturaImpresa
+          comprobante={aImprimir}
+          emisor={venta.emisor}
+          venta={venta}
+          anulada={lista.find((x) => x.id === aImprimir.anulaId)}
+        />
+      )}
     </section>
   );
 }
@@ -655,11 +663,7 @@ function DetalleVenta({ url, alCambiar }: { url: string; alCambiar?: (() => void
         ))}
       </dl>
       {v.comprobantes && v.comprobantes.length > 0 && (
-        <Comprobantes
-          lista={v.comprobantes}
-          puedeReintentar={s.rol !== 'cajero'}
-          alCambiar={recargar}
-        />
+        <Comprobantes venta={v} puedeReintentar={s.rol !== 'cajero'} alCambiar={recargar} />
       )}
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
       {s.rol !== 'cajero' && v.estado === 'cobrada' && (

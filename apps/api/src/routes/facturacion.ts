@@ -1,7 +1,7 @@
 // Facturación electrónica ARCA (docs/FACTURACION.md): alta del comercio, estado y reintentos.
 // Es una función que el comercio prende ("facturacion" en módulos). Solo el dueño la configura.
 import type { FastifyInstance } from 'fastify';
-import { cuitValido, uuidv7 } from '@mostrador/shared';
+import { TERMINOS_FACTURACION, cuitValido, uuidv7 } from '@mostrador/shared';
 import { verificarFacturacion } from '@mostrador/servidor';
 import { z } from 'zod';
 import { datosInvalidos, ErrorPublico, noEncontrado } from '../errores.ts';
@@ -50,8 +50,14 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
               estado: c.estado,
               error: c.ultimo_error,
               verificadaEn: c.verificada_en,
+              topeDiario: c.tope_diario,
             }
           : null,
+        terminos: {
+          vigente: TERMINOS_FACTURACION.version,
+          aceptada: c?.terminos_version ?? null,
+          aceptadosEn: c?.terminos_aceptados_en ?? null,
+        },
         pendientes: n('pendiente'),
         rechazados: n('rechazado'),
       };
@@ -98,6 +104,7 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
         domicilio: z.string().trim().min(1).max(200),
         iibb: z.string().trim().min(1).max(30).optional(),
         inicioActividades: z.iso.date().optional(),
+        aceptaTerminos: z.literal(true).optional(),
       }),
       req.body,
     );
@@ -120,7 +127,23 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
           'suspendida',
           'La facturación de este comercio está suspendida. Escribinos para revisarla.',
         );
+      const conTerminos = previa?.terminos_version === TERMINOS_FACTURACION.version;
+      if (!conTerminos && !d.aceptaTerminos)
+        throw new ErrorPublico(
+          409,
+          'terminos',
+          'Para facturar tenés que leer y aceptar los términos de la facturación.',
+        );
+      const terminos =
+        !conTerminos && d.aceptaTerminos
+          ? {
+              terminos_version: TERMINOS_FACTURACION.version,
+              terminos_aceptados_en: new Date(),
+              terminos_aceptados_por: s.usuarioId,
+            }
+          : {};
       const valores = {
+        ...terminos,
         cuit: d.cuit,
         razon_social: d.razonSocial,
         condicion: d.condicion,
@@ -155,8 +178,43 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
         { condicion: d.condicion, puntoVenta: d.puntoVenta },
         req.ip,
       );
+      if (terminos.terminos_version)
+        await auditar(
+          tx,
+          s,
+          'facturacion.terminos',
+          { version: TERMINOS_FACTURACION.version },
+          req.ip,
+        );
     });
     return verificarFacturacion(app.base, s.kioscoId, f.facturador);
+  });
+
+  // Aceptar los términos vigentes (si cambiaron después del alta).
+  app.post('/api/v1/facturacion/terminos', { config: { roles: DUENO } }, async (req) => {
+    const { version } = validar(z.strictObject({ version: z.string().max(20) }), req.body);
+    if (version !== TERMINOS_FACTURACION.version)
+      throw new ErrorPublico(
+        409,
+        'terminos_viejos',
+        'Los términos cambiaron: recargá la pantalla.',
+      );
+    const s = req.completa;
+    await req.db(async (tx) => {
+      const c = await tx.selectFrom('config_fiscal').select('id').executeTakeFirst();
+      if (!c) throw noEncontrado();
+      await tx
+        .updateTable('config_fiscal')
+        .set({
+          terminos_version: version,
+          terminos_aceptados_en: new Date(),
+          terminos_aceptados_por: s.usuarioId,
+        })
+        .where('id', '=', c.id)
+        .execute();
+      await auditar(tx, s, 'facturacion.terminos', { version }, req.ip);
+    });
+    return { ok: true };
   });
 
   app.post(

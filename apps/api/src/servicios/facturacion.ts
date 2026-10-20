@@ -119,6 +119,7 @@ export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string, modo: M
       'cae_vence',
       'ultimo_error',
       'prueba',
+      'anula_id',
     ])
     .where('venta_id', '=', ventaId)
     .orderBy('created_at')
@@ -138,6 +139,7 @@ export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string, modo: M
     caeVence: c.cae_vence,
     error: c.ultimo_error,
     prueba: c.prueba,
+    anulaId: c.anula_id,
     // El QR del comprobante abre la página de ARCA que lo verifica.
     qr:
       c.estado === 'autorizado' && c.cae && c.numero && c.fecha && (cuit || c.prueba)
@@ -152,4 +154,22 @@ export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string, modo: M
           })
         : null,
   }));
+}
+
+/** Los datos del comercio que van impresos en la factura. */
+export async function emisorFiscal(tx: TxKiosco) {
+  const c = await tx
+    .selectFrom('config_fiscal')
+    .select(['cuit', 'razon_social', 'condicion', 'domicilio', 'iibb', 'inicio_actividades'])
+    .executeTakeFirst();
+  return c
+    ? {
+        cuit: c.cuit,
+        razonSocial: c.razon_social,
+        condicion: c.condicion,
+        domicilio: c.domicilio,
+        iibb: c.iibb,
+        inicioActividades: c.inicio_actividades,
+      }
+    : null;
 }

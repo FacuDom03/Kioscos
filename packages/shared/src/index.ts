@@ -113,3 +113,4 @@ export {
   type TipoDocumento,
   type TipoFactura,
 } from './factura.ts';
+export { TERMINOS_FACTURACION } from './terminos.ts';

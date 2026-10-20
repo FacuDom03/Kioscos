@@ -456,6 +456,8 @@ function FormularioFiscal({
         name="domicilio"
         defaultValue={inicial?.domicilio ?? ''}
         maxLength={200}
+        placeholder="Av. Siempreviva 742, Ramos Mejía, Buenos Aires (1704)"
+        ayuda="Calle y número, localidad, provincia y código postal, como figura en ARCA para este punto de venta. Sale impreso en el ticket."
         required
       />
       <Campo

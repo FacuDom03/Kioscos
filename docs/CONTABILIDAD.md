@@ -71,7 +71,9 @@ $105.012.519 · K $126.610.839. Recategorización hasta el 5 de febrero y el 5 d
 
 ## Plan propuesto
 
-**Fase 1, monotributo (lo que más sirve hoy):**
+**Fase 1, monotributo (lo que más sirve hoy).** Hechos 1 y 2 (migración
+`0019_categoria_monotributo.sql`, `packages/shared/src/monotributo.ts`, Más → Facturación ARCA y
+Exportar datos):
 
 1. **Aviso de tope de categoría:** lo facturado en los últimos 12 meses (las notas de crédito
    restan) contra el tope de su categoría, con aviso al 80 % y al 100 %, y recordatorio en enero y

@@ -2,7 +2,18 @@
 // cada anulación. Se crean pendientes en la misma transacción que la venta; la cola de facturas
 // les pide el CAE después, así cobrar nunca espera a ARCA.
 import type { TxKiosco } from '@mostrador/db';
-import { notaDeCredito, urlQrArca, uuidv7, type TipoFactura } from '@mostrador/shared';
+import {
+  categoriaPara,
+  diaArgentino,
+  notaDeCredito,
+  recategorizacion,
+  sumarDias,
+  topesVigentes,
+  urlQrArca,
+  uuidv7,
+  type CategoriaMonotributo,
+  type TipoFactura,
+} from '@mostrador/shared';
 import {
   CUIT_PRUEBAS_AFIPSDK,
   puntoDeVentaFiscal,
@@ -172,4 +183,56 @@ export async function emisorFiscal(tx: TxKiosco) {
         inicioActividades: c.inicio_actividades,
       }
     : null;
+}
+
+/** Lo facturado entre dos días (las notas de crédito restan), en centavos. */
+export async function facturadoEntre(tx: TxKiosco, desde: string, hasta: string, prueba: boolean) {
+  const r = await tx
+    .selectFrom('comprobantes')
+    .select((eb) =>
+      eb.fn
+        .sum<string>(
+          eb
+            .case()
+            .when('anula_id', 'is', null)
+            .then(eb.ref('total'))
+            .else(eb.neg(eb.ref('total')))
+            .end(),
+        )
+        .as('suma'),
+    )
+    .where('estado', '=', 'autorizado')
+    .where('prueba', '=', prueba)
+    .where('fecha', '>=', desde)
+    .where('fecha', '<=', hasta)
+    .executeTakeFirst();
+  return Number(r?.suma ?? 0);
+}
+
+/** El aviso del tope del monotributo: lo facturado en 12 meses contra el tope de su categoría. */
+export async function avisoMonotributo(
+  tx: TxKiosco,
+  categoria: CategoriaMonotributo | null,
+  prueba: boolean,
+  hoy = diaArgentino(),
+) {
+  const desde = sumarDias(hoy, -364);
+  const facturado = await facturadoEntre(tx, desde, hoy, prueba);
+  const topes = topesVigentes(hoy);
+  const recat = recategorizacion(hoy);
+  const enPeriodo = recat
+    ? await facturadoEntre(tx, recat.desde, recat.hastaPeriodo, prueba)
+    : null;
+  return {
+    categoria,
+    facturado,
+    desde,
+    tope: categoria ? topes[categoria] : null,
+    // Qué categoría alcanza para lo facturado (null: pasa la K).
+    alcanza: categoriaPara(facturado, hoy),
+    recategorizacion:
+      recat && enPeriodo !== null
+        ? { hasta: recat.hasta, facturado: enPeriodo, categoria: categoriaPara(enPeriodo, hoy) }
+        : null,
+  };
 }

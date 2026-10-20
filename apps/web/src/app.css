@@ -3430,6 +3430,29 @@ details summary {
   overflow-wrap: anywhere;
 }
 
+.tope {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.tope span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--ok);
+}
+
+.tope--cerca span {
+  background: var(--danger);
+  opacity: 0.6;
+}
+
+.tope--mal span {
+  background: var(--danger);
+}
+
 .terminos {
   border: var(--line-w) solid var(--line);
   border-radius: var(--radio);

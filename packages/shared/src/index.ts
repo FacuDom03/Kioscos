@@ -114,3 +114,11 @@ export {
   type TipoFactura,
 } from './factura.ts';
 export { TERMINOS_FACTURACION } from './terminos.ts';
+export {
+  CATEGORIAS_MONOTRIBUTO,
+  TOPES_MONOTRIBUTO,
+  categoriaPara,
+  recategorizacion,
+  topesVigentes,
+  type CategoriaMonotributo,
+} from './monotributo.ts';

@@ -6,6 +6,8 @@ import { verificarPassword } from '@mostrador/servidor';
 import {
   armarCsv,
   COMPROBANTES_COMPRA,
+  TIPO_COMPROBANTE,
+  TIPO_DOCUMENTO,
   diaCorto,
   escribirXlsx,
   planillaDeStock,
@@ -29,6 +31,14 @@ const MEDIOS: Record<string, string> = {
   qr_mp: 'QR Mercado Pago',
   transferencia: 'Transferencia',
   cuenta_corriente: 'A cuenta',
+};
+const NOMBRE_COMPROBANTE: Record<string, string> = {
+  factura_a: 'Factura A',
+  factura_b: 'Factura B',
+  factura_c: 'Factura C',
+  nota_credito_a: 'Nota de Crédito A',
+  nota_credito_b: 'Nota de Crédito B',
+  nota_credito_c: 'Nota de Crédito C',
 };
 const ESTADOS: Record<string, string> = {
   cobrada: 'Cobrada',
@@ -271,6 +281,98 @@ export async function rutasExportar(app: FastifyInstance): Promise<void> {
       .header('content-disposition', `attachment; filename="compras-${desde}-a-${hasta}.csv"`)
       .send(csv);
   });
+
+  // Facturas y notas de crédito con las columnas de "Mis Comprobantes" de ARCA, para que el
+  // contador las importe como siempre (Xubio, Colppy, Holistor). Las notas de crédito van en
+  // positivo, como en ARCA: el tipo dice que restan.
+  app.get(
+    '/api/v1/exportar/comprobantes.csv',
+    { config: { roles: ['dueno'] } },
+    async (req, reply) => {
+      const { desde, hasta } = validar(rango, req.query);
+      const prueba = app.facturacion?.facturador.prueba ?? true;
+      const csv = await req.db(async (tx) => {
+        const filas = await tx
+          .selectFrom('comprobantes')
+          .select([
+            'fecha',
+            'tipo',
+            'punto_venta',
+            'numero',
+            'cae',
+            'receptor_doc_tipo',
+            'receptor_doc_nro',
+            'total',
+          ])
+          .where('estado', '=', 'autorizado')
+          .where('prueba', '=', prueba)
+          .where('fecha', '>=', desde)
+          .where('fecha', '<=', hasta)
+          .orderBy('fecha')
+          .orderBy('tipo')
+          .orderBy('punto_venta')
+          .orderBy('numero')
+          .execute();
+        await auditar(
+          tx,
+          req.completa,
+          'exportacion.csv',
+          { tipo: 'comprobantes', desde, hasta },
+          req.ip,
+        );
+        return armarCsv([
+          [
+            'Fecha',
+            'Tipo',
+            'Punto de Venta',
+            'Número Desde',
+            'Número Hasta',
+            'Cód. Autorización',
+            'Tipo Doc. Receptor',
+            'Nro. Doc. Receptor',
+            'Denominación Receptor',
+            'Tipo Cambio',
+            'Moneda',
+            'Imp. Neto Gravado',
+            'Imp. Neto No Gravado',
+            'Imp. Op. Exentas',
+            'Otros Tributos',
+            'IVA',
+            'Imp. Total',
+          ],
+          ...filas.map((f) => [
+            f.fecha ? diaCorto(f.fecha) : '',
+            `${TIPO_COMPROBANTE[f.tipo]} - ${NOMBRE_COMPROBANTE[f.tipo]}`,
+            f.punto_venta,
+            f.numero,
+            f.numero,
+            f.cae,
+            f.receptor_doc_tipo
+              ? TIPO_DOCUMENTO[f.receptor_doc_tipo]
+              : TIPO_DOCUMENTO.sin_identificar,
+            f.receptor_doc_nro ?? 0,
+            '',
+            '1,00',
+            '$',
+            // Factura C: todo el importe es neto (no se discrimina IVA), como se le informa a ARCA.
+            pesos(f.total),
+            pesos(0),
+            pesos(0),
+            pesos(0),
+            pesos(0),
+            pesos(f.total),
+          ]),
+        ]);
+      });
+      return reply
+        .header('content-type', 'text/csv; charset=utf-8')
+        .header(
+          'content-disposition',
+          `attachment; filename="comprobantes-${desde}-a-${hasta}.csv"`,
+        )
+        .send(csv);
+    },
+  );
 
   // Todos los datos del kiosco en un JSON (sin contraseñas, tokens ni hashes).
   app.get('/api/v1/exportar/todo.json', { config: { roles: ['dueno'] } }, async (req, reply) => {

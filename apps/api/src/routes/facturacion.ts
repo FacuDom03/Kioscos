@@ -1,7 +1,14 @@
 // Facturación electrónica ARCA (docs/FACTURACION.md): alta del comercio, estado y reintentos.
 // Es una función que el comercio prende ("facturacion" en módulos). Solo el dueño la configura.
 import type { FastifyInstance } from 'fastify';
-import { TERMINOS_FACTURACION, cuitValido, uuidv7 } from '@mostrador/shared';
+import {
+  CATEGORIAS_MONOTRIBUTO,
+  TERMINOS_FACTURACION,
+  cuitValido,
+  uuidv7,
+  type CategoriaMonotributo,
+} from '@mostrador/shared';
+import { avisoMonotributo } from '../servicios/facturacion.ts';
 import { verificarFacturacion } from '@mostrador/servidor';
 import { z } from 'zod';
 import { datosInvalidos, ErrorPublico, noEncontrado } from '../errores.ts';
@@ -51,8 +58,17 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
               error: c.ultimo_error,
               verificadaEn: c.verificada_en,
               topeDiario: c.tope_diario,
+              categoria: c.categoria_monotributo,
             }
           : null,
+        monotributo:
+          c?.condicion === 'monotributo'
+            ? await avisoMonotributo(
+                tx,
+                (c.categoria_monotributo as CategoriaMonotributo | null) ?? null,
+                f?.facturador.prueba ?? true,
+              )
+            : null,
         terminos: {
           vigente: TERMINOS_FACTURACION.version,
           aceptada: c?.terminos_version ?? null,
@@ -105,6 +121,7 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
         iibb: z.string().trim().min(1).max(30).optional(),
         inicioActividades: z.iso.date().optional(),
         aceptaTerminos: z.literal(true).optional(),
+        categoria: z.enum(CATEGORIAS_MONOTRIBUTO).nullable().optional(),
       }),
       req.body,
     );
@@ -151,6 +168,7 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
         domicilio: d.domicilio,
         iibb: d.iibb ?? null,
         inicio_actividades: d.inicioActividades ?? null,
+        categoria_monotributo: d.condicion === 'monotributo' ? (d.categoria ?? null) : null,
       };
       // Con otro CUIT o punto de venta, hay que volver a probar la autorización.
       const cambioClave = !previa || previa.cuit !== d.cuit || previa.punto_venta !== d.puntoVenta;

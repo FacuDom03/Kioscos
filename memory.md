@@ -55,6 +55,13 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Tope del monotributo y exportación de facturas** (fase 1 de `docs/CONTABILIDAD.md`):
+  categoría opcional en `config_fiscal` (migración 0019), topes con vigencia en
+  `packages/shared/src/monotributo.ts` (actualizar en febrero y agosto), tarjeta en Facturación
+  ARCA con aviso al 80 % y 100 % y recordatorio de recategorización, y
+  `/api/v1/exportar/comprobantes.csv` con las columnas de Mis Comprobantes. Falta: clasificar lo
+  vendido (mercadería, servicio, reparación).
+
 - **Logo y tickets** (pedido de la persona): migración `0018_personalizacion.sql` (tabla
   `personalizacion`, RLS como las demás). Más → "Logo y tickets": logo PNG/JPG achicado en el
   equipo a 384×192 (máximo 150 KB, el servidor revisa los primeros bytes; nunca SVG), texto al

@@ -36,6 +36,8 @@ test('se activa la facturación, se cargan los datos y cada venta sale con factu
   await page.getByRole('button', { name: 'Guardar y probar' }).click();
   await expect(page.getByText('Listo: la facturación está activa.')).toBeVisible();
   await expect(page.getByText('Activa', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tope del monotributo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cargar categoría' })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
   // Una venta en efectivo: sale con factura C.

@@ -117,7 +117,11 @@ async function vender(dueno: Persona, producto: string, creadaEn = new Date()) {
 async function procesarCola(ent: Entorno, kioscoId: string, f: Facturador) {
   const mios = encolados.filter((t) => t.kioscoId === kioscoId);
   encolados.splice(0, encolados.length, ...encolados.filter((t) => t.kioscoId !== kioscoId));
-  return Promise.all(mios.map((t) => procesarComprobante(ent.base, kioscoId, t.comprobanteId, f)));
+  // De a uno, como el worker (la numeración de cada punto de venta va en orden).
+  const resultados = [];
+  for (const t of mios)
+    resultados.push(await procesarComprobante(ent.base, kioscoId, t.comprobanteId, f));
+  return resultados;
 }
 
 const comprobantes = (ent: Entorno, ventaId: string) =>
@@ -435,6 +439,56 @@ describe('facturas', () => {
       inicioActividades: null,
     });
     expect(detalle.comprobantes).toMatchObject([{ anulaId: null }]);
+  });
+
+  it('tope del monotributo: lo facturado en 12 meses contra la categoría', async () => {
+    const { dueno, kioscoId, producto } = await comercio(e);
+    await dueno.cliente.post('/api/v1/facturacion/config', { ...datos, categoria: 'A' });
+    await vender(dueno, producto);
+    const nota = await vender(dueno, producto);
+    await procesarCola(e, kioscoId, enPrueba);
+    await dueno.cliente.post(`/api/v1/ventas/${nota}/anular`, { motivo: 'Error' });
+    await procesarCola(e, kioscoId, enPrueba);
+    // Dos facturas de $ 3.000 y una nota de crédito: $ 3.000.
+    const m = (await dueno.cliente.get('/api/v1/facturacion')).json<{
+      config: { categoria: string };
+      monotributo: { categoria: string; facturado: number; tope: number; alcanza: string };
+    }>();
+    expect(m.config.categoria).toBe('A');
+    expect(m.monotributo).toMatchObject({
+      categoria: 'A',
+      facturado: 300000,
+      tope: 1_200_941_000,
+      alcanza: 'A',
+    });
+    // Sin categoría, igual muestra lo facturado.
+    await dueno.cliente.post('/api/v1/facturacion/config', { ...datos, categoria: null });
+    expect(
+      (await dueno.cliente.get('/api/v1/facturacion')).json<{ monotributo: unknown }>().monotributo,
+    ).toMatchObject({ categoria: null, tope: null, facturado: 300000 });
+    expect(
+      (await dueno.cliente.post('/api/v1/facturacion/config', { ...datos, categoria: 'Z' }))
+        .statusCode,
+    ).toBe(400);
+
+    // La exportación "como Mis Comprobantes": factura y nota de crédito, en positivo.
+    const hoy = new Date().toISOString().slice(0, 10);
+    const csv = await dueno.cliente.get(
+      `/api/v1/exportar/comprobantes.csv?desde=2020-01-01&hasta=${hoy}`,
+    );
+    expect(csv.statusCode).toBe(200);
+    const lineas = csv.body
+      .replace(/^\uFEFF/, '')
+      .trim()
+      .split('\r\n');
+    expect(lineas[0]).toBe(
+      'Fecha;Tipo;Punto de Venta;Número Desde;Número Hasta;Cód. Autorización;Tipo Doc. Receptor;Nro. Doc. Receptor;Denominación Receptor;Tipo Cambio;Moneda;Imp. Neto Gravado;Imp. Neto No Gravado;Imp. Op. Exentas;Otros Tributos;IVA;Imp. Total',
+    );
+    expect(lineas).toHaveLength(4);
+    expect(lineas.filter((l) => l.includes(';11 - Factura C;'))).toHaveLength(2);
+    expect(lineas.find((l) => l.includes(';13 - Nota de Crédito C;'))).toMatch(
+      /;99;0;;1,00;\$;3000,00;0,00;0,00;0,00;0,00;3000,00$/,
+    );
   });
 
   it('el encargado ve el estado pero no configura', async () => {

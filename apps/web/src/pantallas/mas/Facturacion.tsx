@@ -1,4 +1,11 @@
-import { TERMINOS_FACTURACION, cuitValido, diaCorto } from '@mostrador/shared';
+import {
+  CATEGORIAS_MONOTRIBUTO,
+  TERMINOS_FACTURACION,
+  cuitValido,
+  diaCorto,
+  formatearPlata,
+  type CategoriaMonotributo,
+} from '@mostrador/shared';
 import { useState, type FormEvent } from 'react';
 import { avisar, confirmar } from '../../componentes/Dialogos.tsx';
 import { Aviso, Campo, Volver } from '../../componentes/Formulario.tsx';
@@ -21,6 +28,20 @@ interface Config {
   estado: 'pendiente' | 'activa' | 'pausada' | 'desconectada' | 'suspendida' | 'baja';
   error: string | null;
   verificadaEn: string | null;
+  categoria: CategoriaMonotributo | null;
+}
+
+interface AvisoMonotributo {
+  categoria: CategoriaMonotributo | null;
+  facturado: number;
+  desde: string;
+  tope: number | null;
+  alcanza: CategoriaMonotributo | null;
+  recategorizacion: {
+    hasta: string;
+    facturado: number;
+    categoria: CategoriaMonotributo | null;
+  } | null;
 }
 
 interface Estado {
@@ -34,6 +55,7 @@ interface Estado {
   pendientes: number;
   rechazados: number;
   terminos: { vigente: string; aceptada: string | null; aceptadosEn: string | null };
+  monotributo: AvisoMonotributo | null;
 }
 
 const ESTADOS: Record<Config['estado'], { texto: string; detalle: string; ok: boolean }> = {
@@ -263,6 +285,10 @@ export function Facturacion({ alVolver }: { alVolver: () => void }) {
             </section>
           )}
 
+          {conDatos && !editando && datos.monotributo && (
+            <TopeMonotributo m={datos.monotributo} alCargar={() => setEditando(true)} />
+          )}
+
           {conDatos && !editando && !terminosAlDia && c.estado !== 'suspendida' && (
             <section className="conexion" aria-labelledby="titulo-terminos">
               <h2 id="titulo-terminos" className="subtitulo">
@@ -402,6 +428,75 @@ function Guia({ cuitMostrador, prueba }: { cuitMostrador: string; prueba: boolea
   );
 }
 
+/** Lo facturado en 12 meses contra el tope de la categoría (docs/CONTABILIDAD.md). */
+function TopeMonotributo({ m, alCargar }: { m: AvisoMonotributo; alCargar: () => void }) {
+  const porcentaje = m.tope ? Math.round((m.facturado / m.tope) * 100) : null;
+  const nivel =
+    porcentaje === null ? 'ok' : porcentaje >= 100 ? 'mal' : porcentaje >= 80 ? 'cerca' : 'ok';
+  return (
+    <section className="conexion" aria-labelledby="titulo-monotributo">
+      <h2 id="titulo-monotributo" className="subtitulo">
+        Tope del monotributo
+      </h2>
+      <p>
+        En los últimos 12 meses facturaste <strong>{formatearPlata(m.facturado)}</strong>
+        {m.tope && m.categoria && (
+          <>
+            : el {porcentaje} % del tope de la categoría {m.categoria} ({formatearPlata(m.tope)}).
+          </>
+        )}
+      </p>
+      {porcentaje !== null && (
+        <div
+          className={`tope tope--${nivel}`}
+          role="meter"
+          aria-label="Facturado contra el tope"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.min(porcentaje, 100)}
+          aria-valuetext={`${porcentaje} %`}
+        >
+          <span style={{ width: `${Math.min(porcentaje, 100)}%` }} />
+        </div>
+      )}
+      {!m.categoria && (
+        <p className="texto-suave">
+          Cargá tu categoría para que te avisemos cuando te acerques al tope.{' '}
+          <button type="button" className="enlace-boton" onClick={alCargar}>
+            Cargar categoría
+          </button>
+        </p>
+      )}
+      {nivel === 'cerca' && (
+        <Aviso tipo="info">
+          Te estás acercando al tope de tu categoría. Hablalo con tu contador antes de la próxima
+          recategorización.
+        </Aviso>
+      )}
+      {nivel === 'mal' && (
+        <Aviso>
+          {m.alcanza
+            ? `Pasaste el tope de la categoría ${m.categoria}: con lo facturado te corresponde la ${m.alcanza}. Hablalo con tu contador.`
+            : 'Pasaste el tope de la categoría más alta del monotributo. Hablalo con tu contador cuanto antes.'}
+        </Aviso>
+      )}
+      {m.recategorizacion && (
+        <Aviso tipo="info">
+          Es época de recategorización: tenés hasta el {diaCorto(m.recategorizacion.hasta)}. En el
+          semestre que cuenta facturaste {formatearPlata(m.recategorizacion.facturado)}
+          {m.recategorizacion.categoria
+            ? `: te correspondería la categoría ${m.recategorizacion.categoria}.`
+            : ', más que el tope de la categoría más alta.'}
+        </Aviso>
+      )}
+      <p className="texto-suave">
+        Cuenta lo facturado desde Mostrador (las notas de crédito restan). Si facturás por otro
+        lado, sumalo. Topes vigentes desde agosto de 2026.
+      </p>
+    </section>
+  );
+}
+
 /** El texto completo de los términos, desplegable. */
 function Terminos() {
   return (
@@ -460,6 +555,7 @@ function FormularioFiscal({
           ...(texto('iibb') ? { iibb: texto('iibb') } : {}),
           ...(texto('inicio') ? { inicioActividades: texto('inicio') } : {}),
           ...(pideTerminos ? { aceptaTerminos: true } : {}),
+          ...(condicion === 'monotributo' ? { categoria: texto('categoria') || null } : {}),
         },
       );
       await alGuardar(r);
@@ -504,6 +600,28 @@ function FormularioFiscal({
           </option>
         </select>
       </div>
+      {condicion === 'monotributo' && (
+        <div className="campo">
+          <label htmlFor="fiscal-categoria">Categoría del monotributo (opcional)</label>
+          <select
+            id="fiscal-categoria"
+            name="categoria"
+            className="campo__entrada"
+            defaultValue={inicial?.categoria ?? ''}
+            aria-describedby="fiscal-categoria-ayuda"
+          >
+            <option value="">No sé / no la cargo</option>
+            {CATEGORIAS_MONOTRIBUTO.map((x) => (
+              <option key={x} value={x}>
+                {x}
+              </option>
+            ))}
+          </select>
+          <p id="fiscal-categoria-ayuda" className="campo__ayuda">
+            Te avisamos cuando lo facturado se acerque al tope de tu categoría.
+          </p>
+        </div>
+      )}
       <Campo
         etiqueta="Punto de venta (Web Services)"
         name="puntoVenta"

@@ -505,6 +505,7 @@ export interface ConfigFiscalTabla {
   terminos_aceptados_por: string | null;
   /** Tope de lo facturado por día, en centavos. */
   tope_diario: Generated<number>;
+  categoria_monotributo: string | null;
   created_at: FechaDefault;
   updated_at: FechaDefault;
 }

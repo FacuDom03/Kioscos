@@ -5,6 +5,7 @@ import { descargar, hoyArgentina as hoy } from '../../nucleo/descargar.ts';
 import { borrarDatosDelKiosco } from '../../nucleo/local.ts';
 import { useSesion, useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { confirmar } from '../../componentes/Dialogos.tsx';
+import { useNegocio } from '../../nucleo/rubro.ts';
 
 const primeroDelMes = () => `${hoy().slice(0, 8)}01`;
 
@@ -15,8 +16,9 @@ export function Exportar({ alVolver }: { alVolver: () => void }) {
   const [hasta, setHasta] = useState(hoy);
   const [error, setError] = useState<string | null>(null);
   const [borrando, setBorrando] = useState(false);
+  const factura = useNegocio().tiene('facturacion');
 
-  const bajar = (tipo: 'ventas' | 'compras') =>
+  const bajar = (tipo: 'ventas' | 'compras' | 'comprobantes') =>
     descargar(
       `/api/v1/exportar/${tipo}.csv?desde=${desde}&hasta=${hasta}`,
       `${tipo}-${desde}-a-${hasta}.csv`,
@@ -82,7 +84,18 @@ export function Exportar({ alVolver }: { alVolver: () => void }) {
           <button type="button" className="m-boton" onClick={() => void bajar('compras')}>
             Descargar compras
           </button>
+          {factura && (
+            <button type="button" className="m-boton" onClick={() => void bajar('comprobantes')}>
+              Descargar facturas (como Mis Comprobantes)
+            </button>
+          )}
         </div>
+        {factura && (
+          <p className="texto-suave">
+            Las facturas salen con las columnas de "Mis Comprobantes" de ARCA, para que tu contador
+            las importe como siempre.
+          </p>
+        )}
       </section>
 
       <section className="tarjeta-form">

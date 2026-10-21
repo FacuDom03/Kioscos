@@ -145,7 +145,7 @@ export function Marca({ alVolver }: { alVolver: () => void }) {
           <div className="acciones">
             <button
               type="button"
-              className="m-boton m-boton--principal"
+              className={marca.logo ? 'm-boton' : 'm-boton m-boton--accion'}
               disabled={subiendo}
               aria-busy={subiendo}
               onClick={() => archivo.current?.click()}

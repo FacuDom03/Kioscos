@@ -1515,7 +1515,7 @@ fieldset.campo legend {
 
 .medios {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 8px;
 }
 
@@ -3864,18 +3864,20 @@ details summary {
 }
 
 .factura-a__fila {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 6px 12px;
 }
 
 .factura-a__etiqueta {
+  flex-basis: 100%;
   color: var(--text-soft);
   font-size: 14px;
 }
 
 .factura-a__quien {
+  flex: 1 1 16ch;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -3900,13 +3902,8 @@ details summary {
   margin: 8px 0 0;
 }
 
-@media (max-width: 420px) {
-  .factura-a__fila {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .factura-a__etiqueta {
-    grid-column: 1 / -1;
-  }
+.dialogo--comprador .subtitulo {
+  margin-bottom: 12px;
 }
 
 .dialogo--comprador {

@@ -442,7 +442,8 @@ function TopeMonotributo({ m, alCargar }: { m: AvisoMonotributo; alCargar: () =>
         En los últimos 12 meses facturaste <strong>{formatearPlata(m.facturado)}</strong>
         {m.tope && m.categoria && (
           <>
-            : el {porcentaje} % del tope de la categoría {m.categoria} ({formatearPlata(m.tope)}).
+            : el {porcentaje}&nbsp;% del tope de la categoría {m.categoria} (
+            {formatearPlata(m.tope)}).
           </>
         )}
       </p>

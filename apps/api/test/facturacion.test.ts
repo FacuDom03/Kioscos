@@ -77,7 +77,12 @@ async function comercio(ent: Entorno, prender = true) {
 }
 
 const turnos = new Map<Persona, string>();
-async function vender(dueno: Persona, producto: string, creadaEn = new Date()) {
+async function vender(
+  dueno: Persona,
+  producto: string,
+  creadaEn = new Date(),
+  compradorId?: string,
+) {
   const ops: unknown[] = [];
   let turnoId = turnos.get(dueno);
   if (!turnoId) {
@@ -96,6 +101,7 @@ async function vender(dueno: Persona, producto: string, creadaEn = new Date()) {
       turnoId,
       creadaEn: creadaEn.toISOString(),
       total: 300000,
+      ...(compradorId ? { compradorId } : {}),
       items: [
         {
           id: uuidv7(),
@@ -489,6 +495,86 @@ describe('facturas', () => {
     expect(lineas.find((l) => l.includes(';13 - Nota de Crédito C;'))).toMatch(
       /;99;0;;1,00;\$;3000,00;0,00;0,00;0,00;0,00;3000,00$/,
     );
+  });
+
+  it('factura a nombre de un cliente: se busca en ARCA, se guarda y la factura lleva su CUIT', async () => {
+    const { dueno, kioscoId, producto } = await comercio(e);
+    await dueno.cliente.post('/api/v1/facturacion/config', datos);
+    const persona = await dueno.cliente.post('/api/v1/facturacion/padron', {
+      cuit: '20-11111111-2',
+    });
+    expect(persona.json()).toEqual({
+      cuit: '20111111112',
+      nombre: 'PEREZ ANA',
+      condicion: 'responsable_inscripto',
+      domicilio: 'CALLE 1 123, RAMOS MEJIA, BUENOS AIRES (1704)',
+      activa: true,
+    });
+    expect(
+      (await dueno.cliente.post('/api/v1/facturacion/padron', { cuit: '20999999981' })).statusCode,
+    ).toBe(404);
+    expect(
+      (await dueno.cliente.post('/api/v1/facturacion/padron', { cuit: '20111111113' })).statusCode,
+    ).toBe(400);
+
+    const alta = await dueno.cliente.post('/api/v1/clientes', {
+      nombre: 'PEREZ ANA',
+      documento: { tipo: 'cuit', numero: '20111111112' },
+      condicionIva: 'responsable_inscripto',
+      domicilio: 'CALLE 1 123, RAMOS MEJIA, BUENOS AIRES (1704)',
+    });
+    expect(alta.statusCode).toBe(200);
+    const clienteId = alta.json<{ id: string }>().id;
+    // El mismo CUIT no se carga dos veces; un DNI es de consumidor final.
+    expect(
+      (
+        await dueno.cliente.post('/api/v1/clientes', {
+          nombre: 'Otra',
+          documento: { tipo: 'cuit', numero: '20111111112' },
+        })
+      ).statusCode,
+    ).toBe(409);
+    const conDni = await dueno.cliente.post('/api/v1/clientes', {
+      nombre: 'Juan',
+      documento: { tipo: 'dni', numero: '30123456' },
+      condicionIva: 'monotributo',
+    });
+    const { rows: dni } = await e.admin.query('select condicion_iva from clientes where id = $1', [
+      conDni.json<{ id: string }>().id,
+    ]);
+    expect(dni[0].condicion_iva).toBe('consumidor_final');
+    const lista = (await dueno.cliente.get('/api/v1/clientes?conDocumento=si&q=2011')).json<{
+      clientes: { id: string }[];
+    }>();
+    expect(lista.clientes.map((c) => c.id)).toEqual([clienteId]);
+
+    // La venta a su nombre: la factura (C, porque el comercio es monotributista) lleva su CUIT.
+    const venta = await vender(dueno, producto, new Date(), clienteId);
+    await procesarCola(e, kioscoId, enPrueba);
+    expect(afip.ultimoDetalle).toMatchObject({
+      DocTipo: 80,
+      DocNro: 20111111112,
+      CondicionIVAReceptorId: 1,
+    });
+    const detalle = (await dueno.cliente.get(`/api/v1/ventas/${venta}`)).json<{
+      comprobantes: { tipo: string; receptor: unknown; qr: string }[];
+    }>();
+    expect(detalle.comprobantes[0]).toMatchObject({
+      tipo: 'factura_c',
+      receptor: {
+        condicion: 'responsable_inscripto',
+        documento: { tipo: 'cuit', numero: '20111111112' },
+        nombre: 'PEREZ ANA',
+      },
+    });
+    const qr = JSON.parse(atob(new URL(detalle.comprobantes[0]!.qr).searchParams.get('p') ?? ''));
+    expect(qr).toMatchObject({ tipoDocRec: 80, nroDocRec: 20111111112 });
+    // Si después se edita el cliente, la factura no cambia.
+    await dueno.cliente.patch(`/api/v1/clientes/${clienteId}`, { nombre: 'Otro nombre' });
+    const otra = (await dueno.cliente.get(`/api/v1/ventas/${venta}`)).json<{
+      comprobantes: { receptor: { nombre: string } }[];
+    }>();
+    expect(otra.comprobantes[0]!.receptor.nombre).toBe('PEREZ ANA');
   });
 
   it('el encargado ve el estado pero no configura', async () => {

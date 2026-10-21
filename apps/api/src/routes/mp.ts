@@ -18,6 +18,7 @@ import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { moverStock } from '../servicios/stock.ts';
 import { descuentosDeVenta, esquemaDescuentos } from '../servicios/promos.ts';
+import { compradorValido } from '../servicios/clientes.ts';
 import { validar } from '../validar.ts';
 
 declare module 'fastify' {
@@ -252,6 +253,7 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
         total: centavos,
         lista: z.enum(['mostrador', 'gremio']).optional(),
         presupuestoId: z.uuid().optional(),
+        compradorId: z.uuid().optional(),
         descuentos: esquemaDescuentos.optional(),
         regalo: z.boolean().optional(),
         items: z
@@ -312,6 +314,7 @@ export async function rutasMp(app: FastifyInstance): Promise<void> {
           total: d.total,
           estado: 'abierta',
           lista: d.lista ?? 'mostrador',
+          comprador_id: await compradorValido(tx, d.compradorId),
           regalo: d.regalo ?? false,
           creada_en_dispositivo: d.creadaEn,
         })

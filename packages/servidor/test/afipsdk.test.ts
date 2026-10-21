@@ -187,4 +187,70 @@ describe('cliente de Afip SDK', () => {
     const c = new ClienteAfipSdk({ accessToken: 'x', produccion: false, fetch: fetchFalso });
     expect(await c.consultar('20409378472', 3, 11, 999)).toBeNull();
   });
+
+  it('padrón: nombre, condición frente al IVA y domicilio, con su propio permiso', async () => {
+    const respuestas: Record<string, unknown> = {
+      '20111111112': {
+        personaReturn: {
+          datosGenerales: {
+            apellido: 'PEREZ',
+            nombre: 'ANA',
+            estadoClave: 'ACTIVO',
+            domicilioFiscal: {
+              direccion: 'CALLE 1 123',
+              localidad: 'RAMOS MEJIA',
+              descripcionProvincia: 'BUENOS AIRES',
+              codPostal: '1704',
+            },
+          },
+          datosMonotributo: { categoriaMonotributo: { descripcionCategoria: 'D' } },
+        },
+      },
+      '30222222223': {
+        personaReturn: {
+          datosGenerales: { razonSocial: 'FERRETERIA SRL', estadoClave: 'ACTIVO' },
+          datosRegimenGeneral: { impuesto: [{ idImpuesto: 30 }, { idImpuesto: 10 }] },
+        },
+      },
+    };
+    const { pedidos, fetchFalso } = falso((p) => {
+      if (p.url.endsWith('v1/afip/auth')) return { json: PERMISO };
+      const id = String((p.cuerpo['params'] as { idPersona: number }).idPersona);
+      return respuestas[id]
+        ? { json: respuestas[id] }
+        : { status: 500, json: { message: 'No existe persona con ese Id' } };
+    });
+    const c = new ClienteAfipSdk({ accessToken: 'x', produccion: true, fetch: fetchFalso });
+    expect(await c.padron('20409378472', '20111111112')).toEqual({
+      cuit: '20111111112',
+      nombre: 'PEREZ ANA',
+      condicion: 'monotributo',
+      domicilio: 'CALLE 1 123, RAMOS MEJIA, BUENOS AIRES (1704)',
+      activa: true,
+    });
+    expect(await c.padron('20409378472', '30222222223')).toMatchObject({
+      nombre: 'FERRETERIA SRL',
+      condicion: 'responsable_inscripto',
+      domicilio: null,
+    });
+    expect(await c.padron('20409378472', '20999999981')).toBeNull();
+    // Un solo permiso, del servicio del padrón y con el CUIT de Mostrador.
+    const auth = pedidos.filter((p) => p.url.endsWith('v1/afip/auth'));
+    expect(auth).toHaveLength(1);
+    expect(auth[0]!.cuerpo).toMatchObject({
+      wsid: 'ws_sr_constancia_inscripcion',
+      tax_id: 20409378472,
+    });
+    expect(pedidos[1]!.cuerpo).toMatchObject({
+      method: 'getPersona_v2',
+      url: 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5',
+      soap_v_1_2: false,
+      params: {
+        token: 'tok',
+        sign: 'firma',
+        cuitRepresentada: 20409378472,
+        idPersona: 20111111112,
+      },
+    });
+  });
 });

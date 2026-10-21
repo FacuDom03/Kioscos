@@ -1,14 +1,14 @@
 // Clientes y cuenta corriente / fiado (etapa I5, docs/decisiones/009-rubros.md).
-import { formatearPlata, uuidv7 } from '@mostrador/shared';
+import { cuitValido, formatearPlata, uuidv7 } from '@mostrador/shared';
 import type { FastifyInstance } from 'fastify';
-import { sql } from '@mostrador/db';
+import { sql, type TxKiosco } from '@mostrador/db';
 import { z } from 'zod';
 import { ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
 import { clienteParaCuenta, saldoDe } from '../servicios/clientes.ts';
 import { turnoAbierto } from '../servicios/ventas.ts';
 import { validar } from '../validar.ts';
-import { exigirModulo } from '../servicios/negocio.ts';
+import { tieneModulo } from '../servicios/negocio.ts';
 
 const VENDEN = ['dueno', 'encargado', 'cajero', 'soporte'] as const;
 const EDITAN = ['dueno', 'encargado', 'soporte'] as const;
@@ -25,16 +25,87 @@ const datosCliente = {
     .optional(),
   nota: z.string().trim().min(1).max(200).nullable().optional(),
   limite: centavos.nullable().optional(),
+  // Para facturarle a su nombre (con la facturación prendida).
+  documento: z
+    .strictObject({
+      tipo: z.enum(['cuit', 'cuil', 'dni']),
+      numero: z
+        .string()
+        .trim()
+        .regex(/^\d{7,11}$/),
+    })
+    .nullable()
+    .optional(),
+  condicionIva: z
+    .enum(['consumidor_final', 'monotributo', 'responsable_inscripto', 'exento'])
+    .nullable()
+    .optional(),
+  domicilio: z.string().trim().min(1).max(200).nullable().optional(),
 };
+
+type DatosFiscales = {
+  documento?: { tipo: 'cuit' | 'cuil' | 'dni'; numero: string } | null | undefined;
+  condicionIva?:
+    'consumidor_final' | 'monotributo' | 'responsable_inscripto' | 'exento' | null | undefined;
+  domicilio?: string | null | undefined;
+};
+
+/** Revisa el documento y lo pasa a columnas. Un DNI es siempre de un consumidor final. */
+function columnasFiscales(d: DatosFiscales) {
+  const doc = d.documento;
+  if (doc && doc.tipo !== 'dni' && !cuitValido(doc.numero))
+    throw new ErrorPublico(400, 'documento', 'El CUIT no es válido: revisá los números.');
+  if (doc?.tipo === 'dni' && !/^\d{7,8}$/.test(doc.numero))
+    throw new ErrorPublico(400, 'documento', 'El DNI tiene 7 u 8 números.');
+  return {
+    ...(doc !== undefined ? { doc_tipo: doc?.tipo ?? null, doc_nro: doc?.numero ?? null } : {}),
+    ...(d.condicionIva !== undefined || doc?.tipo === 'dni'
+      ? {
+          condicion_iva:
+            doc?.tipo === 'dni' ? ('consumidor_final' as const) : (d.condicionIva ?? null),
+        }
+      : {}),
+    ...(d.domicilio !== undefined ? { domicilio: d.domicilio ?? null } : {}),
+  };
+}
+
+async function documentoRepetido(
+  tx: TxKiosco,
+  doc: { doc_tipo?: string | null; doc_nro?: string | null },
+  salvo?: string,
+) {
+  if (!doc.doc_nro || !doc.doc_tipo) return;
+  let q = tx
+    .selectFrom('clientes')
+    .select('id')
+    .where('doc_tipo', '=', doc.doc_tipo as 'cuit')
+    .where('doc_nro', '=', doc.doc_nro)
+    .where('activo', '=', true);
+  if (salvo) q = q.where('id', '<>', salvo);
+  if (await q.executeTakeFirst())
+    throw new ErrorPublico(409, 'documento_repetido', 'Ya hay un cliente con ese CUIT o DNI.');
+}
+
+/** Clientes: con la cuenta corriente o con la facturación (para facturar a su nombre). */
+async function exigirClientes(tx: TxKiosco) {
+  if (!(await tieneModulo(tx, 'cuenta_corriente')) && !(await tieneModulo(tx, 'facturacion')))
+    throw new ErrorPublico(
+      403,
+      'sin_funcion',
+      'Los clientes vienen con la cuenta corriente o la facturación. Las activa el dueño en Más → Tu negocio.',
+    );
+}
 
 const escaparLike = (t: string) => t.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 export async function rutasClientes(app: FastifyInstance): Promise<void> {
   app.get('/api/v1/clientes', { config: { roles: VENDEN } }, async (req) => {
-    const { q, deben } = validar(
+    const { q, deben, conDocumento } = validar(
       z.strictObject({
         q: z.string().trim().max(80).optional(),
         deben: z.enum(['si', 'no']).optional(),
+        // Para elegir a quién facturarle: solo los que tienen CUIT o DNI.
+        conDocumento: z.enum(['si']).optional(),
       }),
       req.query,
     );
@@ -43,7 +114,17 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
         where m.kiosco_id = c.kiosco_id and m.cliente_id = c.id), 0)`;
       let consulta = tx
         .selectFrom('clientes as c')
-        .select(['c.id', 'c.nombre', 'c.telefono', 'c.nota', 'c.limite'])
+        .select([
+          'c.id',
+          'c.nombre',
+          'c.telefono',
+          'c.nota',
+          'c.limite',
+          'c.doc_tipo',
+          'c.doc_nro',
+          'c.condicion_iva',
+          'c.domicilio',
+        ])
         .select(saldo.as('saldo'))
         .select(
           sql<Date | null>`(select max(m.created_at) from movimientos_cuenta m
@@ -52,12 +133,16 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
         .where('c.activo', '=', true)
         .orderBy(sql`lower(c.nombre)`)
         .limit(300);
-      if (q)
-        consulta = consulta.where(
-          sql`lower(c.nombre)`,
-          'like',
-          `%${escaparLike(q.toLowerCase())}%`,
+      if (q) {
+        const numeros = q.replace(/\D/g, '');
+        consulta = consulta.where((eb) =>
+          eb.or([
+            eb(sql`lower(c.nombre)`, 'like', `%${escaparLike(q.toLowerCase())}%`),
+            ...(numeros.length >= 3 ? [eb('c.doc_nro', 'like', `${numeros}%`)] : []),
+          ]),
         );
+      }
+      if (conDocumento) consulta = consulta.where('c.doc_nro', 'is not', null);
       if (deben === 'si') consulta = consulta.where(saldo, '>', '0');
       const filas = await consulta.execute();
       // Lo que se debe en total: solo los saldos deudores de clientes activos (la plata a favor
@@ -87,14 +172,16 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
       throw new ErrorPublico(403, 'sin_permiso', 'El límite lo pone el dueño o el encargado.');
     const limite = s.rol === 'cajero' ? 0 : (d.limite ?? null);
     const id = d.id ?? uuidv7();
+    const fiscales = columnasFiscales(d);
     return req.db(async (tx) => {
-      await exigirModulo(tx, 'cuenta_corriente');
+      await exigirClientes(tx);
       const ya = await tx
         .selectFrom('clientes')
         .select(['id', 'limite'])
         .where('id', '=', id)
         .executeTakeFirst();
       if (ya) return { id, limite: ya.limite };
+      await documentoRepetido(tx, fiscales);
       await tx
         .insertInto('clientes')
         .values({
@@ -104,6 +191,7 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
           telefono: d.telefono ?? null,
           nota: d.nota ?? null,
           limite,
+          ...fiscales,
         })
         .execute();
       // Sin datos personales en la auditoría: solo el ID.
@@ -121,9 +209,20 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
         nota: datosCliente.nota,
         limite: datosCliente.limite,
         activo: z.boolean().optional(),
+        documento: datosCliente.documento,
+        condicionIva: datosCliente.condicionIva,
+        domicilio: datosCliente.domicilio,
       }),
       req.body,
     );
+    const comunes = {
+      ...(d.nombre !== undefined ? { nombre: d.nombre } : {}),
+      ...(d.telefono !== undefined ? { telefono: d.telefono } : {}),
+      ...(d.nota !== undefined ? { nota: d.nota } : {}),
+      ...(d.limite !== undefined ? { limite: d.limite } : {}),
+      ...(d.activo !== undefined ? { activo: d.activo } : {}),
+    };
+    const fiscales = columnasFiscales(d);
     return req.db(async (tx) => {
       const c = await tx
         .selectFrom('clientes')
@@ -131,9 +230,10 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
         .where('id', '=', id)
         .executeTakeFirst();
       if (!c) throw noEncontrado();
+      await documentoRepetido(tx, fiscales, id);
       await tx
         .updateTable('clientes')
-        .set({ ...d, updated_at: new Date() })
+        .set({ ...comunes, ...fiscales, updated_at: new Date() })
         .where('id', '=', id)
         .execute();
       if (d.limite !== undefined && d.limite !== c.limite)
@@ -153,7 +253,19 @@ export async function rutasClientes(app: FastifyInstance): Promise<void> {
     return req.db(async (tx) => {
       const c = await tx
         .selectFrom('clientes')
-        .select(['id', 'nombre', 'telefono', 'nota', 'limite', 'activo', 'created_at'])
+        .select([
+          'id',
+          'nombre',
+          'telefono',
+          'nota',
+          'limite',
+          'activo',
+          'created_at',
+          'doc_tipo',
+          'doc_nro',
+          'condicion_iva',
+          'domicilio',
+        ])
         .where('id', '=', id)
         .executeTakeFirst();
       if (!c) throw noEncontrado();

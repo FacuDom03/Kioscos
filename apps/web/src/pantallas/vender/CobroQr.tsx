@@ -8,6 +8,7 @@ import {
   cuentaTicket,
   listaActual,
   presupuestoActual,
+  compradorActual,
   regaloActual,
   ticketActual,
   vaciarTicket,
@@ -69,6 +70,7 @@ export function CobroQr({
         ? { descuentos: cuenta.descuentos.map((d) => ({ promoId: d.promoId, monto: d.monto })) }
         : {}),
       ...(regaloActual() ? { regalo: true } : {}),
+      ...(compradorActual() ? { compradorId: compradorActual()?.id } : {}),
       items: items.map((i) => ({
         id: i.id,
         productoId: i.productoId,

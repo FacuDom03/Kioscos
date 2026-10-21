@@ -28,6 +28,13 @@ export interface ComprobanteVenta {
   prueba: boolean;
   anulaId: string | null;
   qr: string | null;
+  /** A nombre de quién (sin documento: consumidor final). */
+  receptor?: {
+    condicion: 'consumidor_final' | 'monotributo' | 'responsable_inscripto' | 'exento';
+    documento: { tipo: 'cuit' | 'cuil' | 'dni'; numero: string } | null;
+    nombre: string | null;
+    domicilio: string | null;
+  };
 }
 
 export interface Emisor {
@@ -119,6 +126,16 @@ export function Qr({ texto, tamano = 120 }: { texto: string; tamano?: number }) 
   );
 }
 
+const CONDICION_RECEPTOR = {
+  consumidor_final: 'Consumidor final',
+  monotributo: 'Responsable Monotributo',
+  responsable_inscripto: 'IVA Responsable Inscripto',
+  exento: 'IVA Exento',
+} as const;
+
+const documento = (d: { tipo: 'cuit' | 'cuil' | 'dni'; numero: string }) =>
+  d.tipo === 'dni' ? `DNI ${d.numero}` : `${d.tipo.toUpperCase()} ${cuitConGuiones(d.numero)}`;
+
 const codigo = (tipo: TipoComprobante) => String(TIPO_COMPROBANTE[tipo]).padStart(3, '0');
 
 interface Props {
@@ -203,7 +220,16 @@ function FacturaTicket({ comprobante: c, emisor, venta, anulada }: Props) {
           {c.fecha && <p>Fecha {diaCorto(c.fecha)}</p>}
         </div>
       </div>
-      <p>A consumidor final</p>
+      {c.receptor?.documento ? (
+        <>
+          <p>A: {c.receptor.nombre}</p>
+          <p className="factura__chico">{documento(c.receptor.documento)}</p>
+          <p className="factura__chico">{CONDICION_RECEPTOR[c.receptor.condicion]}</p>
+          {c.receptor.domicilio && <p className="factura__chico">{c.receptor.domicilio}</p>}
+        </>
+      ) : (
+        <p>A consumidor final</p>
+      )}
       <p>Pago: {condicionDeVenta(venta.pagos)}</p>
       {nota && anulada?.numero && (
         <p>Anula la {nombreComprobante(anulada.tipo, anulada.puntoDeVenta, anulada.numero)}</p>
@@ -292,8 +318,27 @@ function FacturaHoja({ comprobante: c, emisor, venta, anulada }: Props) {
         </div>
       </header>
       <section className="factura-hoja__receptor">
+        {c.receptor?.documento && (
+          <>
+            <p>
+              <strong>{c.receptor.documento.tipo === 'dni' ? 'DNI' : 'CUIT'}:</strong>{' '}
+              {c.receptor.documento.tipo === 'dni'
+                ? c.receptor.documento.numero
+                : cuitConGuiones(c.receptor.documento.numero)}
+            </p>
+            <p>
+              <strong>Apellido y nombre o razón social:</strong> {c.receptor.nombre}
+            </p>
+            {c.receptor.domicilio && (
+              <p>
+                <strong>Domicilio:</strong> {c.receptor.domicilio}
+              </p>
+            )}
+          </>
+        )}
         <p>
-          <strong>Condición frente al IVA:</strong> Consumidor final
+          <strong>Condición frente al IVA:</strong>{' '}
+          {CONDICION_RECEPTOR[c.receptor?.condicion ?? 'consumidor_final']}
         </p>
         <p>
           <strong>Condición de venta:</strong> {condicionDeVenta(venta.pagos)}

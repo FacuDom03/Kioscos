@@ -21,6 +21,28 @@ export class AfipFalso {
   /** El próximo FECAESolicitar se rechaza con este código. */
   rechazar: { codigo: number; mensaje: string } | null = null;
   pedidos = 0;
+  /** Padrón de ARCA: lo que devuelve getPersona_v2 por CUIT. */
+  padron = new Map<string, unknown>([
+    [
+      '20111111112',
+      {
+        datosGenerales: {
+          apellido: 'PEREZ',
+          nombre: 'ANA',
+          estadoClave: 'ACTIVO',
+          domicilioFiscal: {
+            direccion: 'CALLE 1 123',
+            localidad: 'RAMOS MEJIA',
+            descripcionProvincia: 'BUENOS AIRES',
+            codPostal: '1704',
+          },
+        },
+        datosRegimenGeneral: { impuesto: [{ idImpuesto: 30 }] },
+      },
+    ],
+  ]);
+  /** El último comprobante pedido (para revisar qué se le mandó a ARCA). */
+  ultimoDetalle: Record<string, unknown> | null = null;
   private cae = 70000000000000;
 
   private clave = (cuit: unknown, pv: unknown, tipo: unknown) => `${cuit}-${pv}-${tipo}`;
@@ -41,6 +63,13 @@ export class AfipFalso {
       });
     }
     const metodo = String(cuerpo['method']);
+    if (metodo === 'getPersona_v2') {
+      const id = String((cuerpo['params'] as { idPersona: number }).idPersona);
+      const persona = this.padron.get(id);
+      return persona
+        ? json({ personaReturn: persona })
+        : json({ message: 'No existe persona con ese Id' }, 500);
+    }
     const p = cuerpo['params'] as Record<string, Record<string, unknown>>;
     const cuit = String(p['Auth']?.['Cuit'] ?? '');
     const r = (resultado: unknown) => json({ [`${metodo}Result`]: resultado });
@@ -83,6 +112,7 @@ export class AfipFalso {
         FeDetReq: { FECAEDetRequest: { CbteDesde: number; CbteFch: number; ImpTotal: number } };
       };
       const det = req.FeDetReq.FECAEDetRequest;
+      this.ultimoDetalle = det as unknown as Record<string, unknown>;
       const clave = this.clave(cuit, req.FeCabReq.PtoVta, req.FeCabReq.CbteTipo);
       const lista = this.emitidos.get(clave) ?? [];
       const ultimo = lista.at(-1);

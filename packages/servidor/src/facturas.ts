@@ -1,7 +1,7 @@
 // Cola de facturas (docs/FACTURACION.md): cada comprobante pendiente se numera y se le pide el CAE
 // a ARCA, de a uno. Si se corta la respuesta, antes de reintentar se consulta si ese número ya
 // quedó autorizado: nunca salen dos facturas por una venta. Lo usan el worker y la API.
-import { sinKiosco, sql, withKiosco, type BaseApp } from '@mostrador/db';
+import { sinKiosco, sql, withKiosco, type BaseApp, type TxKiosco } from '@mostrador/db';
 import {
   camposDelComprobante,
   diaArgentino,
@@ -324,6 +324,27 @@ export async function procesarComprobante(
  * Ventas cobradas desde que se activó la facturación que no tienen factura (por ejemplo, las
  * cobradas con QR, que se confirman después). Devuelve los comprobantes creados.
  */
+/**
+ * Los datos del comprador para el comprobante, copiados del cliente (si después se edita, la
+ * factura no cambia). Sin cliente con CUIT o DNI, la factura es a consumidor final.
+ */
+export async function receptorDe(tx: TxKiosco, compradorId: string | null) {
+  if (!compradorId) return {};
+  const c = await tx
+    .selectFrom('clientes')
+    .select(['nombre', 'doc_tipo', 'doc_nro', 'condicion_iva', 'domicilio'])
+    .where('id', '=', compradorId)
+    .executeTakeFirst();
+  if (!c?.doc_tipo || !c.doc_nro) return {};
+  return {
+    receptor_condicion: c.condicion_iva ?? ('consumidor_final' as const),
+    receptor_doc_tipo: c.doc_tipo,
+    receptor_doc_nro: c.doc_nro,
+    receptor_nombre: c.nombre,
+    receptor_domicilio: c.domicilio,
+  };
+}
+
 export async function crearComprobantesFaltantes(
   base: BaseApp,
   kioscoId: string,
@@ -335,7 +356,7 @@ export async function crearComprobantesFaltantes(
     const desde = new Date(Math.max(c.activada_en.getTime(), Date.now() - 4 * 86_400_000));
     const ventas = await tx
       .selectFrom('ventas as v')
-      .select(['v.id', 'v.total'])
+      .select(['v.id', 'v.total', 'v.comprador_id'])
       .where('v.estado', '=', 'cobrada')
       .where('v.total', '>', 0)
       .where('v.creada_en_dispositivo', '>=', desde)
@@ -364,6 +385,7 @@ export async function crearComprobantesFaltantes(
           punto_venta: puntoDeVentaFiscal(c, kioscoId, f),
           total: v.total,
           prueba: f.prueba,
+          ...(await receptorDe(tx, v.comprador_id)),
         })
         .onConflict((oc) => oc.doNothing())
         .execute();

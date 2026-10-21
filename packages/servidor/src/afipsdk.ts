@@ -13,6 +13,29 @@ const WSFE = {
   pruebas: { url: 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx', wsdl: 'wsfe.wsdl' },
 };
 
+// Padrón de ARCA (constancia de inscripción): nombre, condición frente al IVA y domicilio de un
+// CUIT. Es SOAP 1.1 y usa otro permiso que la facturación.
+const PADRON = {
+  produccion: {
+    url: 'https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5',
+    wsdl: 'ws_sr_padron_a5-production.wsdl',
+  },
+  pruebas: {
+    url: 'https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5',
+    wsdl: 'ws_sr_padron_a5.wsdl',
+  },
+};
+
+/** Lo que dice el padrón de ARCA de un CUIT. */
+export interface PersonaPadron {
+  cuit: string;
+  nombre: string;
+  condicion: 'responsable_inscripto' | 'monotributo' | 'exento' | 'consumidor_final';
+  domicilio: string | null;
+  /** La clave fiscal está activa. */
+  activa: boolean;
+}
+
 /** CUIT de pruebas de Afip SDK: en desarrollo funciona sin certificado. */
 export const CUIT_PRUEBAS_AFIPSDK = '20409378472';
 
@@ -120,13 +143,14 @@ export class ClienteAfipSdk {
     return datos;
   }
 
-  /** Permiso de ARCA para facturar con ese CUIT. Se pide de nuevo solo cuando vence. */
-  private async permiso(cuit: string): Promise<{ token: string; sign: string }> {
-    const guardado = this.permisos.get(cuit);
+  /** Permiso de ARCA para ese CUIT y servicio. Se pide de nuevo solo cuando vence. */
+  private async permiso(cuit: string, wsid = 'wsfe'): Promise<{ token: string; sign: string }> {
+    const clave = `${wsid}:${cuit}`;
+    const guardado = this.permisos.get(clave);
     if (guardado && guardado.vence > Date.now()) return guardado;
     const r = await this.pedir('v1/afip/auth', {
       environment: this.entorno,
-      wsid: 'wsfe',
+      wsid,
       tax_id: Number(cuit),
       force_create: false,
       ...(this.config.cert ? { cert: this.config.cert } : {}),
@@ -139,7 +163,7 @@ export class ClienteAfipSdk {
     const expira = typeof r['expiration'] === 'string' ? Date.parse(r['expiration']) : NaN;
     // Cinco minutos antes de que venza; si no dice cuándo, se usa por 11 horas.
     const vence = Number.isFinite(expira) ? expira - 5 * 60_000 : Date.now() + 11 * 3600_000;
-    this.permisos.set(cuit, { token, sign, vence });
+    this.permisos.set(clave, { token, sign, vence });
     return { token, sign };
   }
 
@@ -167,6 +191,60 @@ export class ClienteAfipSdk {
     );
     if (error) throw new ErrorAfip('arca', `(${error.Code}) ${error.Msg}`, Number(error.Code));
     return resultado;
+  }
+
+  /**
+   * Datos de un CUIT en el padrón de ARCA, consultado en nombre de `representada` (Mostrador).
+   * Devuelve null si el CUIT no existe.
+   */
+  async padron(representada: string, cuit: string): Promise<PersonaPadron | null> {
+    const { token, sign } = await this.permiso(representada, 'ws_sr_constancia_inscripcion');
+    const destino = this.config.produccion ? PADRON.produccion : PADRON.pruebas;
+    let r: Record<string, unknown>;
+    try {
+      r = await this.pedir('v1/afip/requests', {
+        method: 'getPersona_v2',
+        params: { token, sign, cuitRepresentada: Number(representada), idPersona: Number(cuit) },
+        environment: this.entorno,
+        wsid: 'ws_sr_constancia_inscripcion',
+        url: destino.url,
+        wsdl: destino.wsdl,
+        soap_v_1_2: false,
+      });
+    } catch (error) {
+      if (error instanceof ErrorAfip && /no existe persona/i.test(error.message)) return null;
+      throw error;
+    }
+    const p = r['personaReturn'] as Record<string, Record<string, unknown> | undefined> | undefined;
+    const g = p?.['datosGenerales'] ?? p?.['errorConstancia'];
+    if (!p || !g) return null;
+    const nombre =
+      typeof g['razonSocial'] === 'string'
+        ? g['razonSocial']
+        : [g['apellido'], g['nombre']].filter((x) => typeof x === 'string').join(' ');
+    const impuestos = comoLista(
+      p['datosRegimenGeneral']?.['impuesto'] as
+        Record<string, unknown> | Record<string, unknown>[] | undefined,
+    ).map((i) => Number(i['idImpuesto']));
+    const condicion: PersonaPadron['condicion'] = p['datosMonotributo']
+      ? 'monotributo'
+      : impuestos.includes(30)
+        ? 'responsable_inscripto'
+        : impuestos.includes(32)
+          ? 'exento'
+          : 'consumidor_final';
+    const d = (g['domicilioFiscal'] ?? {}) as Record<string, unknown>;
+    const partes = [d['direccion'], d['localidad'], d['descripcionProvincia']].filter(
+      (x): x is string => typeof x === 'string' && x.trim() !== '',
+    );
+    const cp = typeof d['codPostal'] === 'string' ? ` (${d['codPostal']})` : '';
+    return {
+      cuit,
+      nombre: nombre.trim().slice(0, 80),
+      condicion,
+      domicilio: partes.length ? `${partes.join(', ')}${cp}`.slice(0, 200) : null,
+      activa: g['estadoClave'] === undefined || g['estadoClave'] === 'ACTIVO',
+    };
   }
 
   /** Estado de los servidores de ARCA. Que diga "OK" no asegura que facturar ande. */

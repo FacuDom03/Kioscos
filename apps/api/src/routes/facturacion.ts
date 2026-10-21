@@ -9,7 +9,12 @@ import {
   type CategoriaMonotributo,
 } from '@mostrador/shared';
 import { avisoMonotributo } from '../servicios/facturacion.ts';
-import { verificarFacturacion } from '@mostrador/servidor';
+import {
+  CUIT_PRUEBAS_AFIPSDK,
+  ErrorAfip,
+  usaCuitDePrueba,
+  verificarFacturacion,
+} from '@mostrador/servidor';
 import { z } from 'zod';
 import { datosInvalidos, ErrorPublico, noEncontrado } from '../errores.ts';
 import { auditar } from '../servicios/auditoria.ts';
@@ -207,6 +212,58 @@ export async function rutasFacturacion(app: FastifyInstance): Promise<void> {
     });
     return verificarFacturacion(app.base, s.kioscoId, f.facturador);
   });
+
+  // "Buscar en ARCA": nombre, condición frente al IVA y domicilio de un CUIT, para cargar un
+  // cliente sin tipear (y sin errores). Se consulta en nombre de Mostrador.
+  app.post(
+    '/api/v1/facturacion/padron',
+    {
+      config: {
+        roles: ['dueno', 'encargado', 'cajero'],
+        rateLimit: { max: 30, timeWindow: '1 minute' },
+      },
+    },
+    async (req) => {
+      const { cuit } = validar(
+        z.strictObject({
+          cuit: z
+            .string()
+            .trim()
+            .transform((t) => t.replace(/\D/g, ''))
+            .pipe(z.string().regex(/^\d{11}$/)),
+        }),
+        req.body,
+      );
+      if (!cuitValido(cuit)) throw datosInvalidos('El CUIT no es válido: revisá los números.');
+      const f = app.facturacion;
+      if (!f) throw noDisponible();
+      const activo = await req.db(async (tx) => {
+        const k = await tx.selectFrom('kioscos').select('modulos').executeTakeFirstOrThrow();
+        return k.modulos.includes('facturacion');
+      });
+      if (!activo) throw new ErrorPublico(409, 'modulo_apagado', 'Primero prendé la facturación.');
+      const representada = usaCuitDePrueba(f.facturador) ? CUIT_PRUEBAS_AFIPSDK : f.cuitMostrador;
+      if (!representada) throw noDisponible();
+      try {
+        const persona = await f.facturador.cliente.padron(representada, cuit);
+        if (!persona)
+          throw new ErrorPublico(
+            404,
+            'cuit_inexistente',
+            'ARCA no tiene ese CUIT. Revisá los números.',
+          );
+        return persona;
+      } catch (error) {
+        if (error instanceof ErrorPublico) throw error;
+        req.log.warn({ err: error instanceof ErrorAfip ? error.message : 'error' }, 'padrón');
+        throw new ErrorPublico(
+          503,
+          'arca_no_responde',
+          'ARCA no respondió. Cargá los datos a mano o probá en un rato.',
+        );
+      }
+    },
+  );
 
   // Aceptar los términos vigentes (si cambiaron después del alta).
   app.post('/api/v1/facturacion/terminos', { config: { roles: DUENO } }, async (req) => {

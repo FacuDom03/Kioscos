@@ -46,10 +46,20 @@ export function Mas() {
               {
                 ruta: '/clientes',
                 nombre: nombreModulo(negocio.rubro, 'cuenta_corriente'),
-                detalle: 'Clientes, deudas y pagos',
+                detalle: negocio.tiene('facturacion')
+                  ? 'Clientes, deudas, pagos y datos para facturar'
+                  : 'Clientes, deudas y pagos',
               },
             ]
-          : []),
+          : negocio.tiene('facturacion')
+            ? [
+                {
+                  ruta: '/clientes',
+                  nombre: 'Clientes',
+                  detalle: 'Con CUIT o DNI, para facturarles a su nombre',
+                },
+              ]
+            : []),
         ...(negocio.tiene('presupuestos')
           ? [
               {

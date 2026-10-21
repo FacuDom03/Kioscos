@@ -98,6 +98,21 @@ hacemos**, ni siquiera si va directo al proveedor: el comercio se acostumbraría
     rechazos y autorizaciones por aceptar;
   - todo queda en la auditoría.
 
+- **Factura a nombre de quien compra** (migración `0020_comprador.sql`), como en Odoo:
+  - al cobrar, "Factura a: Consumidor final" por defecto; "A nombre de alguien" busca entre los
+    clientes con CUIT o DNI o carga uno nuevo;
+  - con el CUIT completo, "Buscar en ARCA" trae nombre, condición frente al IVA y domicilio del
+    padrón (`ws_sr_constancia_inscripcion`, consultado en nombre de Mostrador);
+  - la factura copia los datos del comprador (si después se edita el cliente, no cambia) y los
+    informa a ARCA; el ticket, la hoja A4 y el QR los muestran;
+  - desde $ 10.000.000 no se puede cobrar sin identificar a quien compra (RG 5866/2026);
+  - sin internet, la venta sale a consumidor final;
+  - los clientes con datos para facturar están en Más → Clientes (también sin la cuenta
+    corriente).
+- **"Cómo vas a usar Mostrador"** en Tu negocio: "Vender y llevar los números" o "Vender y
+  facturar" prende o apaga la facturación y la cuenta corriente; el resto se ajusta una por una.
+  Sin la facturación prendida no aparece nada fiscal.
+
 **Para facturar de verdad falta:**
 
 1. El certificado de producción y `AFIPSDK_PRODUCCION=1` (ver "Pasar a producción").
@@ -172,7 +187,8 @@ de ahí):
    ```
 
 4. **En WSASS, "Crear autorización a servicio":** el certificado `mostrador`, tu CUIT como
-   representado y el servicio `wsfe` (Facturación electrónica).
+   representado y el servicio `wsfe` (Facturación electrónica). Repetilo con el servicio
+   `ws_sr_constancia_inscripcion` (padrón), para que ande "Buscar en ARCA".
 5. **Permisos y configuración:**
 
    ```sh
@@ -222,7 +238,8 @@ facturación prendida tu negocio. Lo pendiente de las pruebas se cancela solo y 
    ```
 
 4. **Autorizar el certificado:** Administrador de Relaciones → "Nueva relación" → ARCA →
-   WebServices → Facturación Electrónica → Representante: computador fiscal `mostrador`.
+   WebServices → Facturación Electrónica → Representante: computador fiscal `mostrador`. Otra
+   relación igual con "Consulta de constancia de inscripción" (el padrón).
 5. **Cambiar de certificado y pasar a producción** (el de pruebas queda guardado en
    `afip-pruebas`):
 

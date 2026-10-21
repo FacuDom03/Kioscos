@@ -35,6 +35,8 @@ export {
   esRubro,
   moduloEnPlan,
   MODULOS_PLAN_COMERCIO,
+  MODULOS_PAPELES,
+  funcionesDeUso,
   nombreModulo,
   tituloListo,
   type Rubro,

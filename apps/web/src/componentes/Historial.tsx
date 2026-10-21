@@ -15,6 +15,7 @@ import { hoyArgentina } from '../nucleo/descargar.ts';
 import { useSesionCompleta } from '../nucleo/sesion.tsx';
 import { useDatos } from '../nucleo/usar-datos.ts';
 import { pedirTexto } from './Dialogos.tsx';
+import { documentoVisible } from './ClienteFiscal.tsx';
 import {
   FacturaImpresa,
   imprimirFactura,
@@ -444,6 +445,12 @@ function Comprobantes({
             <strong>{nombreComprobante(c.tipo, c.puntoDeVenta, c.numero)}</strong>
             {c.prueba && ' (de prueba, no vale)'}
           </p>
+          {c.receptor?.documento && (
+            <p className="texto-suave">
+              A nombre de {c.receptor.nombre} (
+              {documentoVisible(c.receptor.documento.tipo, c.receptor.documento.numero)})
+            </p>
+          )}
           {c.estado === 'autorizado' && (
             <p className="texto-suave">
               CAE {c.cae}

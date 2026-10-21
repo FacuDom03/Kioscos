@@ -47,6 +47,17 @@ export interface CambioEnCurso {
 let cambio: CambioEnCurso | null = null;
 /** Para regalo: sale con ticket de cambio. */
 let regalo = false;
+/**
+ * A nombre de quién sale la factura de esta venta (cliente con CUIT o DNI). Sin esto, consumidor
+ * final. Vive solo en memoria: en el equipo no se guardan datos de clientes.
+ */
+export interface CompradorElegido {
+  id: string;
+  nombre: string;
+  documento: { tipo: 'cuit' | 'cuil' | 'dni'; numero: string };
+  condicion: 'consumidor_final' | 'monotributo' | 'responsable_inscripto' | 'exento';
+}
+let comprador: CompradorElegido | null = null;
 let kiosco: string | null = null;
 const oyentes = new Set<() => void>();
 
@@ -154,8 +165,16 @@ export function vaciarTicket(): void {
   fijarPresupuesto(null);
   fijarCambio(null);
   fijarRegalo(false);
+  comprador = null;
   fijar([]);
 }
+
+export function fijarComprador(c: CompradorElegido | null): void {
+  comprador = c;
+  avisar();
+}
+
+export const compradorActual = () => comprador;
 
 function fijarCambio(c: CambioEnCurso | null) {
   cambio = c;
@@ -268,4 +287,5 @@ export const useLista = () => useSyncExternalStore(suscribir, () => lista);
 export const usePresupuesto = () => useSyncExternalStore(suscribir, () => presupuesto);
 export const useCambio = () => useSyncExternalStore(suscribir, () => cambio);
 export const useRegalo = () => useSyncExternalStore(suscribir, () => regalo);
+export const useComprador = () => useSyncExternalStore(suscribir, () => comprador);
 export const ticketActual = () => items;

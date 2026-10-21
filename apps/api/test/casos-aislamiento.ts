@@ -394,6 +394,9 @@ export const CASOS_AISLAMIENTO: readonly CasoAislamiento[] = [
     cuerpo: { version: TERMINOS_FACTURACION.version },
   }),
   caso('POST', '/api/v1/facturacion/verificar', 'escribe_solo_lo_propio'),
+  caso('POST', '/api/v1/facturacion/padron', 'escribe_solo_lo_propio', {
+    cuerpo: { cuit: '20409378472' },
+  }),
   caso('POST', '/api/v1/facturacion/estado', 'escribe_solo_lo_propio', {
     cuerpo: { estado: 'baja' },
   }),

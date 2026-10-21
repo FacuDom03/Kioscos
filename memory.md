@@ -55,6 +55,16 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Factura a nombre del comprador y "Cómo vas a usar Mostrador"** (pedido de la persona, como
+  Odoo): migración `0020_comprador.sql` (datos fiscales en `clientes`, `ventas.comprador_id`,
+  `receptor_nombre`/`receptor_domicilio` en `comprobantes`). Padrón de ARCA en
+  `ClienteAfipSdk.padron` y `POST /api/v1/facturacion/padron`. Al cobrar, "Factura a" en
+  `pantallas/vender/FacturaA.tsx` (comprador solo en memoria); formulario en
+  `componentes/ClienteFiscal.tsx`. Tu negocio: "Vender y llevar los números" / "Vender y
+  facturar" (`funcionesDeUso`). Falta que la persona autorice `ws_sr_constancia_inscripcion` en
+  WSASS para probar "Buscar en ARCA" en el servidor.
+- **Factura en ticket y en hoja A4** (`FacturaImpresa.tsx`), formato elegido en Este equipo.
+
 - **Tope del monotributo y exportación de facturas** (fase 1 de `docs/CONTABILIDAD.md`):
   categoría opcional en `config_fiscal` (migración 0019), topes con vigencia en
   `packages/shared/src/monotributo.ts` (actualizar en febrero y agosto), tarjeta en Facturación

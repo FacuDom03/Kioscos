@@ -14,6 +14,12 @@ import {
 import { navegar } from '../../nucleo/ruta.ts';
 import { useSesionCompleta } from '../../nucleo/sesion.tsx';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { useNegocio } from '../../nucleo/rubro.ts';
+import {
+  CONDICIONES_IVA,
+  FormClienteFiscal,
+  documentoVisible,
+} from '../../componentes/ClienteFiscal.tsx';
 
 /** Movimientos (del más nuevo al más viejo) con lo que quedaba debiendo después de cada uno. */
 function conSaldo(saldoActual: number, movimientos: MovimientoCuenta[]) {
@@ -39,6 +45,10 @@ export function ClientePantalla({ id }: { id: string }) {
   const [limite, setLimite] = useState<number | null>(null);
   const [errorEdicion, setErrorEdicion] = useState<string | null>(null);
   const editaLimite = s.rol !== 'cajero';
+  const negocio = useNegocio();
+  const fiado = negocio.tiene('cuenta_corriente');
+  const factura = negocio.tiene('facturacion');
+  const [editandoFiscal, setEditandoFiscal] = useState(false);
   const volver = () => navegar('/clientes');
 
   if (error)
@@ -105,15 +115,59 @@ export function ClientePantalla({ id }: { id: string }) {
       <Volver onClick={volver} />
       <div className="encabezado-pantalla">
         <h1 className="m-titulo">{c.nombre}</h1>
-        <span className={c.saldo > 0 ? 'saldo saldo--debe saldo--grande' : 'saldo saldo--grande'}>
-          {enPalabras(c.saldo)}
-        </span>
+        {fiado && (
+          <span className={c.saldo > 0 ? 'saldo saldo--debe saldo--grande' : 'saldo saldo--grande'}>
+            {enPalabras(c.saldo)}
+          </span>
+        )}
       </div>
       <p className="texto-suave">
-        {c.limite != null ? `Límite: ${formatearPlata(c.limite)}` : 'Sin límite'}
-        {c.telefono && ` · ${c.telefono}`}
+        {fiado && (c.limite != null ? `Límite: ${formatearPlata(c.limite)}` : 'Sin límite')}
+        {c.telefono && `${fiado ? ' · ' : ''}${c.telefono}`}
         {c.nota && ` · ${c.nota}`}
       </p>
+      {factura && (
+        <section className="tarjeta-form" aria-labelledby="titulo-fiscal">
+          <div className="encabezado-pantalla">
+            <h2 className="subtitulo" id="titulo-fiscal">
+              Datos para facturar
+            </h2>
+            {!editandoFiscal && s.rol !== 'cajero' && (
+              <button type="button" className="m-boton" onClick={() => setEditandoFiscal(true)}>
+                {c.doc_nro ? 'Editar' : 'Cargar'}
+              </button>
+            )}
+          </div>
+          {editandoFiscal ? (
+            <FormClienteFiscal
+              clienteId={c.id}
+              inicial={c}
+              alGuardar={() => {
+                setEditandoFiscal(false);
+                void recargar();
+              }}
+              alCancelar={() => setEditandoFiscal(false)}
+            />
+          ) : c.doc_tipo && c.doc_nro ? (
+            <dl className="datos-fiscales datos-cliente-fiscal">
+              <dt>Documento</dt>
+              <dd>{documentoVisible(c.doc_tipo, c.doc_nro)}</dd>
+              <dt>Condición frente al IVA</dt>
+              <dd>{CONDICIONES_IVA[c.condicion_iva ?? 'consumidor_final']}</dd>
+              {c.domicilio && (
+                <>
+                  <dt>Domicilio</dt>
+                  <dd>{c.domicilio}</dd>
+                </>
+              )}
+            </dl>
+          ) : (
+            <p className="texto-suave">
+              Sin CUIT ni DNI: sus compras se facturan a consumidor final.
+            </p>
+          )}
+        </section>
+      )}
       {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
 
       <div className="acciones">
@@ -169,7 +223,7 @@ export function ClientePantalla({ id }: { id: string }) {
             defaultValue={c.nota ?? ''}
             placeholder="Por ejemplo, la dirección"
           />
-          {editaLimite && (
+          {editaLimite && fiado && (
             <CampoPlata
               etiqueta="Límite (vacío: sin límite)"
               valor={limite}
@@ -181,77 +235,81 @@ export function ClientePantalla({ id }: { id: string }) {
         </form>
       )}
 
-      <form className="formulario tarjeta-form" onSubmit={pagar}>
-        <h2 className="subtitulo">Registrar un pago</h2>
-        <div className="dos-columnas">
-          <CampoPlata etiqueta="¿Cuánto paga?" valor={monto} alCambiar={setMonto} />
-          <fieldset className="campo">
-            <legend>¿Cómo paga?</legend>
-            <div className="chips">
-              {(['efectivo', 'transferencia'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  className="chip"
-                  aria-pressed={medio === m}
-                  onClick={() => setMedio(m)}
-                >
-                  {m === 'efectivo' ? 'Efectivo' : 'Transferencia'}
-                </button>
-              ))}
+      {fiado && (
+        <>
+          <form className="formulario tarjeta-form" onSubmit={pagar}>
+            <h2 className="subtitulo">Registrar un pago</h2>
+            <div className="dos-columnas">
+              <CampoPlata etiqueta="¿Cuánto paga?" valor={monto} alCambiar={setMonto} />
+              <fieldset className="campo">
+                <legend>¿Cómo paga?</legend>
+                <div className="chips">
+                  {(['efectivo', 'transferencia'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      className="chip"
+                      aria-pressed={medio === m}
+                      onClick={() => setMedio(m)}
+                    >
+                      {m === 'efectivo' ? 'Efectivo' : 'Transferencia'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
-        </div>
-        {c.saldo > 0 && (
-          <button type="button" className="enlace-boton" onClick={() => setMonto(c.saldo)}>
-            Paga todo ({formatearPlata(c.saldo)})
-          </button>
-        )}
-        {errorPago && <Aviso>{errorPago}</Aviso>}
-        <button className="m-boton m-boton--accion">Registrar pago</button>
-      </form>
+            {c.saldo > 0 && (
+              <button type="button" className="enlace-boton" onClick={() => setMonto(c.saldo)}>
+                Paga todo ({formatearPlata(c.saldo)})
+              </button>
+            )}
+            {errorPago && <Aviso>{errorPago}</Aviso>}
+            <button className="m-boton m-boton--accion">Registrar pago</button>
+          </form>
 
-      <section aria-labelledby="titulo-movimientos">
-        <h2 className="subtitulo" id="titulo-movimientos">
-          Movimientos
-        </h2>
-        {filas.length === 0 ? (
-          <p className="vacio">Todavía no tiene movimientos.</p>
-        ) : (
-          <div className="tabla-contenedor">
-            <table className="tabla">
-              <thead>
-                <tr>
-                  <th scope="col">Fecha</th>
-                  <th scope="col">Qué</th>
-                  <th scope="col" className="num">
-                    Monto
-                  </th>
-                  <th scope="col" className="num">
-                    Queda
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filas.map((m) => (
-                  <tr key={m.id}>
-                    <td>{new Date(m.created_at).toLocaleDateString('es-AR')}</td>
-                    <td>
-                      {TIPOS_MOVIMIENTO[m.tipo]}
-                      {m.medio && ` en ${m.medio}`}
-                      {m.nota && <span className="texto-suave"> · {m.nota}</span>}
-                    </td>
-                    <td className="num">
-                      {m.monto > 0 ? '+' : '−'} {formatearPlata(Math.abs(m.monto))}
-                    </td>
-                    <td className="num">{enPalabras(m.despues)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+          <section aria-labelledby="titulo-movimientos">
+            <h2 className="subtitulo" id="titulo-movimientos">
+              Movimientos
+            </h2>
+            {filas.length === 0 ? (
+              <p className="vacio">Todavía no tiene movimientos.</p>
+            ) : (
+              <div className="tabla-contenedor">
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th scope="col">Fecha</th>
+                      <th scope="col">Qué</th>
+                      <th scope="col" className="num">
+                        Monto
+                      </th>
+                      <th scope="col" className="num">
+                        Queda
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filas.map((m) => (
+                      <tr key={m.id}>
+                        <td>{new Date(m.created_at).toLocaleDateString('es-AR')}</td>
+                        <td>
+                          {TIPOS_MOVIMIENTO[m.tipo]}
+                          {m.medio && ` en ${m.medio}`}
+                          {m.nota && <span className="texto-suave"> · {m.nota}</span>}
+                        </td>
+                        <td className="num">
+                          {m.monto > 0 ? '+' : '−'} {formatearPlata(Math.abs(m.monto))}
+                        </td>
+                        <td className="num">{enPalabras(m.despues)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
 import {
   CUIT_PRUEBAS_AFIPSDK,
   puntoDeVentaFiscal,
+  receptorDe,
   usaCuitDePrueba,
   type Facturador,
 } from '@mostrador/servidor';
@@ -46,7 +47,7 @@ export async function facturasDeVentas(
   if (c.condicion === 'responsable_inscripto') return [];
   const ventas = await tx
     .selectFrom('ventas')
-    .select(['id', 'total'])
+    .select(['id', 'total', 'comprador_id'])
     .where('id', 'in', ventaIds)
     .where('estado', '=', 'cobrada')
     .where('total', '>', 0)
@@ -64,6 +65,7 @@ export async function facturasDeVentas(
         punto_venta: puntoDeVentaFiscal(c, kioscoId, modo),
         total: v.total,
         prueba: modo.prueba,
+        ...(await receptorDe(tx, v.comprador_id)),
       })
       .execute();
     ids.push(id);
@@ -107,6 +109,8 @@ export async function alAnularVenta(tx: TxKiosco, kioscoId: string, ventaId: str
       receptor_condicion: f.receptor_condicion,
       receptor_doc_tipo: f.receptor_doc_tipo,
       receptor_doc_nro: f.receptor_doc_nro,
+      receptor_nombre: f.receptor_nombre,
+      receptor_domicilio: f.receptor_domicilio,
       prueba: f.prueba,
     })
     .onConflict((oc) => oc.doNothing())
@@ -131,6 +135,11 @@ export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string, modo: M
       'ultimo_error',
       'prueba',
       'anula_id',
+      'receptor_condicion',
+      'receptor_doc_tipo',
+      'receptor_doc_nro',
+      'receptor_nombre',
+      'receptor_domicilio',
     ])
     .where('venta_id', '=', ventaId)
     .orderBy('created_at')
@@ -151,6 +160,16 @@ export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string, modo: M
     error: c.ultimo_error,
     prueba: c.prueba,
     anulaId: c.anula_id,
+    // A nombre de quién (sin documento: consumidor final).
+    receptor: {
+      condicion: c.receptor_condicion,
+      documento:
+        c.receptor_doc_tipo && c.receptor_doc_nro
+          ? { tipo: c.receptor_doc_tipo, numero: c.receptor_doc_nro }
+          : null,
+      nombre: c.receptor_nombre,
+      domicilio: c.receptor_domicilio,
+    },
     // El QR del comprobante abre la página de ARCA que lo verifica.
     qr:
       c.estado === 'autorizado' && c.cae && c.numero && c.fecha && (cuit || c.prueba)
@@ -162,6 +181,9 @@ export async function comprobantesDeVenta(tx: TxKiosco, ventaId: string, modo: M
             numero: c.numero,
             totalCentavos: c.total,
             cae: c.cae,
+            ...(c.receptor_doc_tipo && c.receptor_doc_nro
+              ? { comprador: { tipo: c.receptor_doc_tipo, numero: c.receptor_doc_nro } }
+              : {}),
           })
         : null,
   }));

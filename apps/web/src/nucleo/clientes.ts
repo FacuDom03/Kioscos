@@ -9,6 +9,10 @@ export interface ClienteResumen {
   limite: number | null;
   saldo: number;
   ultimo: string | null;
+  doc_tipo: 'cuit' | 'cuil' | 'dni' | null;
+  doc_nro: string | null;
+  condicion_iva: 'consumidor_final' | 'monotributo' | 'responsable_inscripto' | 'exento' | null;
+  domicilio: string | null;
 }
 
 export interface MovimientoCuenta {

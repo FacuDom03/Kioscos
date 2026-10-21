@@ -9,7 +9,8 @@ import { CobroQr } from './CobroQr.tsx';
 import { useEstadoMp } from '../../nucleo/mp.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { ACuenta } from './ACuenta.tsx';
-import { fijarRegalo, useCambio, useRegalo } from '../../nucleo/ticket.ts';
+import { fijarRegalo, useCambio, useComprador, useRegalo } from '../../nucleo/ticket.ts';
+import { FacturaA, hayQueIdentificar } from './FacturaA.tsx';
 
 export type Medio = 'efectivo' | 'qr' | 'transferencia' | 'cuenta';
 
@@ -28,6 +29,10 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
   const negocio = useNegocio();
   const cambio = useCambio();
   const regalo = useRegalo();
+  const comprador = useComprador();
+  // Con la facturación prendida: a nombre de quién sale la factura (por defecto, consumidor final).
+  const conFactura = negocio.tiene('facturacion') && !cambio;
+  const faltaComprador = conFactura && hayQueIdentificar(total) && !comprador;
   // En un cambio se cobra la diferencia en efectivo o transferencia.
   const medios: readonly Medio[] = cambio
     ? ['efectivo', 'transferencia']
@@ -96,108 +101,117 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
           etiqueta="Total a cobrar"
         />
       </div>
-      <fieldset className="campo">
-        <legend>¿Cómo paga?</legend>
-        <div className="medios">
-          {medios.map((m) => (
-            <button
-              key={m}
-              type="button"
-              className="medio"
-              aria-pressed={medio === m}
-              disabled={m === 'qr' && !qrDisponible}
-              onClick={() => {
-                setMedio(m);
-                setError(null);
+      {conFactura && <FacturaA total={total} />}
+      {!faltaComprador && (
+        <>
+          <fieldset className="campo">
+            <legend>¿Cómo paga?</legend>
+            <div className="medios">
+              {medios.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className="medio"
+                  aria-pressed={medio === m}
+                  disabled={m === 'qr' && !qrDisponible}
+                  onClick={() => {
+                    setMedio(m);
+                    setError(null);
+                  }}
+                >
+                  {m === 'efectivo'
+                    ? 'Efectivo'
+                    : m === 'qr'
+                      ? !enLinea
+                        ? 'QR (necesita internet)'
+                        : qrDisponible
+                          ? 'QR'
+                          : 'QR (sin conectar)'
+                      : m === 'cuenta'
+                        ? nombreModulo(negocio.rubro, 'cuenta_corriente')
+                        : 'Transferencia'}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          {!enLinea && !cambio && (
+            <p className="texto-suave">
+              Sin internet no se puede generar el QR. Por ahora, cobrá en efectivo.
+            </p>
+          )}
+          {negocio.tiene('regalo') && !cambio && (
+            <label className="opcion opcion--check">
+              <input
+                type="checkbox"
+                checked={regalo}
+                onChange={(e) => fijarRegalo(e.target.checked)}
+              />
+              Es para regalo (sale con ticket de cambio, sin precios)
+            </label>
+          )}
+
+          {medio === 'efectivo' && (
+            <form
+              className="formulario"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void confirmar('efectivo');
               }}
             >
-              {m === 'efectivo'
-                ? 'Efectivo'
-                : m === 'qr'
-                  ? !enLinea
-                    ? 'QR (necesita internet)'
-                    : qrDisponible
-                      ? 'QR'
-                      : 'QR (sin conectar)'
-                  : m === 'cuenta'
-                    ? nombreModulo(negocio.rubro, 'cuenta_corriente')
-                    : 'Transferencia'}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-      {!enLinea && !cambio && (
-        <p className="texto-suave">
-          Sin internet no se puede generar el QR. Por ahora, cobrá en efectivo.
-        </p>
-      )}
-      {negocio.tiene('regalo') && !cambio && (
-        <label className="opcion opcion--check">
-          <input type="checkbox" checked={regalo} onChange={(e) => fijarRegalo(e.target.checked)} />
-          Es para regalo (sale con ticket de cambio, sin precios)
-        </label>
-      )}
-
-      {medio === 'efectivo' && (
-        <form
-          className="formulario"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void confirmar('efectivo');
-          }}
-        >
-          <CampoPlata
-            etiqueta="¿Con cuánto paga?"
-            valor={recibido}
-            alCambiar={setRecibido}
-            autoFocus
-          />
-          <div className="montos-rapidos">
-            {montosRapidos(total).map((m) => (
-              <button key={m} type="button" className="m-boton" onClick={() => setRecibido(m)}>
-                {formatearPlata(m)}
+              <CampoPlata
+                etiqueta="¿Con cuánto paga?"
+                valor={recibido}
+                alCambiar={setRecibido}
+                autoFocus
+              />
+              <div className="montos-rapidos">
+                {montosRapidos(total).map((m) => (
+                  <button key={m} type="button" className="m-boton" onClick={() => setRecibido(m)}>
+                    {formatearPlata(m)}
+                  </button>
+                ))}
+                <button type="button" className="m-boton" onClick={() => setRecibido(total)}>
+                  Justo
+                </button>
+              </div>
+              <div className="vuelto" aria-live="polite">
+                {elVuelto !== null ? (
+                  <>
+                    <span className="vuelto__etiqueta">Vuelto</span>
+                    <span className="vuelto__monto m-plata">{formatearPlata(elVuelto)}</span>
+                  </>
+                ) : recibido !== null ? (
+                  <span className="vuelto__falta">Falta plata</span>
+                ) : null}
+              </div>
+              {error && <Aviso>{error}</Aviso>}
+              <button className="m-boton m-boton--principal" disabled={enviando}>
+                Cobrar en efectivo
               </button>
-            ))}
-            <button type="button" className="m-boton" onClick={() => setRecibido(total)}>
-              Justo
-            </button>
-          </div>
-          <div className="vuelto" aria-live="polite">
-            {elVuelto !== null ? (
-              <>
-                <span className="vuelto__etiqueta">Vuelto</span>
-                <span className="vuelto__monto m-plata">{formatearPlata(elVuelto)}</span>
-              </>
-            ) : recibido !== null ? (
-              <span className="vuelto__falta">Falta plata</span>
-            ) : null}
-          </div>
-          {error && <Aviso>{error}</Aviso>}
-          <button className="m-boton m-boton--principal" disabled={enviando}>
-            Cobrar en efectivo
-          </button>
-        </form>
-      )}
+            </form>
+          )}
 
-      {medio === 'transferencia' && (
-        <div className="formulario">
-          <p>Cuando veas la transferencia en tu cuenta, confirmala.</p>
-          {error && <Aviso>{error}</Aviso>}
-          <button
-            type="button"
-            className="m-boton m-boton--principal"
-            disabled={enviando}
-            onClick={() => void confirmar('transferencia')}
-          >
-            Transferencia recibida
-          </button>
-        </div>
-      )}
+          {medio === 'transferencia' && (
+            <div className="formulario">
+              <p>Cuando veas la transferencia en tu cuenta, confirmala.</p>
+              {error && <Aviso>{error}</Aviso>}
+              <button
+                type="button"
+                className="m-boton m-boton--principal"
+                disabled={enviando}
+                onClick={() => void confirmar('transferencia')}
+              >
+                Transferencia recibida
+              </button>
+            </div>
+          )}
 
-      {medio === 'cuenta' && <ACuenta total={total} alCobrado={alCobrado} />}
+          {medio === 'cuenta' && <ACuenta total={total} alCobrado={alCobrado} />}
 
-      {medio === 'qr' && (
-        <CobroQr total={total} alCobrado={alCobrado} alCancelar={() => setMedio(null)} />
+          {medio === 'qr' && (
+            <CobroQr total={total} alCobrado={alCobrado} alCancelar={() => setMedio(null)} />
+          )}
+        </>
       )}
     </div>
   );

@@ -19,3 +19,22 @@ export async function clienteParaCuenta(tx: TxKiosco, clienteId: string) {
     .forUpdate()
     .executeTakeFirst();
 }
+
+/**
+ * A quién se le factura la venta: el cliente tiene que existir, estar activo y tener CUIT o DNI.
+ * Si no, la factura sale a consumidor final (la venta se guarda igual).
+ */
+export async function compradorValido(
+  tx: TxKiosco,
+  clienteId: string | undefined,
+): Promise<string | null> {
+  if (!clienteId) return null;
+  const c = await tx
+    .selectFrom('clientes')
+    .select('id')
+    .where('id', '=', clienteId)
+    .where('activo', '=', true)
+    .where('doc_nro', 'is not', null)
+    .executeTakeFirst();
+  return c?.id ?? null;
+}

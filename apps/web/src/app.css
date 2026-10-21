@@ -2232,6 +2232,47 @@ details summary {
   line-height: 1.3;
 }
 
+.usos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+/* Las dos formas de usar Mostrador: tarjetas grandes, el radio cubre toda la tarjeta. */
+.uso {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: var(--line-w) solid var(--line-control);
+  border-radius: var(--radio-grande);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.uso:has(.rubro__radio:checked) {
+  border-color: var(--action);
+  box-shadow: 0 0 0 2px var(--action);
+}
+
+.uso:has(.rubro__radio:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.uso__nombre {
+  font-size: 18px;
+  font-weight: 800;
+  font-stretch: 90%;
+}
+
+.uso__detalle {
+  color: var(--text-soft);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
 .armado__grupo {
   margin: 0;
   padding: 0;
@@ -3809,4 +3850,118 @@ details summary {
   white-space: pre-line;
   border-top: 1px dashed var(--paper-ink);
   padding-top: 6px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Factura a nombre de alguien (al cobrar) y datos fiscales del cliente
+ * ------------------------------------------------------------------------- */
+
+.factura-a {
+  border: var(--line-w) solid var(--line);
+  border-radius: var(--radio);
+  background: var(--surface);
+  padding: 10px 12px;
+}
+
+.factura-a__fila {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.factura-a__etiqueta {
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.factura-a__quien {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.factura-a__quien .texto-suave {
+  font-size: 14px;
+}
+
+.factura-a__acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.factura-a--falta {
+  border-color: var(--danger);
+}
+
+.factura-a__aviso {
+  margin: 8px 0 0;
+}
+
+@media (max-width: 420px) {
+  .factura-a__fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .factura-a__etiqueta {
+    grid-column: 1 / -1;
+  }
+}
+
+.dialogo--comprador {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.comprador__lista {
+  list-style: none;
+  margin: 4px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comprador__opcion {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: var(--line-w) solid var(--line-control);
+  border-radius: var(--radio);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.comprador__opcion:hover {
+  background: var(--surface-2);
+}
+
+.cliente-fiscal__numero {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cliente-fiscal__numero > .campo {
+  flex: 1;
+  min-width: 0;
+}
+
+.cliente-fiscal__numero > .m-boton {
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+
+.cliente-fiscal__arca {
+  margin: 0;
+}
+
+.datos-cliente-fiscal {
+  margin: 0;
 }

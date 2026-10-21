@@ -1,7 +1,9 @@
 import {
   DATOS_MODULOS,
   DATOS_RUBROS,
+  MODULOS_PAPELES,
   RUBROS,
+  funcionesDeUso,
   nombreModulo,
   tituloListo,
   type Modulo,
@@ -80,6 +82,17 @@ export function ArmarNegocio({ alVolver }: { alVolver?: () => void }) {
     setModulos(new Set(enPlan(mismo ? (s.kiosco.modulos ?? []) : DATOS_RUBROS[r].modulos)));
   }
 
+  // Cómo se usa Mostrador: solo vender, o vender y facturar (con clientes). Es un atajo que
+  // prende o apaga funciones; la lista de abajo las deja ajustar una por una.
+  const conPapeles = datos.ofrecidos.some((m) => MODULOS_PAPELES.includes(m));
+  const uso = modulos.has('facturacion') ? 'facturar' : 'vender';
+  function elegirUso(u: 'vender' | 'facturar') {
+    // Lo que no es de "papeles" se mantiene como estaba (por ejemplo, promos o presupuestos).
+    const otros = [...modulos].filter((m) => !MODULOS_PAPELES.includes(m));
+    const papeles = funcionesDeUso(rubro, u).filter((m) => MODULOS_PAPELES.includes(m));
+    setModulos(new Set(enPlan([...otros, ...papeles])));
+  }
+
   function alternar<T>(conjunto: Set<T>, valor: T, fijar: (c: Set<T>) => void) {
     const nuevo = new Set(conjunto);
     if (nuevo.has(valor)) nuevo.delete(valor);
@@ -156,6 +169,51 @@ export function ArmarNegocio({ alVolver }: { alVolver?: () => void }) {
         Cambiar rubro
       </button>
 
+      {conPapeles && (
+        <fieldset className="armado__grupo">
+          <legend className="armado__titulo">Cómo vas a usar Mostrador</legend>
+          <div className="usos">
+            <label className="uso">
+              <input
+                type="radio"
+                name="uso"
+                className="rubro__radio"
+                checked={uso === 'vender'}
+                onChange={() => elegirUso('vender')}
+              />
+              <span className="uso__nombre">Vender y llevar los números</span>
+              <span className="uso__detalle">
+                Ventas, caja, stock y lo que ganás. Sin facturas ni datos de clientes.
+              </span>
+            </label>
+            <label className="uso">
+              <input
+                type="radio"
+                name="uso"
+                className="rubro__radio"
+                checked={uso === 'facturar'}
+                onChange={() => elegirUso('facturar')}
+              />
+              <span className="uso__nombre">Vender y facturar</span>
+              <span className="uso__detalle">
+                Además, factura electrónica de ARCA en cada venta y clientes con CUIT
+                {datos.ofrecidos.includes('cuenta_corriente') &&
+                moduloEnPlan('cuenta_corriente', s.kiosco.plan)
+                  ? ` y ${nombreModulo(rubro, 'cuenta_corriente').toLowerCase()}`
+                  : ''}
+                .
+              </span>
+            </label>
+          </div>
+          {uso === 'facturar' && !s.kiosco.modulos?.includes('facturacion') && (
+            <p className="texto-suave">
+              La facturación se termina de preparar en Más → Facturación ARCA: son unos 10 minutos,
+              con los pasos a la vista.
+            </p>
+          )}
+        </fieldset>
+      )}
+
       {datos.categorias.length > 0 && (
         <fieldset className="armado__grupo">
           <legend className="armado__titulo">
@@ -177,7 +235,9 @@ export function ArmarNegocio({ alVolver }: { alVolver?: () => void }) {
       )}
 
       <fieldset className="armado__grupo">
-        <legend className="armado__titulo">Funciones</legend>
+        <legend className="armado__titulo">
+          {conPapeles ? 'Funciones, una por una' : 'Funciones'}
+        </legend>
         <ul className="funciones">
           {datos.ofrecidos.map((m) => (
             <li key={m}>

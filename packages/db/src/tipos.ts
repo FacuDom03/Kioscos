@@ -187,6 +187,10 @@ export interface ClientesTabla {
   nota: string | null;
   limite: number | null;
   activo: Generated<boolean>;
+  doc_tipo: 'cuit' | 'cuil' | 'dni' | null;
+  doc_nro: string | null;
+  condicion_iva: 'consumidor_final' | CondicionFiscal | null;
+  domicilio: string | null;
   created_at: FechaDefault;
   updated_at: FechaDefault;
 }
@@ -351,6 +355,8 @@ export interface VentasTabla {
   recibida_en: FechaDefault;
   lista: Generated<'mostrador' | 'gremio'>;
   cliente_id: string | null;
+  /** A nombre de quién sale la factura (sin esto, consumidor final). */
+  comprador_id: Generated<string | null>;
   regalo: Generated<boolean>;
 }
 
@@ -543,6 +549,8 @@ export interface ComprobantesTabla {
   receptor_condicion: Generated<'consumidor_final' | CondicionFiscal>;
   receptor_doc_tipo: 'cuit' | 'cuil' | 'dni' | null;
   receptor_doc_nro: string | null;
+  receptor_nombre: string | null;
+  receptor_domicilio: string | null;
   prueba: Generated<boolean>;
   created_at: FechaDefault;
   autorizado_en: Fecha | null;

@@ -30,6 +30,7 @@ export {
   type Cae,
   type ConfigAfipSdk,
   type DetalleComprobante,
+  type PersonaPadron,
 } from './afipsdk.ts';
 export {
   comprobantesPendientes,
@@ -38,6 +39,7 @@ export {
   kioscosConFacturacion,
   procesarComprobante,
   puntoDeVentaFiscal,
+  receptorDe,
   revisarFacturacion,
   usaCuitDePrueba,
   verificarFacturacion,

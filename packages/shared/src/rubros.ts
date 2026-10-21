@@ -260,3 +260,17 @@ export function tituloListo(rubro: Rubro): string {
   const r = DATOS_RUBROS[rubro];
   return `Tu ${r.nombre.toLowerCase()}, ${r.femenino ? 'lista' : 'listo'} para usar`;
 }
+
+/**
+ * Las funciones de "papeles": facturación electrónica y clientes con cuenta. Separan las dos
+ * formas de usar Mostrador ("Vender y llevar los números" o "Vender y facturar").
+ */
+export const MODULOS_PAPELES: readonly Modulo[] = ['facturacion', 'cuenta_corriente'];
+
+/** Funciones de cada forma de usar Mostrador en un rubro (después, el plan decide cuáles van). */
+export function funcionesDeUso(rubro: Rubro, uso: 'vender' | 'facturar'): Modulo[] {
+  const d = DATOS_RUBROS[rubro];
+  const base = d.modulos.filter((m) => !MODULOS_PAPELES.includes(m));
+  if (uso === 'vender') return base;
+  return [...base, ...d.ofrecidos.filter((m) => MODULOS_PAPELES.includes(m))];
+}

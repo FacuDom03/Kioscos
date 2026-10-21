@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { ErrorPublico } from '../errores.ts';
 import type { SesionCompleta } from './sesiones.ts';
 import { moverStock } from './stock.ts';
-import { clienteParaCuenta, saldoDe } from './clientes.ts';
+import { clienteParaCuenta, compradorValido, saldoDe } from './clientes.ts';
 import { tieneModulo } from './negocio.ts';
 import { auditar } from './auditoria.ts';
 
@@ -30,6 +30,8 @@ export const esquemaVenta = z.strictObject({
   presupuestoId: z.uuid().optional(),
   /** Cliente al que se le anota lo que se paga a cuenta (etapa I5). */
   clienteId: z.uuid().optional(),
+  /** A nombre de quién sale la factura (cliente con CUIT o DNI). Sin esto, consumidor final. */
+  compradorId: z.uuid().optional(),
   /** Promos que aplicó el equipo (etapa I7). El servidor las vuelve a calcular. */
   descuentos: esquemaDescuentos.optional(),
   /** Para regalo: sale con ticket de cambio. */
@@ -213,6 +215,7 @@ export async function registrarVenta(
       estado: 'cobrada',
       lista: v.lista ?? 'mostrador',
       cliente_id: aCuenta > 0 ? (v.clienteId ?? null) : null,
+      comprador_id: await compradorValido(tx, v.compradorId),
       regalo: v.regalo ?? false,
       creada_en_dispositivo: v.creadaEn,
     })

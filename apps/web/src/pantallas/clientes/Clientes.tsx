@@ -6,13 +6,19 @@ import { enPalabras, type ClienteResumen } from '../../nucleo/clientes.ts';
 import { useNegocio } from '../../nucleo/rubro.ts';
 import { navegar } from '../../nucleo/ruta.ts';
 import { useDatos } from '../../nucleo/usar-datos.ts';
+import { FormClienteFiscal, documentoVisible } from '../../componentes/ClienteFiscal.tsx';
 
-/** Clientes con cuenta corriente / fiado (etapa I5). */
+/**
+ * Clientes: con la cuenta corriente / fiado (etapa I5) y, con la facturación, los datos para
+ * facturarles a su nombre. Lo de la cuenta solo aparece si está prendida.
+ */
 export function Clientes({ alVolver }: { alVolver: () => void }) {
-  const { rubro } = useNegocio();
-  const titulo = nombreModulo(rubro, 'cuenta_corriente');
+  const negocio = useNegocio();
+  const fiado = negocio.tiene('cuenta_corriente');
+  const factura = negocio.tiene('facturacion');
+  const titulo = fiado ? nombreModulo(negocio.rubro, 'cuenta_corriente') : 'Clientes';
   const [q, setQ] = useState('');
-  const [soloDeben, setSoloDeben] = useState(true);
+  const [soloDeben, setSoloDeben] = useState(fiado);
   const params = new URLSearchParams({
     ...(q.trim() ? { q: q.trim() } : {}),
     ...(soloDeben ? { deben: 'si' } : {}),
@@ -48,12 +54,22 @@ export function Clientes({ alVolver }: { alVolver: () => void }) {
           Cliente nuevo
         </button>
       </div>
-      {datos && (
+      {datos && fiado && (
         <p className="total-deuda">
           Te deben <strong className="m-plata">{formatearPlata(datos.totalDeuda)}</strong> en total.
         </p>
       )}
-      {nuevo && (
+      {nuevo && !fiado && factura && (
+        <section className="tarjeta-form">
+          <h2 className="subtitulo">Cliente nuevo</h2>
+          <FormClienteFiscal
+            textoGuardar="Agregar"
+            alGuardar={(c) => navegar(`/clientes/${c.id}`)}
+            alCancelar={() => setNuevo(false)}
+          />
+        </section>
+      )}
+      {nuevo && fiado && (
         <form className="formulario tarjeta-form" onSubmit={alta}>
           <h2 className="subtitulo">Cliente nuevo</h2>
           <div className="dos-columnas">
@@ -87,24 +103,26 @@ export function Clientes({ alVolver }: { alVolver: () => void }) {
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
-      <div className="chips" role="group" aria-label="Filtro">
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={soloDeben}
-          onClick={() => setSoloDeben(true)}
-        >
-          Los que deben
-        </button>
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={!soloDeben}
-          onClick={() => setSoloDeben(false)}
-        >
-          Todos
-        </button>
-      </div>
+      {fiado && (
+        <div className="chips" role="group" aria-label="Filtro">
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={soloDeben}
+            onClick={() => setSoloDeben(true)}
+          >
+            Los que deben
+          </button>
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={!soloDeben}
+            onClick={() => setSoloDeben(false)}
+          >
+            Todos
+          </button>
+        </div>
+      )}
       {error && (
         <Aviso>
           {error}{' '}
@@ -127,15 +145,20 @@ export function Clientes({ alVolver }: { alVolver: () => void }) {
               >
                 <span className="fila__texto">
                   <span className="fila__titulo">{c.nombre}</span>
-                  {c.ultimo && (
+                  {factura && c.doc_tipo && c.doc_nro && (
+                    <span className="texto-suave">{documentoVisible(c.doc_tipo, c.doc_nro)}</span>
+                  )}
+                  {fiado && c.ultimo && (
                     <span className="texto-suave">
                       Último movimiento: {new Date(c.ultimo).toLocaleDateString('es-AR')}
                     </span>
                   )}
                 </span>
-                <span className={c.saldo > 0 ? 'saldo saldo--debe' : 'saldo'}>
-                  {enPalabras(c.saldo)}
-                </span>
+                {fiado && (
+                  <span className={c.saldo > 0 ? 'saldo saldo--debe' : 'saldo'}>
+                    {enPalabras(c.saldo)}
+                  </span>
+                )}
               </button>
             </li>
           ))}

@@ -64,6 +64,10 @@ export function ACuenta({
         limite,
         saldo: 0,
         ultimo: null,
+        doc_tipo: null,
+        doc_nro: null,
+        condicion_iva: null,
+        domicilio: null,
       });
       setNuevo(false);
     } catch (e) {

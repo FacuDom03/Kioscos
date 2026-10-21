@@ -3,6 +3,7 @@ import { api } from './api.ts';
 import { encolar, sincronizar } from './bandeja.ts';
 import {
   cambioActual,
+  compradorActual,
   cuentaTicket,
   listaActual,
   presupuestoActual,
@@ -78,6 +79,7 @@ function datosVenta(
       ? { descuentos: cuenta.descuentos.map((d) => ({ promoId: d.promoId, monto: d.monto })) }
       : {}),
     ...(regaloActual() ? { regalo: true } : {}),
+    ...(compradorActual() ? { compradorId: compradorActual()?.id } : {}),
     ...(cambio
       ? {
           cambio: {

@@ -1,15 +1,11 @@
 import { formatearCantidad, formatearPlata } from '@mostrador/shared';
 import { fechaCorta, type Presupuesto } from '../../nucleo/presupuestos.ts';
+import { imprimirEnHoja } from '../../nucleo/equipo.ts';
 import { LogoImpreso, MarcaDeAgua, PieImpreso } from '../../componentes/Marca.tsx';
 
 /** Imprime en hoja A4 el presupuesto que esté en pantalla. */
 export function imprimirPresupuesto(): void {
-  const raiz = document.documentElement;
-  raiz.classList.add('imprimiendo-presupuesto');
-  window.addEventListener('afterprint', () => raiz.classList.remove('imprimiendo-presupuesto'), {
-    once: true,
-  });
-  window.print();
+  imprimirEnHoja('imprimiendo-presupuesto');
 }
 
 /** Presupuesto para imprimir en A4. Solo se ve al imprimir. */

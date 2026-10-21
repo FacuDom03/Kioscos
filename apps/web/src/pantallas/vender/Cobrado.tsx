@@ -42,8 +42,10 @@ function BotonFactura({ ventaId }: { ventaId: string }) {
     [],
   );
 
+  const formato = configEquipo().formatoFactura;
+
   async function pedir() {
-    if (lista) return imprimirFactura();
+    if (lista) return imprimirFactura(formato);
     setEsperando(true);
     setMensaje('Esperando que ARCA autorice la factura…');
     const hasta = Date.now() + 30_000;
@@ -59,7 +61,7 @@ function BotonFactura({ ventaId }: { ventaId: string }) {
         setLista({ venta: v, factura: f, emisor: v.emisor });
         setMensaje(null);
         setEsperando(false);
-        setTimeout(imprimirFactura, 50);
+        setTimeout(() => imprimirFactura(formato), 50);
         return;
       }
       if (f && (f.estado === 'rechazado' || f.estado === 'cancelado')) {
@@ -82,7 +84,7 @@ function BotonFactura({ ventaId }: { ventaId: string }) {
         disabled={esperando}
         aria-busy={esperando}
       >
-        Imprimir factura
+        {formato === 'hoja' ? 'Factura en hoja o PDF' : 'Imprimir factura'}
       </button>
       {mensaje && (
         <p className="texto-suave" role="status">

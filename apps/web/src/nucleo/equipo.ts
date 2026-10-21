@@ -5,6 +5,8 @@ import { useSyncExternalStore } from 'react';
 export interface ConfigEquipo {
   anchoTicket: '58' | '80';
   imprimirAlCobrar: boolean;
+  /** Dónde sale la factura al cobrar: en la impresora de tickets o en hoja A4 (o PDF). */
+  formatoFactura: 'ticket' | 'hoja';
   balanza: FormatoBalanza & { activa: boolean };
 }
 
@@ -12,6 +14,7 @@ const CLAVE = 'mostrador.equipo';
 const DEFECTO: ConfigEquipo = {
   anchoTicket: '58',
   imprimirAlCobrar: false,
+  formatoFactura: 'ticket',
   balanza: { ...FORMATO_BALANZA_DEFECTO, activa: true },
 };
 
@@ -49,6 +52,32 @@ export function aplicarAnchoTicket(): void {
   } catch {
     // Navegadores viejos: queda el tamaño de la impresora.
   }
+}
+
+/**
+ * Imprime en hoja A4 (presupuestos, facturas en hoja): mientras dura la impresión, la página es
+ * A4 con márgenes en vez del ancho del ticket. `clase` va en <html> para mostrar lo que se imprime.
+ */
+export function imprimirEnHoja(clase: string): void {
+  const raiz = document.documentElement;
+  try {
+    hoja ??= new CSSStyleSheet();
+    hoja.replaceSync('@media print { @page { size: A4; margin: 12mm; } }');
+    if (!document.adoptedStyleSheets.includes(hoja))
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, hoja];
+  } catch {
+    // Navegadores viejos: queda el tamaño que elija la impresora.
+  }
+  raiz.classList.add(clase);
+  window.addEventListener(
+    'afterprint',
+    () => {
+      raiz.classList.remove(clase);
+      aplicarAnchoTicket();
+    },
+    { once: true },
+  );
+  window.print();
 }
 
 const suscribir = (o: () => void) => {

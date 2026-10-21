@@ -69,9 +69,11 @@ test('se activa la facturación, se cargan los datos y cada venta sale con factu
   expect(texto).toContain('Kiosco Anita');
   expect(texto).toContain('CUIT 20-12345678-6');
   expect(texto).toContain('Responsable Monotributo');
-  expect(texto).toMatch(/FACTURA C/);
+  expect(texto).toContain('FACTURA');
+  await expect(factura.locator('.factura__letra')).toContainText('C');
+  await expect(factura.locator('.factura__letra')).toContainText('Cód. 011');
   expect(texto).toMatch(/N° \d{5}-00000001/);
-  expect(texto).toMatch(/CAE: \d{14}/);
+  expect(texto).toMatch(/CAE\s+\d{14}/);
   expect(texto).toContain('DE PRUEBA');
   await expect(factura.locator('svg.qr')).toBeVisible();
   await expect(page.locator('.impreso:not(.factura-impresa)').first()).toBeHidden();
@@ -89,6 +91,19 @@ test('se activa la facturación, se cargan los datos y cada venta sale con factu
   await expect(detalle.getByText(/^CAE \d{14}/)).toBeVisible();
   await expect(detalle.getByText('(de prueba, no vale)')).toBeVisible();
   await expect(detalle.getByRole('button', { name: 'Imprimir factura' })).toBeVisible();
+  // En hoja A4 (o PDF): el formato de ARCA, con la letra al centro.
+  await page.evaluate(() => {
+    window.print = () => undefined;
+  });
+  await detalle.getByRole('button', { name: 'En hoja o PDF' }).click();
+  await page.emulateMedia({ media: 'print' });
+  const hoja = page.locator('.factura-hoja');
+  await expect(hoja).toBeVisible();
+  await expect(hoja).toContainText('ORIGINAL');
+  await expect(hoja).toContainText('Condición de venta: Contado, efectivo');
+  await expect(hoja.locator('.factura-hoja__letra')).toContainText('C');
+  await expect(hoja.locator('svg.qr')).toBeVisible();
+  await page.emulateMedia({ media: null });
   await expect(detalle.getByRole('link', { name: 'Ver en ARCA' })).toHaveAttribute(
     'href',
     /^https:\/\/www\.afip\.gob\.ar\/fe\/qr\/\?p=/,

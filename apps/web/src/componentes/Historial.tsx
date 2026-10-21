@@ -20,6 +20,7 @@ import {
   imprimirFactura,
   nombreComprobante,
   type ComprobanteVenta,
+  type FormatoFactura,
   type Emisor,
 } from './FacturaImpresa.tsx';
 
@@ -422,10 +423,10 @@ function Comprobantes({
   const lista = venta.comprobantes ?? [];
   const [error, setError] = useState<string | null>(null);
   const [aImprimir, setAImprimir] = useState<ComprobanteVenta | null>(null);
-  const imprimir = (c: ComprobanteVenta) => {
+  const imprimir = (c: ComprobanteVenta, formato: FormatoFactura) => {
     setAImprimir(c);
     // Que React monte la factura antes de abrir la impresión.
-    setTimeout(imprimirFactura, 50);
+    setTimeout(() => imprimirFactura(formato), 50);
   };
   async function reintentar(id: string) {
     try {
@@ -458,9 +459,14 @@ function Comprobantes({
             </p>
           )}
           {c.estado === 'autorizado' && venta.emisor && (
-            <button type="button" className="m-boton" onClick={() => imprimir(c)}>
-              Imprimir {c.tipo.startsWith('nota') ? 'nota de crédito' : 'factura'}
-            </button>
+            <div className="acciones">
+              <button type="button" className="m-boton" onClick={() => imprimir(c, 'ticket')}>
+                Imprimir {c.tipo.startsWith('nota') ? 'nota de crédito' : 'factura'}
+              </button>
+              <button type="button" className="m-boton" onClick={() => imprimir(c, 'hoja')}>
+                En hoja o PDF
+              </button>
+            </div>
           )}
           {c.estado === 'pendiente' && (
             <p className="texto-suave">

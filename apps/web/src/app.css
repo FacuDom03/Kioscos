@@ -2612,7 +2612,8 @@ details summary {
 
 .remito-impreso,
 .cambio-impreso,
-.factura-impresa {
+.factura-impresa,
+.factura-hoja {
   display: none;
 }
 
@@ -2627,6 +2628,7 @@ details summary {
   html:not(.imprimiendo-cambio) .cambio-impreso,
   html.imprimiendo-cambio .impreso:not(.cambio-impreso),
   html.imprimiendo-presupuesto .impreso,
+  html.imprimiendo-factura-hoja .impreso,
   html:not(.imprimiendo-factura) .factura-impresa,
   html.imprimiendo-factura .impreso:not(.factura-impresa) {
     display: none !important;
@@ -2635,6 +2637,258 @@ details summary {
   html.imprimiendo-factura .factura-impresa {
     display: block;
   }
+  /* Factura en el ticket térmico. */
+  .factura__chico {
+    font-size: 10px;
+  }
+  .factura__centro {
+    text-align: center;
+  }
+  .impreso .factura__chico {
+    margin: 0.4mm 0;
+  }
+  .factura__cabeza {
+    display: flex;
+    align-items: center;
+    gap: 3mm;
+    margin: 2mm 0;
+    padding: 1.5mm 0;
+    border-top: 0.3mm solid #000;
+    border-bottom: 0.3mm solid #000;
+  }
+  .impreso .factura__cabeza p {
+    margin: 0.3mm 0;
+  }
+  .factura__letra {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 11mm;
+    height: 11mm;
+    border: 0.5mm solid #000;
+    flex: none;
+  }
+  .factura__letra span {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .factura__letra small {
+    font-size: 6.5px;
+  }
+  .factura__tipo {
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .impreso .factura__linea p {
+    margin: 1mm 0 0;
+  }
+  .factura__linea .impreso__item span:first-child {
+    padding-left: 2mm;
+  }
+  .factura__total {
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .impreso hr.factura__doble {
+    border-top: 0.6mm double #000;
+    height: 0;
+  }
+  .factura__cae {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 1mm 0;
+  }
+  .impreso .factura__cae p {
+    margin: 0.3mm 0;
+  }
+  .factura__cae > div {
+    text-align: center;
+  }
+  .factura__fuerte {
+    font-weight: 700;
+  }
+  .factura__prueba {
+    text-align: center;
+    font-weight: 700;
+    border: 0.3mm solid #000;
+    padding: 1mm;
+  }
+
+  /* Factura en hoja A4 (o PDF), como las de ARCA. */
+  html.imprimiendo-factura-hoja .factura-hoja,
+  html.imprimiendo-factura-hoja .factura-hoja * {
+    visibility: visible;
+  }
+  html.imprimiendo-factura-hoja .factura-hoja {
+    page: hoja;
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    isolation: isolate;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 10pt;
+    color: #000;
+    print-color-adjust: exact;
+  }
+  .factura-hoja p {
+    margin: 0 0 1.2mm;
+  }
+  .factura-hoja .marca-de-agua {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    width: 55%;
+    transform: translate(-50%, -50%);
+    opacity: 0.07;
+    z-index: -1;
+  }
+  .factura-hoja__original {
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    border: 0.3mm solid #000;
+    border-bottom: 0;
+    padding: 1.5mm;
+  }
+  .factura-hoja .factura-hoja__original {
+    margin: 0;
+  }
+  .factura-hoja__prueba {
+    text-align: center;
+    font-weight: 700;
+    font-size: 12pt;
+    margin-bottom: 3mm;
+  }
+  .factura-hoja__cabeza {
+    display: grid;
+    grid-template-columns: 1fr 18mm 1fr;
+    border: 0.3mm solid #000;
+  }
+  .factura-hoja__emisor,
+  .factura-hoja__datos {
+    padding: 4mm 5mm;
+  }
+  /* La letra arriba, al centro, y una línea que divide emisor y datos del comprobante. */
+  .factura-hoja__medio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .factura-hoja__medio::after {
+    content: '';
+    flex: 1;
+    border-left: 0.3mm solid #000;
+  }
+  .factura-hoja__logo {
+    display: block;
+    max-height: 16mm;
+    max-width: 45mm;
+    object-fit: contain;
+    margin-bottom: 2mm;
+  }
+  .factura-hoja__razon {
+    font-size: 14pt;
+    font-weight: 700;
+  }
+  .factura-hoja__letra {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 16mm;
+    height: 16mm;
+    background: #fff;
+    border: 0.3mm solid #000;
+    border-top: 0;
+  }
+  .factura-hoja__letra span {
+    font-size: 26pt;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .factura-hoja__letra small {
+    font-size: 6.5pt;
+    font-weight: 700;
+  }
+  .factura-hoja__tipo {
+    font-size: 16pt;
+    font-weight: 700;
+    margin-bottom: 3mm;
+  }
+  .factura-hoja__receptor {
+    border: 0.3mm solid #000;
+    border-top: 0;
+    padding: 3mm 5mm;
+  }
+  .factura-hoja__detalle {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 3mm;
+  }
+  .factura-hoja__detalle th {
+    background: #e6e6e6;
+    border: 0.3mm solid #000;
+    padding: 1.5mm 2mm;
+    text-align: left;
+    font-size: 9pt;
+  }
+  .factura-hoja__detalle td {
+    padding: 1.5mm 2mm;
+    border-bottom: 0.2mm solid #bbb;
+  }
+  .factura-hoja__detalle th:nth-child(n + 2),
+  .factura-hoja__detalle td:nth-child(n + 2) {
+    text-align: right;
+    white-space: nowrap;
+  }
+  .factura-hoja__totales {
+    margin: 6mm 0 0 auto;
+    width: 75mm;
+    border: 0.3mm solid #000;
+    padding: 3mm 4mm;
+  }
+  .factura-hoja__totales p {
+    display: flex;
+    justify-content: space-between;
+  }
+  .factura-hoja__total {
+    font-size: 13pt;
+    font-weight: 700;
+    border-top: 0.3mm solid #000;
+    padding-top: 1.5mm;
+  }
+  .factura-hoja .factura-hoja__total {
+    margin: 1.5mm 0 0;
+  }
+  .factura-hoja__pie {
+    display: flex;
+    align-items: center;
+    gap: 5mm;
+    margin-top: 8mm;
+    padding-top: 4mm;
+    border-top: 0.3mm solid #000;
+  }
+  .factura-hoja__autorizado {
+    flex: 1;
+  }
+  .factura-hoja__arca {
+    font-weight: 700;
+    font-style: italic;
+  }
+  .factura-hoja__texto {
+    white-space: pre-line;
+  }
+  .factura-hoja__cae {
+    text-align: right;
+  }
+
   .impreso__tipo {
     font-weight: 700;
     font-size: 15px;

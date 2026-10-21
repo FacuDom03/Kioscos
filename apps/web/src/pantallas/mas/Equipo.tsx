@@ -1,8 +1,10 @@
 import { Volver } from '../../componentes/Formulario.tsx';
 import { guardarEquipo, useEquipo } from '../../nucleo/equipo.ts';
+import { useNegocio } from '../../nucleo/rubro.ts';
 
 export function Equipo({ alVolver }: { alVolver: () => void }) {
   const c = useEquipo();
+  const factura = useNegocio().tiene('facturacion');
   return (
     <div className="pantalla">
       <Volver onClick={alVolver} />
@@ -27,6 +29,29 @@ export function Equipo({ alVolver }: { alVolver: () => void }) {
             ))}
           </div>
         </fieldset>
+        {factura && (
+          <fieldset className="campo">
+            <legend>Las facturas salen en</legend>
+            <div className="chips">
+              {(
+                [
+                  ['ticket', 'La impresora de tickets'],
+                  ['hoja', 'Hoja A4 o PDF'],
+                ] as const
+              ).map(([valor, texto]) => (
+                <label key={valor} className="chip chip--radio">
+                  <input
+                    type="radio"
+                    name="formato-factura"
+                    checked={c.formatoFactura === valor}
+                    onChange={() => guardarEquipo({ ...c, formatoFactura: valor })}
+                  />
+                  {texto}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <label className="opcion">
           <input
             type="checkbox"

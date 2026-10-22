@@ -1575,15 +1575,25 @@ fieldset.campo legend {
   font-size: 16px;
 }
 
-/* En el celular, un medio por renglón: botones grandes, fáciles de acertar con el pulgar. */
+/* En el celular, dos medios por renglón: siguen grandes para el pulgar y el monto entra sin bajar. */
 @media (max-width: 599px) {
   .medios {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .medio {
-    min-height: 60px;
-    font-size: 18px;
+    min-height: 56px;
+    font-size: 17px;
   }
+}
+
+/* Estilo sobrio: el total de Cobrar va centrado, etiqueta y monto juntos. */
+[data-estilo='sobrio'] .cobrar__total .m-cartel {
+  place-items: center;
+}
+
+[data-estilo='sobrio'] .cobrar__total .m-cartel__texto {
+  align-items: center;
+  text-align: center;
 }
 
 /* Cobrar en pantalla completa: una columna centrada, sin estirarse en la tablet. */
@@ -3945,9 +3955,14 @@ details summary {
 }
 
 .factura-a__etiqueta {
-  flex-basis: 100%;
   color: var(--text-soft);
   font-size: 14px;
+}
+
+.factura-a .m-boton {
+  min-height: 40px;
+  padding: 0 12px;
+  font-size: 15px;
 }
 
 .factura-a__quien {

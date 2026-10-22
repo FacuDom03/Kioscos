@@ -1,6 +1,6 @@
 import { formatearPlata, montosRapidos, nombreModulo, vuelto } from '@mostrador/shared';
 import { CartelTotal } from '@mostrador/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CampoPlata } from '../../componentes/CampoPlata.tsx';
 import { Aviso, Volver } from '../../componentes/Formulario.tsx';
 import { cobrar, type VentaHecha } from '../../nucleo/cobrar.ts';
@@ -41,6 +41,28 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
       : ['efectivo', 'qr', 'transferencia'];
   const sinDiferencia = !!cambio && total === 0;
   const [medio, setMedio] = useState<Medio | null>(medioInicial ?? (enLinea ? null : 'efectivo'));
+  // En una pantalla baja, el botón fijo de abajo podría tapar el monto: se sube lo justo.
+  const formEfectivo = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (medio !== 'efectivo') return;
+    // Después de pintar: el foco automático ya movió la pantalla y el botón ya está en su lugar.
+    const id = requestAnimationFrame(() => {
+      const form = formEfectivo.current;
+      const campo = form?.querySelector('input');
+      const boton = form?.querySelector('.cobrar__accion');
+      if (!campo || !boton) return;
+      const tapa = campo.getBoundingClientRect().bottom + 12 - boton.getBoundingClientRect().top;
+      if (tapa <= 0) return;
+      // Se mueve el primer contenedor que se desplaza (la pantalla o el panel de la PC).
+      for (let el = form?.parentElement; el; el = el.parentElement) {
+        if (el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY !== 'visible') {
+          el.scrollTop += tapa;
+          return;
+        }
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [medio]);
   const [recibido, setRecibido] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -152,6 +174,7 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
 
           {medio === 'efectivo' && (
             <form
+              ref={formEfectivo}
               className="formulario"
               onSubmit={(e) => {
                 e.preventDefault();

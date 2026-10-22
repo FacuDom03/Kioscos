@@ -1,7 +1,7 @@
 // Secciones Ventas y Compras y movimientos de stock, cada uno con su detalle.
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { entrar, kioscoConDueno, productos } from './ayuda.ts';
+import { entrar, kioscoConDueno, productos, irA } from './ayuda.ts';
 
 test('Ventas, Compras y Movimientos muestran lo hecho, con su detalle', async ({ page }) => {
   const d = await kioscoConDueno();
@@ -46,7 +46,7 @@ test('Ventas, Compras y Movimientos muestran lo hecho, con su detalle', async ({
   expect((await new AxeBuilder({ page }).include('dialog').analyze()).violations).toEqual([]);
   await venta.getByRole('button', { name: 'Cerrar' }).click();
 
-  await nav.getByRole('button', { name: 'Compras' }).click();
+  await irA(page, 'Compras');
   await page.getByRole('button', { name: /\$ 30\.000/ }).click();
   const compra = page.getByRole('dialog', { name: 'Compra' });
   await expect(compra.getByText('10 × Yerba 1 kg a $ 3.000')).toBeVisible();

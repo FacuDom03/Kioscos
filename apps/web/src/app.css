@@ -284,6 +284,12 @@
   gap: 10px;
 }
 
+@media (min-width: 1024px) and (pointer: fine) {
+  .mas__grupo--barra-abajo {
+    display: none;
+  }
+}
+
 .mas__grupo .subtitulo {
   margin: 0;
 }
@@ -859,6 +865,21 @@
   gap: 8px;
 }
 
+/* En el celular, las herramientas van en un solo renglón que se desliza: no empujan la lista. */
+@media (max-width: 599px) {
+  .herramientas {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: -16px;
+    padding: 2px 16px 6px;
+    scrollbar-width: none;
+  }
+
+  .herramientas > .m-boton {
+    flex: 0 0 auto;
+  }
+}
+
 .tarjeta-aumento {
   display: flex;
   align-items: center;
@@ -986,8 +1007,13 @@
   text-align: left;
   padding: 0;
   font-weight: 700;
-  text-decoration: underline;
+  text-decoration: none;
   text-underline-offset: 3px;
+}
+
+.enlace-tabla:hover,
+.enlace-tabla:focus-visible {
+  text-decoration: underline;
 }
 
 .dos-columnas {
@@ -1294,6 +1320,18 @@ fieldset.campo legend {
   margin: 0;
 }
 
+.vacio--accion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vacio--accion p {
+  margin: 0;
+}
+
 .lista-errores {
   margin: 0;
   color: var(--danger);
@@ -1508,6 +1546,14 @@ fieldset.campo legend {
   padding: 4px;
 }
 
+/* El botón que cierra el cobro queda siempre a la vista, aunque la pantalla sea baja. */
+.cobrar__accion {
+  position: sticky;
+  bottom: 8px;
+  z-index: 2;
+  box-shadow: 0 8px 0 8px var(--bg);
+}
+
 .cobrar__total {
   display: flex;
   justify-content: center;
@@ -1551,6 +1597,34 @@ fieldset.campo legend {
 .pantalla.caja > * {
   width: 100%;
   max-width: 680px;
+}
+
+.caja__registro {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* En la PC, las cuentas a la izquierda y las ventas y cierres a la derecha. */
+@media (min-width: 1200px) and (pointer: fine) {
+  .pantalla.caja {
+    max-width: 1280px;
+    display: grid;
+    grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+    align-content: start;
+    column-gap: 32px;
+  }
+
+  .pantalla.caja > * {
+    grid-column: 1;
+    max-width: none;
+  }
+
+  .pantalla.caja > .caja__registro {
+    grid-column: 2;
+    grid-row: 1 / span 30;
+    align-self: start;
+  }
 }
 
 .medio:disabled {
@@ -1658,8 +1732,8 @@ fieldset.campo legend {
   margin: 8px 0 14px;
 }
 
-/* Diálogos de confirmar, pedir un dato y avisar: modales, la sombra del .dialogo hace de fondo. */
-.dialogo--sistema::backdrop {
+/* Todos los diálogos son modales: la sombra del .dialogo hace de fondo. */
+.dialogo::backdrop {
   background: transparent;
 }
 

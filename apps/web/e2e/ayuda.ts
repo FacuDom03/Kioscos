@@ -152,3 +152,18 @@ export async function pagarQr(kioscoId: string): Promise<void> {
   const r = await fetch(`${datos().mpUrl}/__pruebas/pagar?caja=${caja}`, { method: 'POST' });
   if (!r.ok) throw new Error('no hay orden para pagar');
 }
+
+/**
+ * Va a una sección como lo haría la persona: por la barra si está ahí, o desde Más (en celular y
+ * tablet, Compras y Tablero se abren desde Más).
+ */
+export async function irA(page: Page, seccion: string): Promise<void> {
+  const nav = page.getByRole('navigation', { name: 'Secciones' });
+  const boton = nav.getByRole('button', { name: seccion, exact: true });
+  if (await boton.isVisible()) {
+    await boton.click();
+    return;
+  }
+  await nav.getByRole('button', { name: 'Más', exact: true }).click();
+  await page.getByRole('button', { name: new RegExp(`^${seccion}\\b`) }).click();
+}

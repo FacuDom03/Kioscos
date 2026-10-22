@@ -211,10 +211,7 @@ export function planillaModelo(o: OpcionesPlanilla): Hoja[] {
         ...cols.map((c) => [c.titulo, c.ayuda]),
         [],
         ['Antes de subirla', 'Borrá las filas de ejemplo y dejá la primera fila como está.'],
-        [
-          'Para subirla',
-          'En Mostrador: Stock → Importar productos desde un archivo → Elegir archivo.',
-        ],
+        ['Para subirla', 'En Mostrador: Stock → Importar productos → Elegir archivo.'],
         ['Máximo', '5000 productos por archivo.'],
       ],
     },
@@ -282,7 +279,7 @@ export function planillaDeStock(
         ['Qué es', 'Tus productos como estaban al descargarla.'],
         [
           'Para cambiar precios',
-          'Corregí la planilla y subila en Stock → Importar productos desde un archivo. Cada fila actualiza el producto con ese código (o, si no tiene código, el que se llama igual).',
+          'Corregí la planilla y subila en Stock → Importar productos. Cada fila actualiza el producto con ese código (o, si no tiene código, el que se llama igual).',
         ],
         [
           'El stock',

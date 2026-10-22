@@ -24,6 +24,7 @@ export function Ventas() {
         deUnTurno={!!turno}
         alQuitarTurno={() => setTurno(null)}
         alAbrir={setAbierta}
+        accionVacio={turno ? undefined : { texto: 'Ir a vender', ruta: '/' }}
       />
       {abierta && (
         <DetalleHistorial

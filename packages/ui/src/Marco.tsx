@@ -12,6 +12,12 @@ import { Toldo } from './Toldo.tsx';
 
 export type Seccion = 'vender' | 'ventas' | 'compras' | 'stock' | 'caja' | 'tablero' | 'mas';
 
+/**
+ * En la barra de abajo (celular y tablet) entran cinco secciones con el nombre legible: Compras y
+ * Tablero van solo en la barra lateral de la PC; abajo se entra desde Más.
+ */
+export const SOLO_BARRA_LATERAL: readonly Seccion[] = ['compras', 'tablero'];
+
 const SECCIONES: { id: Seccion; nombre: string; Icono: () => ReactNode }[] = [
   { id: 'vender', nombre: 'Vender', Icono: IconoVender },
   { id: 'ventas', nombre: 'Ventas', Icono: IconoVentas },
@@ -46,11 +52,15 @@ export function Marco({ seccion, alCambiar, estado, ocultas = [], children }: Pr
       <nav className="m-nav" aria-label="Secciones">
         <ul className="m-nav__lista">
           {SECCIONES.filter((x) => !ocultas.includes(x.id)).map(({ id, nombre, Icono }) => (
-            <li key={id}>
+            <li key={id} className={SOLO_BARRA_LATERAL.includes(id) ? 'm-nav__lateral' : undefined}>
               <button
                 type="button"
                 className="m-nav__item"
                 aria-current={seccion === id ? 'page' : undefined}
+                // En la barra de abajo, Más se marca cuando la sección actual se abre desde ahí.
+                data-contiene={
+                  id === 'mas' && SOLO_BARRA_LATERAL.includes(seccion) ? '' : undefined
+                }
                 onClick={() => alCambiar(id)}
               >
                 <Icono />

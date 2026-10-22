@@ -1,3 +1,4 @@
+import { Modal } from '../../componentes/Dialogos.tsx';
 import { useState, type FormEvent } from 'react';
 import { Aviso, Campo } from '../../componentes/Formulario.tsx';
 import { mensajeDeError } from '../../nucleo/api.ts';
@@ -34,17 +35,7 @@ export function GuardarPresupuesto({
   }
 
   return (
-    <dialog
-      className="dialogo"
-      open
-      aria-labelledby="titulo-presupuesto"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          alCerrar();
-        }
-      }}
-    >
+    <Modal className="dialogo" etiqueta="titulo-presupuesto" alCerrar={alCerrar}>
       <form className="formulario" onSubmit={enviar}>
         <h2 id="titulo-presupuesto" className="subtitulo">
           Guardar presupuesto
@@ -77,6 +68,6 @@ export function GuardarPresupuesto({
           </button>
         </div>
       </form>
-    </dialog>
+    </Modal>
   );
 }

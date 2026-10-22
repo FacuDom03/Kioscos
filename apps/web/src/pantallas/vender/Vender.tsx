@@ -1,3 +1,4 @@
+import { Modal } from '../../componentes/Dialogos.tsx';
 import {
   DATOS_RUBROS,
   DATOS_UNIDADES,
@@ -810,7 +811,7 @@ export function Vender({ estado }: { estado: ReactNode }) {
                         ? 'Cobrar con QR (necesita internet)'
                         : qrDisponible
                           ? `Cobrar con QR${atajo('F9')}`
-                          : 'Cobrar con QR (conectá Mercado Pago)'}
+                          : 'QR (sin conectar)'}
                     </button>
                   )}
                   {!(cambio && total === 0) && (
@@ -951,12 +952,7 @@ function ConfirmarVaciar({
   const boton = useRef<HTMLButtonElement>(null);
   useEffect(() => boton.current?.focus(), []);
   return (
-    <dialog
-      className="dialogo"
-      open
-      aria-labelledby="titulo-vaciar"
-      onKeyDown={(e) => e.key === 'Escape' && alCancelar()}
-    >
+    <Modal className="dialogo" etiqueta="titulo-vaciar" alCerrar={alCancelar}>
       <h2 id="titulo-vaciar" className="subtitulo">
         ¿Vaciar el ticket?
       </h2>
@@ -974,7 +970,7 @@ function ConfirmarVaciar({
           No, seguir
         </button>
       </div>
-    </dialog>
+    </Modal>
   );
 }
 

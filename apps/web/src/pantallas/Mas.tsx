@@ -14,6 +14,13 @@ interface Opcion {
   detalle: string;
 }
 
+interface Grupo {
+  titulo: string;
+  opciones: Opcion[];
+  /** Solo en celular y tablet: en la PC estas secciones están en la barra lateral. */
+  soloBarraAbajo?: boolean;
+}
+
 export function Mas() {
   const s = useSesionCompleta();
   const { salir, fijar } = useSesion();
@@ -37,7 +44,22 @@ export function Mas() {
   }
 
   const encargado = dueno || s.rol === 'encargado';
-  const grupos: { titulo: string; opciones: Opcion[] }[] = [
+  const grupos: Grupo[] = [
+    {
+      titulo: 'Secciones',
+      soloBarraAbajo: true,
+      opciones:
+        s.rol === 'cajero'
+          ? []
+          : [
+              {
+                ruta: '/compras',
+                nombre: 'Compras',
+                detalle: 'Cargar compras, proveedores y sus listas',
+              },
+              { ruta: '/tablero', nombre: 'Tablero', detalle: 'Qué se vende, qué no y qué falta' },
+            ],
+    },
     {
       titulo: 'Gestión',
       opciones: [
@@ -172,7 +194,11 @@ export function Mas() {
       {grupos
         .filter((g) => g.opciones.length > 0)
         .map((g) => (
-          <section key={g.titulo} className="mas__grupo" aria-label={g.titulo}>
+          <section
+            key={g.titulo}
+            className={g.soloBarraAbajo ? 'mas__grupo mas__grupo--barra-abajo' : 'mas__grupo'}
+            aria-label={g.titulo}
+          >
             <h2 className="subtitulo">{g.titulo}</h2>
             <ul className="opciones-mas">
               {g.opciones.map((o) => (

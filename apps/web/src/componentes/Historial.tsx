@@ -12,9 +12,10 @@ import { useState, type ReactNode } from 'react';
 import { Aviso } from './Formulario.tsx';
 import { api, mensajeDeError } from '../nucleo/api.ts';
 import { hoyArgentina } from '../nucleo/descargar.ts';
+import { navegar } from '../nucleo/ruta.ts';
 import { useSesionCompleta } from '../nucleo/sesion.tsx';
 import { useDatos } from '../nucleo/usar-datos.ts';
-import { pedirTexto } from './Dialogos.tsx';
+import { pedirTexto, Modal } from './Dialogos.tsx';
 import { documentoVisible } from './ClienteFiscal.tsx';
 import {
   FacturaImpresa,
@@ -116,8 +117,22 @@ function Cargando() {
   );
 }
 
-function Vacio({ texto }: { texto: string }) {
-  return <p className="vacio">{texto}</p>;
+function Vacio({
+  texto,
+  accion,
+}: {
+  texto: string;
+  accion?: { texto: string; ruta: string } | undefined;
+}) {
+  if (!accion) return <p className="vacio">{texto}</p>;
+  return (
+    <div className="vacio vacio--accion">
+      <p>{texto}</p>
+      <button type="button" className="m-boton" onClick={() => navegar(accion.ruta)}>
+        {accion.texto}
+      </button>
+    </div>
+  );
 }
 
 type TipoFiscal = TipoComprobante;
@@ -153,6 +168,7 @@ export function ListaVentas({
   alAbrir,
   conResumen = true,
   textoVacio = 'No hay ventas en este período.',
+  accionVacio,
 }: {
   url: string;
   deUnTurno?: boolean;
@@ -160,6 +176,8 @@ export function ListaVentas({
   alAbrir: (id: string) => void;
   conResumen?: boolean;
   textoVacio?: string;
+  /** Botón para salir del estado vacío (por ejemplo, ir a vender). */
+  accionVacio?: { texto: string; ruta: string } | undefined;
 }) {
   const { datos, error } = useDatos<VentaFila[]>(url);
   const cobradas = (datos ?? []).filter((v) => v.estado === 'cobrada');
@@ -175,7 +193,7 @@ export function ListaVentas({
       )}
       {error && <Aviso>{error}</Aviso>}
       {!datos && !error && <Cargando />}
-      {datos && datos.length === 0 && <Vacio texto={textoVacio} />}
+      {datos && datos.length === 0 && <Vacio texto={textoVacio} accion={accionVacio} />}
       {conResumen && datos && datos.length > 0 && (
         <p className="resumen-historial">
           {cobradas.length} {cobradas.length === 1 ? 'venta' : 'ventas'} por{' '}
@@ -249,7 +267,10 @@ export function ListaCompras({ url, alAbrir }: { url: string; alAbrir: (id: stri
       {error && <Aviso>{error}</Aviso>}
       {!datos && !error && <Cargando />}
       {datos && datos.length === 0 && (
-        <Vacio texto="No hay compras en este período. Cuando llegue mercadería, tocá Cargar compra." />
+        <Vacio
+          texto="No hay compras en este período. Cuando llegue mercadería, cargala acá y el stock se suma solo."
+          accion={{ texto: 'Cargar compra', ruta: '/compras/nueva' }}
+        />
       )}
       <ul className="lista-historial">
         {datos?.map((c) => (
@@ -576,12 +597,7 @@ export function DetalleHistorial({
         ? `/api/v1/compras/${detalle.id}`
         : `/api/v1/caja/cierres/${detalle.id}`;
   return (
-    <dialog
-      className="dialogo dialogo--detalle"
-      open
-      aria-labelledby="titulo-detalle"
-      onKeyDown={(e) => e.key === 'Escape' && alCerrar()}
-    >
+    <Modal className="dialogo dialogo--detalle" etiqueta="titulo-detalle" alCerrar={alCerrar}>
       <h2 id="titulo-detalle" className="subtitulo">
         {TITULO[detalle.tipo]}
       </h2>
@@ -595,7 +611,7 @@ export function DetalleHistorial({
           Cerrar
         </button>
       </div>
-    </dialog>
+    </Modal>
   );
 }
 

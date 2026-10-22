@@ -1,3 +1,4 @@
+import { Modal } from '../../componentes/Dialogos.tsx';
 import {
   DATOS_UNIDADES,
   formatearCantidad,
@@ -44,17 +45,7 @@ export function CantidadProducto({
   }
 
   return (
-    <dialog
-      className="dialogo"
-      open
-      aria-labelledby="titulo-cantidad"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          alCerrar();
-        }
-      }}
-    >
+    <Modal className="dialogo" etiqueta="titulo-cantidad" alCerrar={alCerrar}>
       <form className="formulario" onSubmit={enviar}>
         <h2 id="titulo-cantidad" className="subtitulo">
           {producto.nombre}
@@ -106,6 +97,6 @@ export function CantidadProducto({
           </button>
         </div>
       </form>
-    </dialog>
+    </Modal>
   );
 }

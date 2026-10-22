@@ -37,7 +37,7 @@ export function BuscadorProductos({
         id={id}
         className="buscador__campo"
         type="search"
-        placeholder="Escaneá o buscá un producto"
+        placeholder="Buscar o escanear"
         value={q}
         role="combobox"
         aria-expanded={resultados.length > 0}

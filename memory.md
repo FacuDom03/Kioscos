@@ -55,6 +55,15 @@ Comandos útiles: `pnpm lint && pnpm format:check && pnpm typecheck`, `pnpm test
 
 ### Lo último que se hizo
 
+- **Arreglos de la revisión UX/UI (22/10/2026):** todos los diálogos de pantalla son modales
+  (`Modal` en `componentes/Dialogos.tsx`, no se toca lo de atrás); el botón que cierra el cobro
+  queda fijo abajo (`.cobrar__accion`); en celular y tablet la barra tiene 5 secciones y Compras y
+  Tablero se abren desde Más (grupo "Secciones", `SOLO_BARRA_LATERAL` en `Marco`); Stock oculta
+  las columnas sin datos, "Importar productos" es un botón y las herramientas van en un renglón
+  que se desliza en el celular; Caja en dos columnas en PC; Ventas y Compras vacías con botón;
+  textos de búsqueda cortos ("Buscar o escanear"); QR sin conectar dice "QR (sin conectar)".
+  Pruebas en `apps/web/e2e/ux.spec.ts` y ayuda `irA(page, 'Compras')` en `e2e/ayuda.ts`.
+
 - **Factura a nombre del comprador y "Cómo vas a usar Mostrador"** (pedido de la persona, como
   Odoo): migración `0020_comprador.sql` (datos fiscales en `clientes`, `ventas.comprador_id`,
   `receptor_nombre`/`receptor_domicilio` en `comprobantes`). Padrón de ARCA en

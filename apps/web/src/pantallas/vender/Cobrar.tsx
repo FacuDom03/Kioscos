@@ -185,7 +185,7 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
                 ) : null}
               </div>
               {error && <Aviso>{error}</Aviso>}
-              <button className="m-boton m-boton--principal" disabled={enviando}>
+              <button className="m-boton m-boton--principal cobrar__accion" disabled={enviando}>
                 Cobrar en efectivo
               </button>
             </form>
@@ -197,7 +197,7 @@ export function Cobrar({ total, medioInicial, enPanel, alVolver, alCobrado }: Pr
               {error && <Aviso>{error}</Aviso>}
               <button
                 type="button"
-                className="m-boton m-boton--principal"
+                className="m-boton m-boton--principal cobrar__accion"
                 disabled={enviando}
                 onClick={() => void confirmar('transferencia')}
               >

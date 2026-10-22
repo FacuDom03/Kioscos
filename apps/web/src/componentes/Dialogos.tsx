@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 
 // Diálogos propios en lugar de alert, confirm y prompt del navegador: se ven igual en todos los
 // equipos, siguen el tema, ocultan lo secreto (un PIN) y funcionan bien en la app instalada.
@@ -169,6 +177,42 @@ function Dialogo({ pedido }: { pedido: Pedido }) {
           )}
         </div>
       </form>
+    </dialog>
+  );
+}
+
+/**
+ * Diálogo modal de una pantalla (cantidad, precio libre, detalle…): mientras está abierto no se
+ * puede tocar lo de atrás y el foco queda adentro. Escape llama a `alCerrar`.
+ */
+export function Modal({
+  className = 'dialogo',
+  etiqueta,
+  alCerrar,
+  children,
+}: {
+  className?: string;
+  /** ID del título del diálogo. */
+  etiqueta: string;
+  alCerrar: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className={className}
+      aria-labelledby={etiqueta}
+      onCancel={(e) => {
+        e.preventDefault();
+        alCerrar();
+      }}
+    >
+      {children}
     </dialog>
   );
 }

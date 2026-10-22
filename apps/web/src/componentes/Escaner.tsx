@@ -1,3 +1,4 @@
+import { Modal } from './Dialogos.tsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { puntoEnVideo, recorteDelMarco } from '@mostrador/shared';
@@ -317,12 +318,7 @@ export function Escaner({
   };
 
   return (
-    <dialog
-      className="dialogo escaner"
-      open
-      aria-labelledby="titulo-escaner"
-      onKeyDown={(e) => e.key === 'Escape' && alCerrar()}
-    >
+    <Modal className="dialogo escaner" etiqueta="titulo-escaner" alCerrar={alCerrar}>
       <h2 id="titulo-escaner" className="subtitulo">
         Escanear
       </h2>
@@ -403,6 +399,6 @@ export function Escaner({
           </button>
         </>
       )}
-    </dialog>
+    </Modal>
   );
 }

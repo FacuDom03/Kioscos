@@ -287,9 +287,11 @@ export function Caja() {
         </button>
       </form>
 
-      {s.rol !== 'cajero' && <Pendientes />}
-      <VentasDelTurno turnoId={datos?.turno?.id ?? null} />
-      {s.rol !== 'cajero' && <CierresAnteriores />}
+      <div className="caja__registro">
+        {s.rol !== 'cajero' && <Pendientes />}
+        <VentasDelTurno turnoId={datos?.turno?.id ?? null} />
+        {s.rol !== 'cajero' && <CierresAnteriores />}
+      </div>
     </div>
   );
 }

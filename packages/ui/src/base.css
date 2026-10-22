@@ -239,11 +239,17 @@ h3 {
   font-weight: 600;
 }
 
-.m-nav__item[aria-current='page'] {
+.m-nav__lateral {
+  display: none;
+}
+
+.m-nav__item[aria-current='page'],
+.m-nav__item[data-contiene] {
   color: var(--text);
 }
 
-.m-nav__item[aria-current='page']::before {
+.m-nav__item[aria-current='page']::before,
+.m-nav__item[data-contiene]::before {
   content: '';
   position: absolute;
   top: 0;
@@ -329,6 +335,19 @@ h3 {
 
   .m-nav__estado {
     display: block;
+  }
+
+  .m-nav__lateral {
+    display: block;
+  }
+
+  /* En la barra lateral, Compras y Tablero tienen su lugar: Más no se marca por ellos. */
+  .m-nav__item[data-contiene]:not([aria-current]) {
+    color: var(--text-soft);
+  }
+
+  .m-nav__item[data-contiene]:not([aria-current])::before {
+    content: none;
   }
 }
 

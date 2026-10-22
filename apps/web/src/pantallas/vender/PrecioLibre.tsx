@@ -1,3 +1,4 @@
+import { Modal } from '../../componentes/Dialogos.tsx';
 import { useState, type FormEvent } from 'react';
 import { CampoPlata } from '../../componentes/CampoPlata.tsx';
 import { Aviso, Campo } from '../../componentes/Formulario.tsx';
@@ -13,12 +14,7 @@ export function PrecioLibre({ alCerrar }: { alCerrar: () => void }) {
     alCerrar();
   }
   return (
-    <dialog
-      className="dialogo"
-      open
-      aria-labelledby="titulo-libre"
-      onKeyDown={(e) => e.key === 'Escape' && alCerrar()}
-    >
+    <Modal className="dialogo" etiqueta="titulo-libre" alCerrar={alCerrar}>
       <form className="formulario" onSubmit={enviar}>
         <h2 id="titulo-libre" className="subtitulo">
           Producto sin código
@@ -38,6 +34,6 @@ export function PrecioLibre({ alCerrar }: { alCerrar: () => void }) {
           </button>
         </div>
       </form>
-    </dialog>
+    </Modal>
   );
 }

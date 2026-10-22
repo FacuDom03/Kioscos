@@ -195,7 +195,7 @@ export function ACuenta({
       {elegido && (
         <button
           type="button"
-          className="m-boton m-boton--principal"
+          className="m-boton m-boton--principal cobrar__accion"
           disabled={enviando || pasa}
           onClick={() => void anotar()}
         >

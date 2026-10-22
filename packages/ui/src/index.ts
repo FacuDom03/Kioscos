@@ -1,4 +1,4 @@
-export { Marco, type Seccion } from './Marco.tsx';
+export { Marco, SOLO_BARRA_LATERAL, type Seccion } from './Marco.tsx';
 export { Toldo } from './Toldo.tsx';
 export { CartelTotal } from './CartelTotal.tsx';
 export { Ticket } from './Ticket.tsx';

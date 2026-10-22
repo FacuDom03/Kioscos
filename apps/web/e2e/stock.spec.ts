@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { leerXlsx } from '../../../packages/shared/src/xlsx.ts';
-import { entrar, kioscoConDueno, productos } from './ayuda.ts';
+import { entrar, kioscoConDueno, productos, irA } from './ayuda.ts';
 
 test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ page }, info) => {
   const d = await kioscoConDueno();
@@ -31,7 +31,7 @@ test('alta de producto, Por reponer, compra y aumento con deshacer', async ({ pa
 
   // Cargar compra: llegan 24 a $ 800 con 50 % de margen.
   const nav = page.getByRole('navigation', { name: 'Secciones' });
-  await nav.getByRole('button', { name: 'Compras' }).click();
+  await irA(page, 'Compras');
   await page.getByRole('button', { name: 'Cargar compra' }).click();
   await page.getByLabel('Agregar producto').fill('7790040000001');
   await page.getByLabel('Agregar producto').press('Enter');

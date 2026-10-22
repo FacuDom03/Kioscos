@@ -86,6 +86,12 @@ export function Stock() {
   const codigoDesconocido =
     /^\d{6,}$/.test(q.trim()) && !productoPorCodigo(q.trim()) ? q.trim() : null;
 
+  // Columnas que no dicen nada si ningún producto tiene el dato cargado.
+  const todos = datos?.productos ?? [];
+  const conCategoria = todos.some((p) => p.categoria);
+  const conMinimo = todos.some((p) => p.minimo > 0);
+  const conCosto = conCostos && todos.some((p) => p.costo != null);
+
   const ordenarPor = (campo: 'nombre' | 'stock' | 'precio') =>
     setOrden((o) => ({ campo, asc: o.campo === campo ? !o.asc : true }));
   const ariaOrden = (campo: string) =>
@@ -115,7 +121,7 @@ export function Stock() {
           id="buscar-stock"
           className="buscador__campo"
           type="search"
-          placeholder="Buscá o escaneá un producto"
+          placeholder="Buscar o escanear"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -218,6 +224,11 @@ export function Stock() {
             </button>
           )}
           {editar && (
+            <button type="button" className="m-boton" onClick={() => navegar('/stock/importar')}>
+              Importar productos
+            </button>
+          )}
+          {editar && (
             <button
               type="button"
               className="m-boton"
@@ -253,14 +264,14 @@ export function Stock() {
                   Producto
                 </button>
               </th>
-              <th>Categoría</th>
+              {conCategoria && <th>Categoría</th>}
               <th aria-sort={ariaOrden('stock')} className="num">
                 <button type="button" onClick={() => ordenarPor('stock')}>
                   Stock
                 </button>
               </th>
-              <th className="num">Mínimo</th>
-              {conCostos && <th className="num">Costo</th>}
+              {conMinimo && <th className="num">Mínimo</th>}
+              {conCosto && <th className="num">Costo</th>}
               <th aria-sort={ariaOrden('precio')} className="num">
                 <button type="button" onClick={() => ordenarPor('precio')}>
                   Precio
@@ -284,12 +295,16 @@ export function Stock() {
                     p.nombre
                   )}
                 </td>
-                <td>{p.categoria ?? '—'}</td>
+                {conCategoria && <td>{p.categoria ?? '—'}</td>}
                 <td className="num">
                   <EstadoStock p={p} />
                 </td>
-                <td className="num">{formatearCantidad(p.minimo, p.unidad)}</td>
-                {conCostos && (
+                {conMinimo && (
+                  <td className="num">
+                    {p.minimo > 0 ? formatearCantidad(p.minimo, p.unidad) : '—'}
+                  </td>
+                )}
+                {conCosto && (
                   <td className="num m-plata">{p.costo != null ? formatearPlata(p.costo) : '—'}</td>
                 )}
                 <td className="num m-plata">{formatearPlata(p.precio)}</td>
@@ -310,22 +325,19 @@ export function Stock() {
                 <span className="tarjeta-producto__nombre">{p.nombre}</span>
                 <span className="tarjeta-producto__precio m-plata">{formatearPlata(p.precio)}</span>
                 <span className="tarjeta-producto__stock">
-                  <EstadoStock p={p} />{' '}
-                  <span className="texto-suave">
-                    Mínimo {formatearCantidad(p.minimo, p.unidad)}
-                  </span>
+                  <EstadoStock p={p} />
+                  {p.minimo > 0 && (
+                    <span className="texto-suave">
+                      {' '}
+                      Mínimo {formatearCantidad(p.minimo, p.unidad)}
+                    </span>
+                  )}
                 </span>
                 <Nivel p={p} />
               </button>
             </li>
           ))}
         </ul>
-      )}
-
-      {editar && (
-        <button type="button" className="enlace-boton" onClick={() => navegar('/stock/importar')}>
-          Importar productos desde un archivo (CSV o Excel)
-        </button>
       )}
     </div>
   );

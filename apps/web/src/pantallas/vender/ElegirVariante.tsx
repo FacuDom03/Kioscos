@@ -1,3 +1,4 @@
+import { Modal } from '../../componentes/Dialogos.tsx';
 import { formatearCantidad, formatearPlata } from '@mostrador/shared';
 import { useEffect, useRef } from 'react';
 import { grupoPorId, variantesDe } from '../../nucleo/catalogo.ts';
@@ -36,17 +37,7 @@ export function ElegirVariante({
     items.filter((x) => x.productoId === id).reduce((t, x) => t + x.cantidad, 0);
 
   return (
-    <dialog
-      className="dialogo dialogo--variantes"
-      open
-      aria-labelledby="titulo-variante"
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          alCerrar();
-        }
-      }}
-    >
+    <Modal className="dialogo dialogo--variantes" etiqueta="titulo-variante" alCerrar={alCerrar}>
       <h2 id="titulo-variante" className="subtitulo">
         {grupo?.nombre ?? 'Variantes'}
       </h2>
@@ -91,6 +82,6 @@ export function ElegirVariante({
           Listo
         </button>
       </div>
-    </dialog>
+    </Modal>
   );
 }
